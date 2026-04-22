@@ -1,0 +1,18 @@
+{
+  "name": "@tgslots/slots-core",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./game-config": "./src/game-config.ts",
+    "./symbol-registry": "./src/symbol-registry.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}

@@ -1,0 +1,204 @@
+{
+  "main": {
+    "id": "f4d1eab6f424c722",
+    "type": "split",
+    "children": [
+      {
+        "id": "2aad5a9baf168d8a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "34214d3bcf28022d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "tasks/task_016_math_tests.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "task_016_math_tests"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "c821df586102311f",
+    "type": "split",
+    "children": [
+      {
+        "id": "db241b74e9db10d1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "cdaa15f0c2b78fe1",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "a173824b5046ae38",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "42c66025f3b04dc0",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4b12a5356232172c",
+    "type": "split",
+    "children": [
+      {
+        "id": "2fb40e67d42a5f6c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7926739f08ca56fd",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "tasks/task_016_math_tests.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for task_016_math_tests"
+            }
+          },
+          {
+            "id": "c2aa2dac21b74415",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "tasks/task_016_math_tests.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from task_016_math_tests"
+            }
+          },
+          {
+            "id": "6cd06b3e60d01a36",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "ad6cd709dfe2d30d",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "tasks/task_016_math_tests.md"
+              },
+              "icon": "lucide-list",
+              "title": "Outline of task_016_math_tests"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false
+    }
+  },
+  "active": "34214d3bcf28022d",
+  "lastOpenFiles": [
+    "components/woodland-whisper.md",
+    "tasks/task_016_math_tests.md",
+    "tasks/task_016_math_tests.md.tmp.38176.1776803885808",
+    "progress.md.tmp.33120.1776803453343",
+    "tasks/task_015_pick_bonus_sampler_refactor.md",
+    "components/woodland-whisper.md.tmp.33120.1776803081512",
+    "coding_rules.md.tmp.33120.1776803044546",
+    "progress.md.tmp.33120.1776802520519",
+    "tasks/task_014_game_code_cleanup_and_alignment.md",
+    "tasks/task_013_precomputed_scatter_engine.md",
+    "tasks/task_012_refactor_scatter_engine_polymorphism.md",
+    "decisions/decision_002_precomputed_scatter_engine.md",
+    "components/ancient-dragon.md.tmp.33120.1776801321346",
+    "progress.md.tmp.33120.1776800646253",
+    "active_context.md.tmp.33120.1776800646238",
+    "tasks/task_012_refactor_scatter_engine_polymorphism.md.tmp.33120.1776800642105",
+    "tasks/task_008_standardize_scatter_evaluation.md",
+    "tasks/task_007_implement_scatter_support.md",
+    "architecture.md",
+    "active_context.md",
+    "index.md",
+    "dependencies.md",
+    "coding_rules.md",
+    "components/slots-simulation-engine.md",
+    "components/math.md",
+    "tasks/task_006_woodland_whisper_slots_core_adoption.md",
+    "testing_strategy.md",
+    "task_006_woodland_whisper_slots_core_adoption.md",
+    "tasks/task_005_cleanup_evaluation_logic.md",
+    "tasks/task_004_slots_core_adoption.md",
+    "tasks/task_002_sim_engine_enhanced_reporting.md",
+    "components/slots-core.md",
+    "progress.md",
+    "tasks/task_001_memory_bank_init.md",
+    "tasks/task_003_code_quality_and_linting.md",
+    "tasks/task_001_memory_bank_init.md.tmp.29856.1776776879429"
+  ]
+}

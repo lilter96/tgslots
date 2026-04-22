@@ -1,0 +1,27 @@
+{
+  "name": "@tgslots/ancient-dragon",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "sim": "bun --filter @tgslots/simulations run ancient-dragon",
+    "sim:verify": "bun --filter @tgslots/simulations run ancient-dragon:verify",
+    "sim:verify:par": "bun --filter @tgslots/simulations run ancient-dragon:verify:par"
+  },
+  "dependencies": {
+    "@tgslots/math": "workspace:*",
+    "@tgslots/slots-core": "workspace:*",
+    "@tgslots/slots-simulation-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}

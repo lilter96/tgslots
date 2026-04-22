@@ -1,0 +1,5 @@
+build/
+dist/
+memory/.obsidian/
+node_modules/
+.idea/

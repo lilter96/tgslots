@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# esbuild on-the-fly worker bundles
+.woodland-worker.compiled.mjs
+**/.woodland-worker.compiled.mjs
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# pnpm
+.pnpm-debug.log
+
+apps/simulations/*.compiled.mjs
