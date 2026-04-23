@@ -1,14 +1,15 @@
 // Ancient Dragon — Monte Carlo simulation entry point
 //
 // Uses @tgslots/slots-simulation-engine for the runner and CLI utilities.
+// The worker thread lives in the game package and is referenced by URL.
 
 import { mt19937 } from '@tgslots/math'
 import { runSimulation } from '@tgslots/slots-simulation-engine/runner'
 import { parseSimArgs, printSimHeader, printSimResult } from '@tgslots/slots-simulation-engine/cli'
-import { AncientDragonStateMachine, BET } from '@tgslots/ancient-dragon'
+import { BET_CONFIG, AncientDragonStateMachine } from '@tgslots/ancient-dragon'
 
 const PARSHEET = {
-  bet: BET,
+  bet: BET_CONFIG.baseCost,
   targetRTP: 0.8804,
   scatterCycle: 140.52,
   featurePayout: 643.2,

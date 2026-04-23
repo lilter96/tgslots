@@ -24,6 +24,7 @@
       "dependencies": {
         "@tgslots/ancient-dragon": "workspace:*",
         "@tgslots/math": "workspace:*",
+        "@tgslots/slots-core": "workspace:*",
         "@tgslots/slots-simulation-engine": "workspace:*",
         "@tgslots/woodland-whisper": "workspace:*",
       },

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "echo 'Nothing to build for simulations'",
     "woodland-whisper": "bun run woodland-whisper.ts",
     "woodland-whisper:par": "bun run woodland-whisper.ts --workers 0",
     "woodland-whisper:verify": "bun run woodland-whisper.ts --mode verify --spins 20M",
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@tgslots/math": "workspace:*",
+    "@tgslots/slots-core": "workspace:*",
     "@tgslots/slots-simulation-engine": "workspace:*",
     "@tgslots/woodland-whisper": "workspace:*",
     "@tgslots/ancient-dragon": "workspace:*"

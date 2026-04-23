@@ -6,10 +6,10 @@
 import { mt19937 } from '@tgslots/math'
 import { runSimulation } from '@tgslots/slots-simulation-engine/runner'
 import { parseSimArgs, printSimHeader, printSimResult } from '@tgslots/slots-simulation-engine/cli'
-import { BET, WoodlandWhisperStateMachine } from '@tgslots/woodland-whisper'
+import { BET_CONFIG, WoodlandWhisperStateMachine } from '@tgslots/woodland-whisper'
 
 const PARSHEET = {
-  bet: BET,
+  bet: BET_CONFIG.baseCost,
   targetRTP: 0.8804,
   scatterCycle: 140.52,
   featurePayout: 643.2,

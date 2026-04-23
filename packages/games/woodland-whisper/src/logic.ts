@@ -3,11 +3,11 @@ import { Sampler, SamplingPlan } from '@tgslots/math/probability'
 import type { Rng } from '@tgslots/math/rng/types'
 import { evaluateSpin } from '@tgslots/slots-core/paylines/evaluator'
 import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precomputed-engine'
+import { type WagerBreakdown } from '@tgslots/slots-core/betting/wager'
 import { engine } from './engine.js'
 import {
-  BET,
+  FREE_SPIN_MULTIPLIER,
   INNER_WEIGHTS,
-  PICK_BONUS_VALUES,
   SCATTER_PAY,
   STRIP_STRINGS,
   Symbols,
@@ -29,9 +29,17 @@ const scatterEngine = new PrecomputedScatterEngine(
   3,
 )
 
-function evaluateWithScatter(
+export interface SpinEvaluationResult {
+  readonly win: number
+  readonly sc: number
+  readonly pickedBonus: number
+}
+
+function evaluateWithBreakdown(
   strips: readonly Uint8Array[],
   positions: readonly number[],
+  breakdown: WagerBreakdown,
+  isFreeSpin: boolean,
 ): { win: number; sc: number } {
   const gridSyms: number[][] = [[], [], [], [], []]
   const gridMults: number[][] = [[], [], [], [], []]
@@ -39,16 +47,25 @@ function evaluateWithScatter(
   for (let r = 0; r < 5; r++) {
     const strip = strips[r]!
     const p = positions[r]!
+    const reelSyms: number[] = []
+    const reelMults: number[] = []
     for (let i = 0; i < 3; i++) {
-      gridSyms[r]!.push(strip[p + i]!)
-      gridMults[r]!.push(1)
+      reelSyms.push(strip[p + i]!)
+      reelMults.push(1)
     }
+    gridSyms[r] = reelSyms
+    gridMults[r] = reelMults
   }
 
-  const result = evaluateSpin({ symbols: gridSyms, multipliers: gridMults }, engine)
-  const scatterResult = scatterEngine.evaluateAtPositions(positions, BET)
+  const lineResult = evaluateSpin({ symbols: gridSyms, multipliers: gridMults }, engine)
+  const scatterResult = scatterEngine.evaluateAtPositions(positions, 1)
 
-  return { win: result.totalWin + scatterResult.win, sc: scatterResult.count }
+  const featureMult = isFreeSpin ? FREE_SPIN_MULTIPLIER : 1
+
+  const lineWin = lineResult.totalWin * (breakdown.totalWager / breakdown.lineCount) * featureMult
+  const scatterWin = scatterResult.win * breakdown.totalWager * featureMult
+
+  return { win: lineWin + scatterWin, sc: scatterResult.count }
 }
 
 // ─── Encoding ──────────────────────────────────────────────────────────────
@@ -75,8 +92,6 @@ const RESOLVED: Uint8Array[][] = INNER_DISTINCT.map((repSym) =>
   }),
 )
 
-// ─── Monadic Setup ──────────────────────────────────────────────────────────
-
 const innerSampler = Sampler.fromWeighted(
   Array1.unsafeFromArray(INNER_WEIGHTS) as Array1<readonly [number, number]>,
 )
@@ -86,22 +101,32 @@ const POS_SAMPLERS = REEL_SIZES.map(
   (size) => new Sampler(SamplingPlan.draw(0, size), (rng: Rng) => rng(0, size)),
 )
 
-const SCATTER_VARIANTS = INNER_DISTINCT.map((_, repIdx) =>
-  Sampler.traverse(POS_SAMPLERS, (ps) => ps).map((positions) =>
-    evaluateWithScatter(RESOLVED[repIdx]!, positions),
-  ),
+const ballSampler = Sampler.fromWeighted(
+  Array1.unsafeFromArray([
+    [100, 1],
+    [75, 4],
+    [50, 15],
+    [30, 80],
+    [20, 490],
+    [15, 1022],
+    [13, 1130],
+    [10, 996],
+    [9, 741],
+    [8, 54],
+  ] as const),
 )
 
-// Pick bonus: 20 coins (2 of each value), shuffle, first matched pair.
-// By symmetry of a uniform permutation, each value is equally likely to be
-// the first matched pair — so this is exactly Sampler.uniform over the values.
-const pickBonusSampler: Sampler<number> = Sampler.uniform(Array1.unsafeFromArray(PICK_BONUS_VALUES))
+const createPickUntilRepeatSampler = (seen: readonly number[] = []): Sampler<number> =>
+  ballSampler.flatMap((ball) => {
+    if (seen.includes(ball)) {
+      return Sampler.pure(ball)
+    }
+    return createPickUntilRepeatSampler([...seen, ball])
+  })
 
-// Compose pick bonus into the spin result when sc >= 3 (trigger condition).
-// No rng ever leaves the Sampler boundary — pickedBonus is 0 when not triggered.
-function withPickBonus(
-  base: Sampler<{ win: number; sc: number }>,
-): Sampler<{ win: number; sc: number; pickedBonus: number }> {
+const pickBonusSampler = createPickUntilRepeatSampler()
+
+function withPickBonus(base: Sampler<{ win: number; sc: number }>): Sampler<SpinEvaluationResult> {
   return base.flatMap((result) =>
     result.sc >= 3
       ? pickBonusSampler.map((fs) => ({ ...result, pickedBonus: fs }))
@@ -109,9 +134,28 @@ function withPickBonus(
   )
 }
 
-const _baseSpin = innerSampler.flatMap(
-  (repSym) => SCATTER_VARIANTS[INNER_IDX.get(repSym as number)!]!,
+const SCATTER_VARIANTS_BASE = INNER_DISTINCT.map((_, repIdx) =>
+  Sampler.traverse(POS_SAMPLERS, (ps) => ps).map((positions) => ({
+    repIdx,
+    positions,
+  })),
 )
 
-export const SPIN_WITH_SCATTER = withPickBonus(_baseSpin)
-export const FREE_SPIN_WITH_SCATTER = withPickBonus(_baseSpin)
+function createSpinSampler(
+  breakdown: WagerBreakdown,
+  isFreeSpin: boolean,
+): Sampler<SpinEvaluationResult> {
+  const _base = innerSampler.flatMap((repSym) => {
+    const repIdx = INNER_IDX.get(repSym as number)!
+    return SCATTER_VARIANTS_BASE[repIdx]!.map(({ positions }) =>
+      evaluateWithBreakdown(RESOLVED[repIdx]!, positions, breakdown, isFreeSpin),
+    )
+  })
+
+  return withPickBonus(_base)
+}
+
+export const WOODLAND_WHISPER_SAMPLER = (
+  breakdown: WagerBreakdown,
+  isFreeSpin: boolean = false,
+): Sampler<SpinEvaluationResult> => createSpinSampler(breakdown, isFreeSpin)

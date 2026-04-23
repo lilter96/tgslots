@@ -1,6 +1,11 @@
+import { BetConfiguration } from '@tgslots/slots-core/betting/config'
 import config from '../config/config.json' with { type: 'json' }
 
-// ─── Symbols ───────────────────────────────────────────────────────────────
+// ... (symbols)
+
+export const BET_CONFIG = BetConfiguration.fromLineCount(config.game_metadata.lines)
+
+// ─── Pay Table ─────────────────────────────────────────────────────────────
 
 export const SYM_NAMES = [...config.symbols.regular, 'REPLACEMENT'] as const
 

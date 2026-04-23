@@ -27,12 +27,6 @@
     "scatter": "COIN"
   },
   "paytable": {
-    "CHEST": {
-      "2": 2,
-      "3": 25,
-      "4": 100,
-      "5": 1000
-    },
     "TIARA": {
       "3": 20,
       "4": 100,
@@ -98,6 +92,7 @@
       "REPLACEMENT",
       "REPLACEMENT",
       "REPLACEMENT",
+      "REPLACEMENT",
       "TIARA",
       "Q",
       "A",
@@ -130,8 +125,7 @@
       "K",
       "A",
       "CHEST",
-      "9",
-      "CHEST"
+      "9"
     ],
     "reel2": [
       "10",
@@ -149,21 +143,21 @@
       "REPLACEMENT",
       "REPLACEMENT",
       "REPLACEMENT",
+      "REPLACEMENT",
+      "REPLACEMENT",
       "K",
       "J",
-      "CHEST",
       "CHEST",
       "A",
       "PINECONE",
       "9",
       "A",
-      "Q",
       "COIN",
       "Q",
       "J",
       "PINECONE",
-      "A",
       "J",
+      "WOMAN",
       "A",
       "TIARA",
       "10",
@@ -174,20 +168,22 @@
       "9",
       "COIN",
       "MUSHROOMS",
-      "K"
+      "K",
+      "CHEST"
     ],
     "reel3": [
       "WOMAN",
       "Q",
+      "MUSHROOMS",
       "K",
       "COIN",
-      "10",
       "10",
       "MUSHROOMS",
       "Q",
       "K",
       "PINECONE",
       "A",
+      "10",
       "TIARA",
       "9",
       "MUSHROOMS",
@@ -207,16 +203,24 @@
       "10",
       "TIARA",
       "A",
+      "PINECONE",
       "Q",
       "TIARA",
       "A",
       "PINECONE",
-      "9",
-      "COIN",
+      "Q",
+      "MUSHROOMS",
       "10",
-      "A",
       "TIARA",
-      "MUSHROOMS"
+      "A",
+      "MUSHROOMS",
+      "10",
+      "TIARA",
+      "A",
+      "CHEST",
+      "K",
+      "PINECONE",
+      "A"
     ],
     "reel4": [
       "K",
@@ -230,6 +234,7 @@
       "J",
       "MUSHROOMS",
       "Q",
+      "10",
       "COIN",
       "J",
       "CHEST",
@@ -248,12 +253,18 @@
       "REPLACEMENT",
       "REPLACEMENT",
       "REPLACEMENT",
+      "REPLACEMENT",
       "CHEST",
       "K",
       "MUSHROOMS",
+      "9",
       "PINECONE",
       "J",
-      "COIN"
+      "WOMAN",
+      "9",
+      "MUSHROOMS",
+      "A",
+      "CHEST"
     ],
     "reel5": [
       "J",
@@ -266,6 +277,7 @@
       "CHEST",
       "Q",
       "A",
+      "TIARA",
       "J",
       "K",
       "MUSHROOMS",
@@ -285,16 +297,18 @@
       "REPLACEMENT",
       "REPLACEMENT",
       "REPLACEMENT",
+      "REPLACEMENT",
       "TIARA",
       "K",
       "CHEST",
       "10",
       "9",
-      "PINECONE",
       "COIN",
       "PINECONE",
       "10",
-      "9"
+      "9",
+      "A",
+      "PINECONE"
     ]
   },
   "inner_reel_strip": {
@@ -351,7 +365,18 @@
       "symbol": "COIN",
       "min_count": 3
     },
-    "pick_bonus": [8, 9, 10, 13, 15, 20, 30, 50, 75, 100],
+    "pick_bonus": [
+      8,
+      9,
+      10,
+      13,
+      15,
+      20,
+      30,
+      50,
+      75,
+      100
+    ],
     "free_spin_multiplier": 2
   }
 }

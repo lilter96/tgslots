@@ -164,8 +164,10 @@
   },
   "active": "34214d3bcf28022d",
   "lastOpenFiles": [
-    "components/woodland-whisper.md",
+    "tasks/task_017_wager_and_cost_system.md",
+    "tasks/task_017_verify_woodland_whisper_parsheet.md",
     "tasks/task_016_math_tests.md",
+    "components/woodland-whisper.md",
     "tasks/task_016_math_tests.md.tmp.38176.1776803885808",
     "progress.md.tmp.33120.1776803453343",
     "tasks/task_015_pick_bonus_sampler_refactor.md",
@@ -197,8 +199,6 @@
     "tasks/task_002_sim_engine_enhanced_reporting.md",
     "components/slots-core.md",
     "progress.md",
-    "tasks/task_001_memory_bank_init.md",
-    "tasks/task_003_code_quality_and_linting.md",
     "tasks/task_001_memory_bank_init.md.tmp.29856.1776776879429"
   ]
 }

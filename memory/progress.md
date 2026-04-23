@@ -15,6 +15,7 @@
 - [[task_013_precomputed_scatter_engine]] — 2026-04-21 — PrecomputedScatterEngine O(R) scatter via prefix sums; fixed double-grid-build bug; decision log 002
 - [[task_014_game_code_cleanup_and_alignment]] — 2026-04-21 — buildEngineFromArrays helper; removed boilerplate, dead code, alias exports; fixed scatter distribution bug; explicit index.ts exports
 - [[task_015_pick_bonus_sampler_refactor]] — 2026-04-21 — Pick bonus moved to Sampler via flatMap; no rng in game logic; config-driven values; RNG discipline rule in coding_rules.md
+- [[task_017_wager_and_cost_system]] — 2026-04-23 — Robust betting system ported from C# with improved naming
 
 ## In Progress
 
