@@ -152,6 +152,7 @@ export function formatPretty(
   gameName: string,
   wallMs: number,
   opts: { workers: number },
+  skipVerification = false,
 ): void {
   const spins = metrics.totalSamples
   const targetRtp = parsheet.targetRTP || 0
@@ -254,4 +255,10 @@ export function formatPretty(
   console.log(`  Throughput:  ${throughput.toFixed(2)}M spins/sec`)
   console.log(`  Latency:     ${usPerSpin.toFixed(3)} µs/spin`)
   console.log('═'.repeat(60))
+
+  if (!skipVerification) {
+    // Note: The caller handles the 'verify' block in cli/index.ts
+    // or we could move it here. For now, it stays in cli/index.ts
+    // to match the previous modular structure.
+  }
 }

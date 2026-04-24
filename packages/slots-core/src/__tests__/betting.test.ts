@@ -19,7 +19,7 @@ describe('Betting System', () => {
     it('should handle fractional cost per line', () => {
       const config = BetConfiguration.fromBaseCostAndLineCountAndSideBet(35, 30, 5)
       expect(config.costPerLine).toBe(1)
-      
+
       const config2 = new BetConfiguration(50, 20, 2.5, 0)
       expect(config2.baseCost).toBe(50)
     })
@@ -29,7 +29,7 @@ describe('Betting System', () => {
     it('should break down a standard wager correctly', () => {
       // 30 lines, 1 unit per line, 10 units side bet = 40 base units
       const config = BetConfiguration.fromBaseCostAndLineCountAndSideBet(40, 30, 10)
-      
+
       // Player bets 80 credits
       const bet = Bet.fromTotalWager(80, config)
       expect(bet.betMultiplier).toBe(2)
@@ -46,7 +46,7 @@ describe('Betting System', () => {
     it('should handle fractional credits per line', () => {
       // 20 lines, 0.5 units per line, 0 side bet = 10 base units
       const config = BetConfiguration.fromLineCountAndCostPerLine(20, 0.5)
-      
+
       // Player bets 50 credits
       const bet = Bet.fromTotalWager(50, config)
       expect(bet.betMultiplier).toBe(5)
@@ -61,9 +61,9 @@ describe('Betting System', () => {
     it('should break down multi-frame wagers', () => {
       const perFrame = BetConfiguration.fromLineCount(30) // 30 units
       const multiConfig = MultiFrameBetConfiguration.build(perFrame, 4) // 4 frames = 120 units
-      
+
       expect(multiConfig.allFrames.baseCost).toBe(120)
-      
+
       const totalWager = 240 // betMultiplier = 2
       const betAll = Bet.fromTotalWagerMulti(totalWager, multiConfig)
       expect(betAll.betMultiplier).toBe(2)

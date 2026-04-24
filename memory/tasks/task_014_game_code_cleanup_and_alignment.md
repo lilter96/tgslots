@@ -1,6 +1,7 @@
 # Task: task_014_game_code_cleanup_and_alignment
 
 ## Description
+
 Refactor both game packages for correctness, naming consistency, and elimination of
 boilerplate. Games share the same flow; their code should reflect that. Remove dead code,
 leaked internals, and redundant aliases. Fix broken scatter-distribution reporting.
@@ -8,12 +9,14 @@ leaked internals, and redundant aliases. Fix broken scatter-distribution reporti
 ## Issues Found (audit)
 
 ### Cross-game
+
 1. `engine.ts` boilerplate is 100% duplicated — PAYLINE_DATA→paylines and PAY_TABLE→paytableConfig
    conversion is identical in both games (~30 lines × 2). Extract to `buildEngineFromArrays` in slots-core.
 2. `BASE_STRIP_STRINGS = STRIP_STRINGS` alias exists in both `constants.ts` — same value, pointless.
 3. Both `index.ts` use `export *` which leaks internal functions into the public API.
 
 ### Ancient Dragon
+
 4. `evaluation.ts` is dead code — not exported from `index.ts`, never imported, uses old
    `BaseScatterEngine` and still has the double-grid-build bug.
 5. `logic.ts` exports `evaluate`, `evaluateWithScatter`, `resolveStrips` — internal implementation
@@ -23,6 +26,7 @@ leaked internals, and redundant aliases. Fix broken scatter-distribution reporti
 7. Stale comment in `engine.ts` line 39: `// Changed back to 3`.
 
 ### Woodland Whisper
+
 8. `logic.ts` has full `BASE_*` duplication (BASE_INT_STRIPS, BASE_RESOLVED, BASE_SCATTER_VARIANTS,
    BASE_POS_SAMPLERS, BASE_REEL_SIZES) — all identical to non-BASE variants because
    `BASE_STRIP_STRINGS === STRIP_STRINGS`. Dead computation.
@@ -35,6 +39,7 @@ leaked internals, and redundant aliases. Fix broken scatter-distribution reporti
     performPickBonus", never called).
 
 ## Implementation Plan
+
 1. Add `buildEngineFromArrays` to `slots-core/paylines/slot-engine.ts`.
 2. Rewrite both `engine.ts` files to use the helper (~8 lines each).
 3. Remove `BASE_STRIP_STRINGS` from both `constants.ts`.
@@ -48,6 +53,7 @@ leaked internals, and redundant aliases. Fix broken scatter-distribution reporti
 11. Update memory.
 
 ## Files to Modify
+
 - `packages/slots-core/src/paylines/slot-engine.ts` (add helper)
 - `packages/games/ancient-dragon/src/evaluation.ts` (DELETE)
 - `packages/games/ancient-dragon/src/engine.ts` (rewrite)
@@ -62,9 +68,11 @@ leaked internals, and redundant aliases. Fix broken scatter-distribution reporti
 - `packages/games/woodland-whisper/src/index.ts` (explicit exports)
 
 ## Dependencies
+
 - [[task_013_precomputed_scatter_engine]] — PrecomputedScatterEngine must be in place
 
 ## Summary
+
 - Added `buildEngineFromArrays` + `RawGameArrays` interface to `slots-core/paylines/slot-engine.ts`
 - Both `engine.ts` files reduced from ~43 lines to 11 lines each using the helper
 - Deleted `ancient-dragon/evaluation.ts` (dead code — never imported, old BaseScatterEngine, double-grid-build bug)
@@ -77,4 +85,5 @@ leaked internals, and redundant aliases. Fix broken scatter-distribution reporti
 - All packages typecheck with exit 0
 
 ## Status
+
 completed

@@ -1,11 +1,13 @@
 // ════════════════════════════════════════════════════════════════════════════════
-// cli/index.ts — CLI utilities for simulation entry points
+// cli/index.ts — CLI utilities with full snapshot support
 // ════════════════════════════════════════════════════════════════════════════════
 
 import { cpus } from 'node:os'
 import * as fs from 'node:fs'
 import type { SimRunnerConfig, SimRunnerResult } from '../runner/index.js'
+import { runSimulation } from '../runner/index.js'
 import { formatJson, formatPretty } from './formatter.js'
+import type { SimulationMetrics } from '../core/state-machine.js'
 
 // ─── CLI arg parsing ──────────────────────────────────────────────────────────
 
@@ -16,6 +18,7 @@ export interface SimCliOpts extends SimRunnerConfig {
   json: boolean
   jsonOutput: string | null
   warmup: number
+  snapshotInterval: number // seconds, 0 = disabled
 }
 
 function parseNum(s: string): number {
@@ -36,6 +39,7 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
     mode: defaults?.mode ?? 'benchmark',
     json: defaults?.json ?? false,
     jsonOutput: defaults?.jsonOutput ?? null,
+    snapshotInterval: defaults?.snapshotInterval ?? 0,
   }
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!,
@@ -70,6 +74,10 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
         opts.jsonOutput = v!
         i++
         break
+      case '--snapshot-interval':
+        opts.snapshotInterval = parseFloat(v!)
+        i++
+        break
     }
   }
   if (opts.workers === 0) opts.workers = cpus().length
@@ -80,10 +88,10 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
 
 export interface ParsheetConfig {
   bet: number
-  targetRTP: number // e.g. 0.8804
-  scatterCycle?: number // e.g. 140.52
-  rtpTolerance?: number // default 0.005
-  scatterTolerance?: number // default 0.05
+  targetRTP: number
+  scatterCycle?: number
+  rtpTolerance?: number
+  scatterTolerance?: number
 }
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -92,6 +100,21 @@ function fmtSpins(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
   if (n >= 1e6) return `${(n / 1e6).toFixed(0)}M`
   return `${(n / 1e3).toFixed(0)}K`
+}
+
+// ─── Full snapshot printer (called from runner periodically) ───────────────
+
+function printFullSnapshot(
+  metrics: SimulationMetrics,
+  elapsedSec: number,
+  gameName: string,
+  workers: number,
+  parsheet: ParsheetConfig,
+): void {
+  console.clear()
+  console.log(`\n  [Snapshot at ${elapsedSec.toFixed(1)}s]`)
+  // Pass skipVerification = true to suppress PASS/FAIL output during progress
+  formatPretty(metrics, parsheet, gameName, elapsedSec * 1000, { workers }, true)
 }
 
 // ─── Result printing ──────────────────────────────────────────────────────────
@@ -113,7 +136,7 @@ export function printSimResult(
     } else {
       console.log(json)
     }
-    if (!opts.jsonOutput) return // Only exit if we're ONLY doing JSON to stdout
+    if (!opts.jsonOutput) return
   }
 
   formatPretty(metrics, parsheet, gameName, wallTime, { workers: opts.workers })
@@ -153,4 +176,35 @@ export function printSimHeader(opts: SimCliOpts, gameName: string): void {
   console.log(`\x1b[32m\x1b[1m═══ ${gameName} — Simulation ═══\x1b[0m\n`)
   console.log(`  mode=${opts.mode}  spins=${fmtSpins(opts.spins)}  workers=${w}  seed=${opts.seed}`)
   console.log(`  CPUs available: ${cpus().length}`)
+}
+
+// ─── Combined run-and-print entry ─────────────────────────────────────────
+
+export async function runAndPrint(
+  workerURL: URL,
+  opts: SimCliOpts,
+  parsheet: ParsheetConfig,
+  gameName: string,
+): Promise<void> {
+  if (opts.mode === 'sample') {
+    // Note: Sample mode logic is usually implemented in the game-specific entry point
+    return
+  }
+
+  if (!opts.json && opts.workers > 1) {
+    console.log(`\n  Spawning ${opts.workers} workers…`)
+  }
+
+  const result = await runSimulation(
+    workerURL,
+    opts,
+    opts.snapshotInterval > 0
+      ? (metrics, elapsedSec) =>
+          printFullSnapshot(metrics, elapsedSec, gameName, opts.workers, parsheet)
+      : undefined,
+  )
+
+  printSimResult(result, parsheet, opts, gameName)
+
+  if (!opts.json) console.log()
 }

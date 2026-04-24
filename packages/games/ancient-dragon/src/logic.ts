@@ -105,6 +105,5 @@ function createSpinSampler(breakdown: WagerBreakdown): Sampler<SpinEvaluationRes
   })
 }
 
-export const ANCIENT_DRAGON_SAMPLER = (
-  breakdown: WagerBreakdown,
-): Sampler<SpinEvaluationResult> => createSpinSampler(breakdown)
+export const ANCIENT_DRAGON_SAMPLER = (breakdown: WagerBreakdown): Sampler<SpinEvaluationResult> =>
+  createSpinSampler(breakdown)

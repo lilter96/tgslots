@@ -45,9 +45,9 @@ Set up ESLint and Prettier for the project, and fix all existing TypeScript erro
 - [x] Ensure `eslint .` passes across the entire project.
 
 ## Summary
+
 ESLint and Prettier have been configured project-wide. All TypeScript and linting issues were resolved, with specific ignores configured for compiled artifacts. The project now passes all linting and typechecking checks.
 
 ## Status
 
 completed
-

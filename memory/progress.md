@@ -23,13 +23,13 @@ _(none)_
 
 ## Backlog (Identified, Not Yet Tasked)
 
-| Priority | Area                | Description                                                       |
-| -------- | ------------------- | ----------------------------------------------------------------- |
-| P0       | Testing             | Write bun:test unit tests — 0% coverage is critical debt          |
-| P2       | Telegram Bot        | Bot layer, user sessions, bet handling                            |
-| P2       | Wallet Service      | Balance, transactions, bet deduction                              |
-| P3       | New Game            | Third slot game                                                   |
-| P3       | CI                  | GitHub Actions pipeline                                           |
+| Priority | Area           | Description                                              |
+| -------- | -------------- | -------------------------------------------------------- |
+| P0       | Testing        | Write bun:test unit tests — 0% coverage is critical debt |
+| P2       | Telegram Bot   | Bot layer, user sessions, bet handling                   |
+| P2       | Wallet Service | Balance, transactions, bet deduction                     |
+| P3       | New Game       | Third slot game                                          |
+| P3       | CI             | GitHub Actions pipeline                                  |
 
 ## Quick Fixes
 

@@ -48,23 +48,27 @@ memory/active_context.md
 ## Step 2 — Read based on relevance
 
 If the task involves a known component:
+
 ```
 memory/components/<component>.md
 ```
 
 If the task involves architecture decisions:
+
 ```
 memory/architecture.md
 memory/decisions/<relevant>.md
 ```
 
 If the task is a continuation or depends on prior work:
+
 ```
 memory/progress.md
 memory/tasks/<related_task>.md
 ```
 
 If the task involves rules, conventions, or constraints:
+
 ```
 memory/coding_rules.md
 memory/dependencies.md
@@ -73,6 +77,7 @@ memory/dependencies.md
 ## Step 3 — Only then, if memory is insufficient, read source files
 
 Source files are read only to:
+
 - Verify exact current signatures/types before editing
 - Confirm a memory document is up-to-date
 - Investigate a bug or unexpected behavior

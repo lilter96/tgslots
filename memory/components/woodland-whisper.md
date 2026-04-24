@@ -35,14 +35,17 @@ export { SPIN_WITH_SCATTER } from './logic'
 ### State Machine
 
 ```typescript
-class WoodlandWhisperStateMachine implements StateMachine<WoodlandWhisperResult, WoodlandWhisperState> {
+class WoodlandWhisperStateMachine implements StateMachine<
+  WoodlandWhisperResult,
+  WoodlandWhisperState
+> {
   spin(rng: Rng): WoodlandWhisperResult
   next(rng: Rng): WoodlandWhisperResult | null
   get state(): WoodlandWhisperState
 }
 
 interface WoodlandWhisperResult extends SpinResult {
-  sc: number       // scatter count this spin
+  sc: number // scatter count this spin
   scatters: number // same value — feeds ModernDataCollector scatter distribution
 }
 ```

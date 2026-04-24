@@ -41,7 +41,7 @@ class AncientDragonStateMachine implements StateMachine<AncientDragonResult, Anc
 }
 
 interface AncientDragonResult extends SpinResult {
-  sc: number       // scatter count this spin
+  sc: number // scatter count this spin
   scatters: number // same value — feeds ModernDataCollector scatter distribution
 }
 ```
@@ -50,7 +50,10 @@ interface AncientDragonResult extends SpinResult {
 
 ```typescript
 // Paylines via slots-core; scatter via PrecomputedScatterEngine (O(R))
-function evaluateWithScatter(strips: readonly Uint8Array[], positions: readonly number[]): { win: number; sc: number }
+function evaluateWithScatter(
+  strips: readonly Uint8Array[],
+  positions: readonly number[],
+): { win: number; sc: number }
 function resolveStrips(stripStrings: readonly string[][], repSym: number): Uint8Array[]
 ```
 

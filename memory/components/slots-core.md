@@ -75,12 +75,12 @@ class FlatPaytable {
 ```typescript
 // Build engine from raw array constants (PAYLINE_DATA flat Uint8Array, PAY_TABLE, Symbols enum)
 interface RawGameArrays {
-  paylineData: Uint8Array   // flat: reelCount values per payline
+  paylineData: Uint8Array // flat: reelCount values per payline
   reelCount: number
   rowCount: number
   wildSymbol: string
-  payTable: readonly (readonly number[])[]  // [symbolId][matchCount-2] → multiplier
-  symbols: Record<string, number>           // name → id
+  payTable: readonly (readonly number[])[] // [symbolId][matchCount-2] → multiplier
+  symbols: Record<string, number> // name → id
 }
 function buildEngineFromArrays(raw: RawGameArrays): SlotWithPaylinesEngine
 

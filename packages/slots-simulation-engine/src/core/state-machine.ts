@@ -1,3 +1,9 @@
+// ════════════════════════════════════════════════════════════════════════════════
+// core/state-machine.ts — Enhanced simulation metrics collector
+// Provides the DataCollector, Metrics helpers, and the state-machine interface
+// that games must implement.
+// ════════════════════════════════════════════════════════════════════════════════
+
 import type { Rng } from '@tgslots/math/rng/types'
 
 // ─── 1. Enhanced Types ─────────────────────────────────────────────────────
@@ -10,7 +16,7 @@ export interface SpinResult {
   isTrigger: boolean
   isRetrigger?: boolean
   scatters?: number
-  featureType?: string // NEW: 'PickBonus' | 'FreeSpin' | undefined (game sets this)
+  featureType?: string // game sets this, e.g. 'PickBonus' | 'FreeSpin'
 }
 
 /** Raw counters for merging across workers */
@@ -24,13 +30,11 @@ export interface RawSimulationMetrics {
   retriggers: number
   maxRoundWin: number
   distribution: Record<string, number>
-
-  // Enhanced metrics
-  totalWinJackpot: number // sum of roundWin for rounds where roundWin/bet >= 100
-  freeSpinsPlayed: number // count of individual FREE/RESPIN spins
-  featureCounts: Record<string, number> // featureType → trigger count (BASE isTrigger only)
-  scatterDist: Record<string, number> // '0'..'5' → count of BASE spins with that scatter count
-  sumSquaresRound: number // Σ(roundWin/bet)² — needed for variance calculation
+  totalWinJackpot: number
+  freeSpinsPlayed: number
+  featureCounts: Record<string, number>
+  scatterDist: Record<string, number> // '0'..'5' → count
+  sumSquaresRound: number // Σ(roundWin/bet)²
 }
 
 /** Final calculated metrics for reporting */
@@ -42,7 +46,7 @@ export interface SimulationMetrics {
     total: number
     base: number
     feature: number
-    withoutJackpots: number // (totalWin - totalWinJackpot) / totalBet
+    withoutJackpots: number
   }
   hitRates: {
     baseHitRate: number
@@ -54,17 +58,17 @@ export interface SimulationMetrics {
     averageFeatureWin: number
     freeSpinsPlayed: number
     featureCounts: Record<string, number>
-    featureCycles: Record<string, number> // N / featureCounts[type]
+    featureCycles: Record<string, number>
   }
   scatter: {
-    distribution: Record<string, number> // raw counts per scatter value
-    frequencies: Record<string, number> // fraction of BASE spins
-    cycle: number // N / triggers
+    distribution: Record<string, number>
+    frequencies: Record<string, number>
+    cycle: number
   }
   variance: {
-    mean: number // E[X] = totalWin/totalBet = total RTP (sanity check)
-    variance: number // E[X²] - E[X]²  where X = roundWin/bet
-    stdDev: number // √variance
+    mean: number
+    variance: number
+    stdDev: number
   }
   maxWinObserved: number
   winDistribution: Record<string, number>
@@ -74,11 +78,8 @@ export interface SimulationMetrics {
 
 export interface DataCollector {
   beginRound(bet: number): void
-
   collect(result: SpinResult): void
-
   endRound(): void
-
   getRawMetrics(): RawSimulationMetrics
 }
 
@@ -108,7 +109,6 @@ export class ModernDataCollector implements DataCollector {
 
   private currentRoundWin = 0
 
-  // Enhanced metrics
   private totalWinJackpot = 0
   private freeSpinsPlayed = 0
   private featureCounts: Record<string, number> = {}
@@ -147,6 +147,8 @@ export class ModernDataCollector implements DataCollector {
   }
 
   endRound(): void {
+    if (this.betAmount <= 0) return
+
     if (this.currentRoundWin > this.maxRoundWin) {
       this.maxRoundWin = this.currentRoundWin
     }
@@ -194,6 +196,8 @@ export class ModernDataCollector implements DataCollector {
     }
   }
 }
+
+// ─── Metrics utilities ─────────────────────────────────────────────────────
 
 export const Metrics = {
   merge(a: RawSimulationMetrics, b: RawSimulationMetrics): RawSimulationMetrics {
@@ -270,7 +274,7 @@ export const Metrics = {
     const totalWin = raw.totalBaseWin + raw.totalFeatureWin
     const mean = raw.totalBet > 0 ? totalWin / raw.totalBet : 0
     const eX2 = raw.totalSamples > 0 ? raw.sumSquaresRound / raw.totalSamples : 0
-    const variance = eX2 - mean * mean
+    const variance = Math.max(0, eX2 - mean * mean)
 
     const featCycles: Record<string, number> = {}
     for (const [type, count] of Object.entries(raw.featureCounts)) {
@@ -312,7 +316,7 @@ export const Metrics = {
       variance: {
         mean: mean,
         variance: variance,
-        stdDev: Math.sqrt(Math.max(0, variance)),
+        stdDev: Math.sqrt(variance),
       },
       maxWinObserved: raw.maxRoundWin,
       winDistribution: raw.distribution,
@@ -320,11 +324,11 @@ export const Metrics = {
   },
 }
 
+// ─── State machine interface expected by runCycle ──────────────────────────
+
 export interface StateMachine<TResult extends SpinResult, TState = unknown> {
   readonly state: TState
-
   spin(rng: Rng): TResult
-
   next(rng: Rng): TResult | null
 }
 
@@ -335,13 +339,10 @@ export function runCycle<TResult extends SpinResult>(
   betAmount: number,
 ): void {
   collector.beginRound(betAmount)
-
   collector.collect(sm.spin(rng))
-
   let nextResult: TResult | null
   while ((nextResult = sm.next(rng)) !== null) {
     collector.collect(nextResult)
   }
-
   collector.endRound()
 }

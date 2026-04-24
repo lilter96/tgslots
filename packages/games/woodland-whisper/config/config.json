@@ -365,18 +365,7 @@
       "symbol": "COIN",
       "min_count": 3
     },
-    "pick_bonus": [
-      8,
-      9,
-      10,
-      13,
-      15,
-      20,
-      30,
-      50,
-      75,
-      100
-    ],
+    "pick_bonus": [8, 9, 10, 13, 15, 20, 30, 50, 75, 100],
     "free_spin_multiplier": 2
   }
 }
