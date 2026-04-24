@@ -5,14 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "echo 'Nothing to build for simulations'",
-    "woodland-whisper": "bun run woodland-whisper.ts",
-    "woodland-whisper:par": "bun run woodland-whisper.ts --workers 0",
-    "woodland-whisper:verify": "bun run woodland-whisper.ts --mode verify --spins 20M",
-    "woodland-whisper:verify:par": "bun run woodland-whisper.ts --mode verify --spins 1B --workers 0",
-    "ancient-dragon": "bun run ancient-dragon.ts",
-    "ancient-dragon:par": "bun run ancient-dragon.ts --workers 0",
-    "ancient-dragon:verify": "bun run ancient-dragon.ts --mode verify --spins 20M",
-    "ancient-dragon:verify:par": "bun run ancient-dragon.ts --mode verify --spins 1B --workers 0"
+    "sim": "bun run main.ts"
   },
   "dependencies": {
     "@tgslots/math": "workspace:*",

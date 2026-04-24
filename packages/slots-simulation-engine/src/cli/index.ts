@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════════════
-// cli/index.ts — CLI utilities with full snapshot support
+// cli/index.ts — CLI utilities with full snapshot support and game dispatching
 // ════════════════════════════════════════════════════════════════════════════════
 
 import { cpus } from 'node:os'
@@ -14,6 +14,7 @@ import type { SimulationMetrics } from '../core/state-machine.js'
 export type SimMode = 'benchmark' | 'verify' | 'sample'
 
 export interface SimCliOpts extends SimRunnerConfig {
+  game?: string // NEW: Target game identifier
   mode: SimMode
   json: boolean
   jsonOutput: string | null
@@ -32,6 +33,7 @@ function parseNum(s: string): number {
 export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
   const args = process.argv.slice(2)
   const opts: SimCliOpts = {
+    game: defaults?.game,
     spins: defaults?.spins ?? 10_000_000,
     workers: defaults?.workers ?? 1,
     seed: defaults?.seed ?? 2024,
@@ -45,6 +47,11 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
     const a = args[i]!,
       v = args[i + 1]
     switch (a) {
+      case '--game':
+      case '-g':
+        opts.game = v
+        i++
+        break
       case '--spins':
       case '-n':
         opts.spins = parseNum(v!)
@@ -113,7 +120,6 @@ function printFullSnapshot(
 ): void {
   console.clear()
   console.log(`\n  [Snapshot at ${elapsedSec.toFixed(1)}s]`)
-  // Pass skipVerification = true to suppress PASS/FAIL output during progress
   formatPretty(metrics, parsheet, gameName, elapsedSec * 1000, { workers }, true)
 }
 
@@ -187,7 +193,6 @@ export async function runAndPrint(
   gameName: string,
 ): Promise<void> {
   if (opts.mode === 'sample') {
-    // Note: Sample mode logic is usually implemented in the game-specific entry point
     return
   }
 
