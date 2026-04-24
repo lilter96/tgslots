@@ -4,6 +4,7 @@ import type { Rng } from '@tgslots/math/rng/types'
 import { evaluateSpin } from '@tgslots/slots-core/paylines/evaluator'
 import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precomputed-engine'
 import { type WagerBreakdown } from '@tgslots/slots-core/betting/wager'
+import { createGrid } from '@tgslots/slots-core'
 import { engine } from './engine.js'
 import { INNER_WEIGHTS, SCATTER_PAY, STRIP_STRINGS, Symbols } from './constants.js'
 
@@ -33,23 +34,9 @@ function evaluateWithBreakdown(
   positions: readonly number[],
   breakdown: WagerBreakdown,
 ): { win: number; sc: number } {
-  const gridSyms: number[][] = [[], [], [], [], []]
-  const gridMults: number[][] = [[], [], [], [], []]
+  const grid = createGrid(strips, positions, 3)
 
-  for (let r = 0; r < 5; r++) {
-    const strip = strips[r]!
-    const p = positions[r]!
-    const reelSyms: number[] = []
-    const reelMults: number[] = []
-    for (let i = 0; i < 3; i++) {
-      reelSyms.push(strip[p + i]!)
-      reelMults.push(1)
-    }
-    gridSyms[r] = reelSyms
-    gridMults[r] = reelMults
-  }
-
-  const lineResult = evaluateSpin({ symbols: gridSyms, multipliers: gridMults }, engine)
+  const lineResult = evaluateSpin(grid, engine)
   const scatterResult = scatterEngine.evaluateAtPositions(positions, 1)
 
   // Rules:
