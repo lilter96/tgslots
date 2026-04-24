@@ -9,7 +9,9 @@ import {
   parseSimArgs,
   printSimHeader,
   runAndPrint,
+  type ParsheetConfig,
 } from '@tgslots/slots-simulation-engine/cli'
+import type { StateMachine, SpinResult } from '@tgslots/slots-simulation-engine'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -22,6 +24,14 @@ interface GameInfo {
   folder: string
   packageName: string
   workerFile: string
+}
+
+interface GameModule {
+  SIM_CONFIG: {
+    name: string
+    parsheet: ParsheetConfig
+    StateMachine: new () => StateMachine<SpinResult>
+  }
 }
 
 // ─── Discovery ───────────────────────────────────────────────────────────────
@@ -73,7 +83,7 @@ async function main() {
   }
 
   // 1. Dynamic import of the game package
-  const pkg = await import(game.packageName)
+  const pkg = (await import(game.packageName)) as GameModule
   const { SIM_CONFIG } = pkg
 
   if (!SIM_CONFIG) {
@@ -90,19 +100,19 @@ async function main() {
     const sm = new SIM_CONFIG.StateMachine()
 
     // Helper to safely extract scatter count
-    const scattersOf = (spin: any) => spin.scatters ?? spin.sc ?? 0
+    const scattersOf = (spin: SpinResult) => spin.scatters ?? 0
 
     for (let i = 0; i < 10; i++) {
       const r = sm.spin(rng)
       console.log(
         `    spin ${String(i + 1).padStart(2)}: win=${String(r.win).padStart(5)}  scatter=${scattersOf(r)}`,
       )
-      let fs: any
+      let fsResult: SpinResult | null
       let fsCount = 0
-      while ((fs = sm.next(rng))) {
+      while ((fsResult = sm.next(rng))) {
         fsCount++
         console.log(
-          `      FS ${String(fsCount).padStart(2)}: win=${String(fs.win).padStart(5)}  scatter=${scattersOf(fs)}`,
+          `      FS ${String(fsCount).padStart(2)}: win=${String(fsResult.win).padStart(5)}  scatter=${scattersOf(fsResult)}`,
         )
       }
     }

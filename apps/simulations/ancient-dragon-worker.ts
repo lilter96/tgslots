@@ -4,56 +4,36 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import { mt19937 } from '@tgslots/math'
 import { BET_CONFIG, AncientDragonStateMachine } from '@tgslots/ancient-dragon'
-import { ModernDataCollector, runCycle } from '@tgslots/slots-simulation-engine'
+import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
+import {
+  performWarmup,
+  runWorkerLoop,
+  type WorkerPayload,
+} from '@tgslots/slots-simulation-engine/runner'
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
-interface WorkerConfig {
-  seed: number
-  numSpins: number
-  workerId: number
-  warmup: number
-  snapshotBatchSize: number
-}
-
-const { seed, numSpins, workerId, warmup, snapshotBatchSize } = workerData as WorkerConfig
+const { seed, numSpins, workerId, warmup, snapshotBatchSize } = workerData as WorkerPayload
 
 // ─── Setup & warmup ─────────────────────────────────────────────────────────
 
 const rng = mt19937(seed)
 
 // JIT warmup on the real state machine
-const warmupMachine = new AncientDragonStateMachine()
-for (let i = 0; i < warmup; i++) {
-  warmupMachine.spin(rng)
-  while (warmupMachine.next(rng)) {
-    // advance through features
-  }
-}
-
-// ─── Main simulation loop with snapshot support ─────────────────────────────
-
-const t0 = performance.now()
 const sm = new AncientDragonStateMachine()
-const collector = new ModernDataCollector()
+performWarmup(sm, rng, warmup)
 
-let spinsDone = 0
-while (spinsDone < numSpins) {
-  const batchEnd = Math.min(spinsDone + snapshotBatchSize, numSpins)
+// ─── Main simulation ────────────────────────────────────────────────────────
 
-  for (let i = spinsDone; i < batchEnd; i++) {
-    runCycle(sm, rng, collector, BET_CONFIG.baseCost)
-  }
-  spinsDone = batchEnd
-
-  const isFinal = spinsDone >= numSpins
-  const snapshot = collector.getRawMetrics()
-
-  parentPort!.postMessage({
-    metrics: snapshot,
+runWorkerLoop(
+  sm,
+  rng,
+  new ModernDataCollector(),
+  {
+    numSpins,
+    snapshotBatchSize,
     workerId,
-    final: isFinal,
-    spinsProcessed: spinsDone,
-    elapsed: isFinal ? performance.now() - t0 : undefined,
-  })
-}
+    betAmount: BET_CONFIG.baseCost,
+  },
+  (msg) => parentPort!.postMessage(msg),
+)

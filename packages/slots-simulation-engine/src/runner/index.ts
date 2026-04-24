@@ -6,9 +6,14 @@ import { Worker } from 'node:worker_threads'
 import { cpus } from 'node:os'
 import {
   Metrics,
+  runCycle,
   type RawSimulationMetrics,
   type SimulationMetrics,
+  type StateMachine,
+  type DataCollector,
+  type SpinResult,
 } from '../core/state-machine.js'
+import type { Rng } from '@tgslots/math/rng/types'
 
 // ─── Public types ─────────────────────────────────────────────────────────
 
@@ -70,9 +75,7 @@ export async function runSimulation(
     let completedWorkers = 0
     let rejected = false
 
-    // Stores the latest snapshot from each worker
     const snapshots = new Map<number, RawSimulationMetrics>()
-    // Track per-worker total elapsed
     const workerTimesMap = new Map<number, number>()
     const workers: Worker[] = []
     let progressTimer: ReturnType<typeof setInterval> | null = null
@@ -84,7 +87,6 @@ export async function runSimulation(
 
     const t0 = performance.now()
 
-    // Periodically merge snapshots and call progressCallback
     if (config.snapshotInterval && config.snapshotInterval > 0 && progressCallback) {
       progressTimer = setInterval(() => {
         if (snapshots.size === 0) return
@@ -151,4 +153,56 @@ export async function runSimulation(
       })
     }
   })
+}
+
+// ─── Worker Helpers ────────────────────────────────────────────────────────
+
+/** Performs a JIT warmup by running the state machine without collecting metrics */
+export function performWarmup<T extends SpinResult>(
+  sm: StateMachine<T>,
+  rng: Rng,
+  count: number,
+): void {
+  for (let i = 0; i < count; i++) {
+    sm.spin(rng)
+    while (sm.next(rng)) {
+      // advance
+    }
+  }
+}
+
+/** Standardized worker simulation loop with progress snapshots */
+export function runWorkerLoop<T extends SpinResult>(
+  sm: StateMachine<T>,
+  rng: Rng,
+  collector: DataCollector,
+  config: {
+    numSpins: number
+    snapshotBatchSize: number
+    workerId: number
+    betAmount: number
+  },
+  postMessage: (msg: WorkerSnapshot) => void,
+): void {
+  const t0 = performance.now()
+  let spinsDone = 0
+
+  while (spinsDone < config.numSpins) {
+    const batchEnd = Math.min(spinsDone + config.snapshotBatchSize, config.numSpins)
+
+    for (let i = spinsDone; i < batchEnd; i++) {
+      runCycle(sm, rng, collector, config.betAmount)
+    }
+
+    spinsDone = batchEnd
+    const isFinal = spinsDone >= config.numSpins
+
+    postMessage({
+      metrics: collector.getRawMetrics(),
+      workerId: config.workerId,
+      final: isFinal,
+      spinsProcessed: spinsDone,
+      elapsed: isFinal ? performance.now() - t0 : undefined,
+    })
+  }
 }

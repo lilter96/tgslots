@@ -5,7 +5,7 @@ import { evaluateSpin } from '@tgslots/slots-core/paylines/evaluator'
 import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precomputed-engine'
 import { type WagerBreakdown } from '@tgslots/slots-core/betting/wager'
 import { engine } from './engine.js'
-import { BET_CONFIG, INNER_WEIGHTS, SCATTER_PAY, STRIP_STRINGS, Symbols } from './constants.js'
+import { INNER_WEIGHTS, SCATTER_PAY, STRIP_STRINGS, Symbols } from './constants.js'
 
 // YINYANG is never an INNER replacement, so scatter positions are invariant across
 // all resolved strip variants — precompute once from the raw string strips.
