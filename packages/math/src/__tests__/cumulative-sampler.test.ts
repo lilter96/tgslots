@@ -31,13 +31,8 @@ describe('CumulativeSampler.lookup', () => {
     ['b', 20],
     ['c', 30],
   ] as const
-  let s: CumulativeSampler<string>
-
-  // @ts-ignore — bun:test doesn't require beforeEach import for this pattern
-  s = CumulativeSampler.build(items)
 
   test('maps [0, 10) to first item', () => {
-    // s is undefined due to static initialisation — rebuild inline
     const cs = CumulativeSampler.build(items)
     expect(cs.lookup(0)).toBe('a')
     expect(cs.lookup(9)).toBe('a')

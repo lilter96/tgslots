@@ -5,6 +5,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { mt19937 } from '@tgslots/math'
+import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
 import {
   parseSimArgs,
   printSimHeader,
@@ -30,6 +31,7 @@ interface GameModule {
   SIM_CONFIG: {
     name: string
     parsheet: ParsheetConfig
+    betConfig: BetConfiguration
     StateMachine: new () => StateMachine<SpinResult>
   }
 }
@@ -98,12 +100,13 @@ async function main() {
     const rng = mt19937(opts.seed)
     if (!opts.json) console.log('\n  Sample spins:')
     const sm = new SIM_CONFIG.StateMachine()
+    const wager = new Wager(opts.betMultiplier, SIM_CONFIG.betConfig)
 
     // Helper to safely extract scatter count
     const scattersOf = (spin: SpinResult) => spin.scatters ?? 0
 
     for (let i = 0; i < 10; i++) {
-      const r = sm.spin(rng)
+      const r = sm.spin(rng, wager)
       console.log(
         `    spin ${String(i + 1).padStart(2)}: win=${String(r.win).padStart(5)}  scatter=${scattersOf(r)}`,
       )
@@ -119,13 +122,7 @@ async function main() {
   } else {
     // ── Benchmark / Verify mode ─────────────────────────────────────────────
     const workerURL = new URL(`./${game.workerFile}`, import.meta.url)
-    await runAndPrint(
-      workerURL,
-      opts,
-      SIM_CONFIG.parsheet,
-      SIM_CONFIG.name,
-      (SIM_CONFIG as any).betConfig,
-    )
+    await runAndPrint(workerURL, opts, SIM_CONFIG.parsheet, SIM_CONFIG.name, SIM_CONFIG.betConfig)
   }
 }
 
