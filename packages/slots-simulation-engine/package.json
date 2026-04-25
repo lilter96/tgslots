@@ -16,7 +16,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@tgslots/math": "workspace:*"
+    "@tgslots/math": "workspace:*",
+    "@tgslots/slots-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "~5.9.2"
