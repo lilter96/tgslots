@@ -5,6 +5,7 @@
 // ════════════════════════════════════════════════════════════════════════════════
 
 import type { Rng } from '@tgslots/math/rng/types'
+import { Wager } from '@tgslots/slots-core/betting'
 
 // ─── 1. Enhanced Types ─────────────────────────────────────────────────────
 
@@ -326,23 +327,20 @@ export const Metrics = {
 
 // ─── State machine interface expected by runCycle ──────────────────────────
 
-import { WagerBreakdown } from '@tgslots/slots-core/betting'
-
 export interface StateMachine<TResult extends SpinResult, TState = unknown> {
   readonly state: TState
-  spin(rng: Rng): TResult
+  spin(rng: Rng, wager: Wager): TResult
   next(rng: Rng): TResult | null
-  setWager?(breakdown: WagerBreakdown): void
 }
 
 export function runCycle<TResult extends SpinResult>(
   sm: StateMachine<TResult>,
   rng: Rng,
   collector: DataCollector,
-  betAmount: number,
+  wager: Wager,
 ): void {
-  collector.beginRound(betAmount)
-  collector.collect(sm.spin(rng))
+  collector.beginRound(wager.totalWager)
+  collector.collect(sm.spin(rng, wager))
   let nextResult: TResult | null
   while ((nextResult = sm.next(rng)) !== null) {
     collector.collect(nextResult)

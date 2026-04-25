@@ -28,7 +28,7 @@ export interface SimRunnerConfig {
   snapshotBatchSize?: number
 }
 
-import { BetConfiguration, WagerBreakdown } from '@tgslots/slots-core/betting'
+import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
 
 // ... (other imports)
 
@@ -163,9 +163,10 @@ export function performWarmup<T extends SpinResult>(
   sm: StateMachine<T>,
   rng: Rng,
   count: number,
+  wager: Wager,
 ): void {
   for (let i = 0; i < count; i++) {
-    sm.spin(rng)
+    sm.spin(rng, wager)
     while (sm.next(rng)) {
       // advance
     }
@@ -193,24 +194,22 @@ export function runWorkerLoop<T extends SpinResult>(
 ): void {
   const t0 = performance.now()
   let spinsDone = 0
-  const betAmount = config.betConfig.baseCost * config.betMultiplier
 
-  if (sm.setWager) {
-    const bConfig = new BetConfiguration(
-      config.betConfig.baseCost,
-      config.betConfig.lineCount,
-      config.betConfig.costPerLine,
-      config.betConfig.sideBetBase,
-    )
-    sm.setWager(WagerBreakdown.fromBet(config.betMultiplier, bConfig))
-  }
+  const bConfig = new BetConfiguration(
+    config.betConfig.baseCost,
+    config.betConfig.lineCount,
+    config.betConfig.costPerLine,
+    config.betConfig.sideBetBase,
+  )
+  const wager = new Wager(config.betMultiplier, bConfig)
 
   while (spinsDone < config.numSpins) {
     const batchEnd = Math.min(spinsDone + config.snapshotBatchSize, config.numSpins)
 
     for (let i = spinsDone; i < batchEnd; i++) {
-      runCycle(sm, rng, collector, betAmount)
+      runCycle(sm, rng, collector, wager)
     }
+    // ...
     // ...
 
     spinsDone = batchEnd

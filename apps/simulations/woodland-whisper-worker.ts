@@ -10,6 +10,7 @@ import {
   runWorkerLoop,
   type WorkerPayload,
 } from '@tgslots/slots-simulation-engine/runner'
+import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -20,9 +21,17 @@ const { seed, numSpins, workerId, warmup, snapshotBatchSize, betMultiplier, betC
 
 const rng = mt19937(seed)
 
+const bConfig = new BetConfiguration(
+  betConfig.baseCost,
+  betConfig.lineCount,
+  betConfig.costPerLine,
+  betConfig.sideBetBase,
+)
+const wager = new Wager(betMultiplier, bConfig)
+
 // JIT warmup on the real state machine
 const sm = new WoodlandWhisperStateMachine()
-performWarmup(sm, rng, warmup)
+performWarmup(sm, rng, warmup, wager)
 
 // ─── Main simulation ────────────────────────────────────────────────────────
 

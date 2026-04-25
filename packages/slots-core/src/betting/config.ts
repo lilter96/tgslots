@@ -1,52 +1,45 @@
 /**
- * Denomination represents the mapping between game credits and real currency.
- */
-export interface Denomination {
-  readonly id: string
-  readonly valueInCents: number // Must be integer
-  readonly label: string
-}
-
-/**
- * BetLevel represents a multiplier applied to the base cost of a game.
- */
-export interface BetLevel {
-  readonly multiplier: number // Must be integer
-}
-
-/**
- * Describes the cost structure of a game.
- * All costs are measured in "base units" which correspond to credits at multiplier 1.
+ * Describes the cost structure of a game in credits.
+ * All values MUST be integers.
  */
 export class BetConfiguration {
   constructor(
-    /** Total base units required to play one spin (e.g., 30 lines + 10 side bet = 40). */
+    /** Total credits required for a multiplier-1 spin. */
     public readonly baseCost: number,
     /** Number of paylines or multiway cost equivalent. */
     public readonly lineCount: number,
-    /** Base units per payline (MUST be an integer for strict math). */
+    /** Credits per payline (MUST be an integer). */
     public readonly costPerLine: number,
-    /** Extra base units for features/bonuses not tied to paylines. */
+    /** Extra credits for side bets. */
     public readonly sideBetBase: number,
   ) {
-    // Enforce integer invariants
-    if (!Number.isInteger(baseCost) || baseCost <= 0) {
-      throw new Error(`baseCost must be a positive integer: ${baseCost}`)
+    this.validateInvariants(baseCost, lineCount, costPerLine, sideBetBase)
+  }
+
+  private validateInvariants(bc: number, lc: number, cpl: number, sb: number) {
+    if (!Number.isInteger(bc) || bc <= 0) {
+      throw new Error(`baseCost must be a positive integer: ${bc}`)
     }
-    if (!Number.isInteger(lineCount) || lineCount < 0) {
-      throw new Error(`lineCount must be a non-negative integer: ${lineCount}`)
+    if (!Number.isInteger(lc) || lc < 0) {
+      throw new Error(`lineCount must be a non-negative integer: ${lc}`)
     }
-    if (!Number.isInteger(costPerLine) || costPerLine < 0) {
-      throw new Error(`costPerLine must be a non-negative integer: ${costPerLine}`)
+    if (!Number.isInteger(cpl) || cpl < 0) {
+      throw new Error(`costPerLine must be a non-negative integer: ${cpl}`)
     }
-    if (!Number.isInteger(sideBetBase) || sideBetBase < 0) {
-      throw new Error(`sideBetBase must be a non-negative integer: ${sideBetBase}`)
+    if (!Number.isInteger(sb) || sb < 0) {
+      throw new Error(`sideBetBase must be a non-negative integer: ${sb}`)
     }
 
-    const calculatedTotal = lineCount * costPerLine + sideBetBase
-    if (calculatedTotal !== baseCost) {
+    if (lc > 0 && (bc - sb) % lc !== 0) {
       throw new Error(
-        `Inconsistent BetConfiguration: lineCount(${lineCount}) * costPerLine(${costPerLine}) + sideBetBase(${sideBetBase}) != baseCost(${baseCost})`,
+        `Inconsistent BetConfiguration: (baseCost - sideBetBase) must be divisible by lineCount.`,
+      )
+    }
+
+    const calculatedTotal = lc * cpl + sb
+    if (calculatedTotal !== bc) {
+      throw new Error(
+        `Inconsistent BetConfiguration: lineCount(${lc}) * costPerLine(${cpl}) + sideBetBase(${sb}) != baseCost(${bc})`,
       )
     }
   }

@@ -3,8 +3,8 @@ import { Sampler, SamplingPlan } from '@tgslots/math/probability'
 import type { Rng } from '@tgslots/math/rng/types'
 import { evaluateSpin } from '@tgslots/slots-core/paylines/evaluator'
 import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precomputed-engine'
-import { type WagerBreakdown } from '@tgslots/slots-core/betting/wager'
-import { createGrid } from '@tgslots/slots-core'
+import { Wager } from '@tgslots/slots-core/betting'
+import { ProjectedGrid } from '@tgslots/slots-core/spin-grid/spin-grid'
 import { engine } from './engine.js'
 import { INNER_WEIGHTS, SCATTER_PAY, STRIP_STRINGS, Symbols } from './constants.js'
 
@@ -29,21 +29,21 @@ export interface SpinEvaluationResult {
   readonly sc: number
 }
 
-function evaluateWithBreakdown(
+function evaluateWithWager(
   strips: readonly Uint8Array[],
   positions: readonly number[],
-  breakdown: WagerBreakdown,
+  wager: Wager,
 ): { win: number; sc: number } {
-  const grid = createGrid(strips, positions, 3)
+  const grid = new ProjectedGrid(strips, positions)
 
   const lineResult = evaluateSpin(grid, engine)
   const scatterResult = scatterEngine.evaluateAtPositions(positions, 1)
 
   // Rules:
-  // Line wins: base * creditsPerLine (30/100 = 0.3)
-  // Scatter wins: base * totalWager (30)
-  const lineWin = lineResult.totalWin * breakdown.creditsPerLine
-  const scatterWin = scatterResult.win * breakdown.totalWager
+  // Line wins: base * creditsPerLine
+  // Scatter wins: base * totalWager
+  const lineWin = lineResult.totalWin * wager.creditsPerLine
+  const scatterWin = scatterResult.win * wager.totalWager
 
   return { win: lineWin + scatterWin, sc: scatterResult.count }
 }
@@ -83,14 +83,14 @@ const SCATTER_VARIANTS_BASE = INNER_DISTINCT.map((repSym) => {
 const INNER_IDX = new Map<number, number>()
 INNER_DISTINCT.forEach((s, i) => INNER_IDX.set(s as number, i))
 
-function createSpinSampler(breakdown: WagerBreakdown): Sampler<SpinEvaluationResult> {
+function createSpinSampler(wager: Wager): Sampler<SpinEvaluationResult> {
   return innerSampler.flatMap((repSym) => {
     const repIdx = INNER_IDX.get(repSym as number)!
     return SCATTER_VARIANTS_BASE[repIdx]!.map(({ strips, positions }) =>
-      evaluateWithBreakdown(strips, positions, breakdown),
+      evaluateWithWager(strips, positions, wager),
     )
   })
 }
 
-export const ANCIENT_DRAGON_SAMPLER = (breakdown: WagerBreakdown): Sampler<SpinEvaluationResult> =>
-  createSpinSampler(breakdown)
+export const ANCIENT_DRAGON_SAMPLER = (wager: Wager): Sampler<SpinEvaluationResult> =>
+  createSpinSampler(wager)

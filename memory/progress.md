@@ -17,6 +17,7 @@
 - [[task_015_pick_bonus_sampler_refactor]] — 2026-04-21 — Pick bonus moved to Sampler via flatMap; no rng in game logic; config-driven values; RNG discipline rule in coding_rules.md
 - [[task_017_wager_and_cost_system]] — 2026-04-23 — Robust betting system ported from C# with improved naming
 - [[task_018_production_betting_system]] — 2026-04-25 — Strict integer credits, denominations, and simulation engine integration
+- [[task_019_betting_architecture_refactor]] — 2026-04-25 — Stateless state machines, zero-allocation grid projection, and pure credit math
 
 ## In Progress
 

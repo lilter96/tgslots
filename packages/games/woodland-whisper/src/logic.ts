@@ -3,8 +3,8 @@ import { Sampler, SamplingPlan } from '@tgslots/math/probability'
 import type { Rng } from '@tgslots/math/rng/types'
 import { evaluateSpin } from '@tgslots/slots-core/paylines/evaluator'
 import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precomputed-engine'
-import { type WagerBreakdown } from '@tgslots/slots-core/betting/wager'
-import { createGrid } from '@tgslots/slots-core'
+import { Wager } from '@tgslots/slots-core/betting'
+import { ProjectedGrid } from '@tgslots/slots-core/spin-grid/spin-grid'
 import { engine } from './engine.js'
 import {
   FREE_SPIN_MULTIPLIER,
@@ -36,21 +36,21 @@ export interface SpinEvaluationResult {
   readonly pickedBonus: number
 }
 
-function evaluateWithBreakdown(
+function evaluateWithWager(
   strips: readonly Uint8Array[],
   positions: readonly number[],
-  breakdown: WagerBreakdown,
+  wager: Wager,
   isFreeSpin: boolean,
 ): { win: number; sc: number } {
-  const grid = createGrid(strips, positions, 3)
+  const grid = new ProjectedGrid(strips, positions)
 
   const lineResult = evaluateSpin(grid, engine)
   const scatterResult = scatterEngine.evaluateAtPositions(positions, 1)
 
   const featureMult = isFreeSpin ? FREE_SPIN_MULTIPLIER : 1
 
-  const lineWin = lineResult.totalWin * breakdown.creditsPerLine * featureMult
-  const scatterWin = scatterResult.win * breakdown.totalWager * featureMult
+  const lineWin = lineResult.totalWin * wager.creditsPerLine * featureMult
+  const scatterWin = scatterResult.win * wager.totalWager * featureMult
 
   return { win: lineWin + scatterWin, sc: scatterResult.count }
 }
@@ -128,14 +128,11 @@ const SCATTER_VARIANTS_BASE = INNER_DISTINCT.map((_, repIdx) =>
   })),
 )
 
-function createSpinSampler(
-  breakdown: WagerBreakdown,
-  isFreeSpin: boolean,
-): Sampler<SpinEvaluationResult> {
+function createSpinSampler(wager: Wager, isFreeSpin: boolean): Sampler<SpinEvaluationResult> {
   const _base = innerSampler.flatMap((repSym) => {
     const repIdx = INNER_IDX.get(repSym as number)!
     return SCATTER_VARIANTS_BASE[repIdx]!.map(({ positions }) =>
-      evaluateWithBreakdown(RESOLVED[repIdx]!, positions, breakdown, isFreeSpin),
+      evaluateWithWager(RESOLVED[repIdx]!, positions, wager, isFreeSpin),
     )
   })
 
@@ -143,6 +140,6 @@ function createSpinSampler(
 }
 
 export const WOODLAND_WHISPER_SAMPLER = (
-  breakdown: WagerBreakdown,
+  wager: Wager,
   isFreeSpin: boolean = false,
-): Sampler<SpinEvaluationResult> => createSpinSampler(breakdown, isFreeSpin)
+): Sampler<SpinEvaluationResult> => createSpinSampler(wager, isFreeSpin)

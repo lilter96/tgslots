@@ -32,7 +32,6 @@ export function evaluateSpin(grid: EvalGrid, engine: SlotWithPaylinesEngine): Ev
   const { root, paylineOrder } = trie
   const { payouts, minPayCount } = paytable
   const { wildId, toName } = symbols
-  const { symbols: gridSyms, multipliers: gridMults } = grid
 
   const hits: PaylineHit[] = []
   let totalWin = 0
@@ -131,13 +130,8 @@ export function evaluateSpin(grid: EvalGrid, engine: SlotWithPaylinesEngine): Ev
     const child = children[row]
     if (!child) continue
 
-    const gridReel = gridSyms[frame.reel]
-    const multReel = gridMults[frame.reel]
-    if (!gridReel || !multReel) continue
-
-    const cellSym = gridSyms[frame.reel]![row]
-    const cellMult = gridMults[frame.reel]![row]
-    if (cellSym === undefined || cellMult === undefined) continue
+    const cellSym = grid.getSymbol(frame.reel, row)
+    const cellMult = grid.getMultiplier(frame.reel, row)
 
     if (cellSym === wildId) {
       // wild extends the chain and accumulates multiplier

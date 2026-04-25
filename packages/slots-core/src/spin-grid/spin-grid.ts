@@ -1,36 +1,40 @@
 import type { SymbolId } from '../symbol-registry.js'
 
+/**
+ * A projection of the reel strips at specific positions.
+ * Avoids array-of-array allocations in the simulation hot path.
+ */
 export interface EvalGrid {
-  readonly symbols: readonly SymbolId[][]
-  readonly multipliers: readonly number[][]
+  getSymbol(reel: number, row: number): SymbolId
+  getMultiplier(reel: number, row: number): number
 }
 
-/** Standardized grid construction from reel strips and window positions */
+/**
+ * Lightweight projection that reads directly from source strips.
+ */
+export class ProjectedGrid implements EvalGrid {
+  constructor(
+    private readonly strips: readonly Uint8Array[],
+    private readonly positions: readonly number[],
+  ) {}
+
+  getSymbol(reel: number, row: number): SymbolId {
+    const strip = this.strips[reel]
+    if (!strip) return 0
+    return strip[this.positions[reel]! + row] ?? 0
+  }
+
+  getMultiplier(_reel: number, _row: number): number {
+    return 1
+  }
+}
+
+/** Legacy helper - prefer ProjectedGrid for performance */
 export function createGrid(
   strips: readonly Uint8Array[],
   positions: readonly number[],
-  rows: number,
-  reels: number = 5,
+  _rows: number,
+  _reels: number = 5,
 ): EvalGrid {
-  const symbols: number[][] = []
-  const multipliers: number[][] = []
-
-  for (let r = 0; r < reels; r++) {
-    const strip = strips[r]!
-    const p = positions[r]!
-    const reelSyms: number[] = []
-    const reelMults: number[] = []
-
-    for (let i = 0; i < rows; i++) {
-      // Strips are often looped, but here we assume the strip is padded
-      // or positions are valid for a window of 'rows'
-      reelSyms.push(strip[p + i]!)
-      reelMults.push(1)
-    }
-
-    symbols.push(reelSyms)
-    multipliers.push(reelMults)
-  }
-
-  return { symbols, multipliers }
+  return new ProjectedGrid(strips, positions)
 }

@@ -1,12 +1,11 @@
 import type { Rng } from '@tgslots/math/rng/types'
 import type { SpinResult, StateMachine } from '@tgslots/slots-simulation-engine'
-import { WagerBreakdown } from '@tgslots/slots-core/betting/wager'
-import { BET_CONFIG } from './constants.js'
+import { Wager } from '@tgslots/slots-core/betting'
 import { ANCIENT_DRAGON_SAMPLER } from './logic.js'
 
 export interface AncientDragonState {
   freeSpinsLeft: number
-  breakdown: WagerBreakdown | null
+  lastWager: Wager | null
 }
 
 export interface AncientDragonResult extends SpinResult {
@@ -19,25 +18,17 @@ export class AncientDragonStateMachine implements StateMachine<
 > {
   private _state: AncientDragonState = {
     freeSpinsLeft: 0,
-    breakdown: null,
+    lastWager: null,
   }
 
   get state(): AncientDragonState {
     return this._state
   }
 
-  setWager(breakdown: WagerBreakdown): void {
-    this._state.breakdown = breakdown
-  }
+  spin(rng: Rng, wager: Wager): AncientDragonResult {
+    this._state.lastWager = wager
 
-  spin(rng: Rng): AncientDragonResult {
-    // If setWager was not called, fallback to multiplier 1
-    if (!this._state.breakdown) {
-      this._state.breakdown = WagerBreakdown.fromBet(1, BET_CONFIG)
-    }
-    const breakdown = this._state.breakdown
-
-    const sampler = ANCIENT_DRAGON_SAMPLER(breakdown)
+    const sampler = ANCIENT_DRAGON_SAMPLER(wager)
     const result = sampler.sample(rng)
     const isTrigger = result.sc >= 3
     if (isTrigger) {
@@ -53,12 +44,12 @@ export class AncientDragonStateMachine implements StateMachine<
   }
 
   next(rng: Rng): AncientDragonResult | null {
-    if (this._state.freeSpinsLeft <= 0 || !this._state.breakdown) {
+    if (this._state.freeSpinsLeft <= 0 || !this._state.lastWager) {
       return null
     }
 
     this._state.freeSpinsLeft--
-    const sampler = ANCIENT_DRAGON_SAMPLER(this._state.breakdown)
+    const sampler = ANCIENT_DRAGON_SAMPLER(this._state.lastWager)
     const result = sampler.sample(rng)
 
     const isTrigger = result.sc >= 3

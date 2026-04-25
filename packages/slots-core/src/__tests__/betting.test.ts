@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { BetConfiguration, MultiFrameBetConfiguration } from '../betting/config.js'
-import { Wager, WagerBreakdown } from '../betting/wager.js'
-
-const TEST_DENOM = { id: '1c', valueInCents: 1, label: '$0.01' }
+import { Wager } from '../betting/wager.js'
 
 describe('Betting System', () => {
   describe('BetConfiguration', () => {
@@ -19,7 +17,6 @@ describe('Betting System', () => {
     })
 
     it('should throw on fractional costs', () => {
-      // (40 - 5) / 30 = 1.1666... (fractional cost per line) is now DISALLOWED
       expect(() => BetConfiguration.fromBaseCostAndLineCountAndSideBet(40, 30, 5)).toThrow()
     })
 
@@ -31,38 +28,22 @@ describe('Betting System', () => {
   })
 
   describe('Wager', () => {
-    it('should calculate total credits and amount correctly', () => {
-      const config = BetConfiguration.fromLineCount(30)
-      const wager = new Wager(2, TEST_DENOM, config)
-
-      expect(wager.totalCredits).toBe(60)
-      expect(wager.totalAmountInCents).toBe(60) // 60 * 1c
-    })
-
-    it('should calculate amount for different denoms', () => {
-      const config = BetConfiguration.fromLineCount(30)
-      const denom5c = { id: '5c', valueInCents: 5, label: '$0.05' }
-      const wager = new Wager(1, denom5c, config)
-
-      expect(wager.totalCredits).toBe(30)
-      expect(wager.totalAmountInCents).toBe(150) // 30 * 5c
-    })
-  })
-
-  describe('WagerBreakdown', () => {
-    it('should break down a standard wager correctly', () => {
+    it('should calculate breakdown correctly', () => {
       // 30 lines, 1 unit per line, 10 units side bet = 40 base units
       const config = BetConfiguration.fromBaseCostAndLineCountAndSideBet(40, 30, 10)
 
-      const wager = new Wager(2, TEST_DENOM, config)
-      const breakdown = WagerBreakdown.fromWager(wager)
+      const wager = new Wager(2, config)
 
-      expect(breakdown.betMultiplier).toBe(2)
-      expect(breakdown.lineCount).toBe(30)
-      expect(breakdown.creditsPerLine).toBe(2) // 1 * 2
-      expect(breakdown.totalLineWager).toBe(60) // 2 * 30
-      expect(breakdown.totalSideBet).toBe(20) // 10 * 2
-      expect(breakdown.totalWager).toBe(80)
+      expect(wager.multiplier).toBe(2)
+      expect(wager.creditsPerLine).toBe(2) // 1 * 2
+      expect(wager.totalLineWager).toBe(60) // 2 * 30
+      expect(wager.totalSideBet).toBe(20) // 10 * 2
+      expect(wager.totalWager).toBe(80)
+    })
+
+    it('should throw on non-integer multiplier', () => {
+      const config = BetConfiguration.fromLineCount(30)
+      expect(() => new Wager(1.5, config)).toThrow()
     })
   })
 
@@ -73,24 +54,23 @@ describe('Betting System', () => {
 
       expect(multiConfig.allFrames.baseCost).toBe(120)
 
-      const betMultiplier = 2
-      const multiBreakdown = WagerBreakdown.fromMulti(betMultiplier, multiConfig)
+      const multiplier = 2
+      const wagers = Wager.forMultiFrame(multiplier, multiConfig)
 
-      expect(multiBreakdown.frameCount).toBe(4)
-      expect(multiBreakdown.perFrame.betMultiplier).toBe(2)
-      expect(multiBreakdown.perFrame.totalWager).toBe(60)
-      expect(multiBreakdown.totalWager).toBe(240)
+      expect(wagers.length).toBe(4)
+      expect(wagers[0]!.multiplier).toBe(2)
+      expect(wagers[0]!.totalWager).toBe(60)
     })
   })
 
   describe('Serialization', () => {
     it('should serialize to JSON correctly', () => {
       const config = BetConfiguration.fromLineCount(30)
-      const wager = new Wager(1, TEST_DENOM, config)
+      const wager = new Wager(1, config)
       const json = JSON.parse(JSON.stringify(wager))
 
-      expect(json.betMultiplier).toBe(1)
-      expect(json.totalCredits).toBe(30)
+      expect(json.multiplier).toBe(1)
+      expect(json.totalWager).toBe(30)
       expect(json.config.baseCost).toBe(30)
     })
   })
