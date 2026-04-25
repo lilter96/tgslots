@@ -13,5 +13,6 @@ export const SIM_CONFIG = {
     scatterCycle: 140.52,
     featurePayout: 643.2,
   },
+  betConfig: BET_CONFIG,
   StateMachine: WoodlandWhisperStateMachine,
 }

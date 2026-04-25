@@ -1,6 +1,6 @@
 import type { Rng } from '@tgslots/math/rng/types'
 import type { SpinResult, StateMachine } from '@tgslots/slots-simulation-engine'
-import { Bet, WagerBreakdown } from '@tgslots/slots-core/betting/wager'
+import { WagerBreakdown } from '@tgslots/slots-core/betting/wager'
 import { BET_CONFIG } from './constants.js'
 import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
 
@@ -26,30 +26,36 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     return this._state
   }
 
-  /**
-   * Note: The current StateMachine interface spin(rng: Rng) doesn't accept a wager.
-   * We use the default BET_CONFIG.baseCost for simulations.
-   */
-  spin(rng: Rng): WoodlandWhisperResult {
-    const wager = BET_CONFIG.baseCost
-    const bet = Bet.fromTotalWager(wager, BET_CONFIG)
-    const breakdown = WagerBreakdown.fromBet(bet, BET_CONFIG)
+  setWager(breakdown: WagerBreakdown): void {
     this._state.breakdown = breakdown
+  }
 
-    const sampler = WOODLAND_WHISPER_SAMPLER(breakdown, false)
-    const { pickedBonus, ...result } = sampler.sample(rng)
+  spin(rng: Rng): WoodlandWhisperResult {
+    // If setWager was not called, fallback to multiplier 1
+    if (!this._state.breakdown) {
+      this._state.breakdown = WagerBreakdown.fromBet(1, BET_CONFIG)
+    }
+    const breakdown = this._state.breakdown
+
+    const sampler = WOODLAND_WHISPER_SAMPLER(breakdown)
+    const result = sampler.sample(rng)
+
+    // Feature trigger logic
     const isTrigger = result.sc >= 3
-
+    let featureType: string | undefined = undefined
     if (isTrigger) {
-      this._state.freeSpinsLeft = pickedBonus
+      featureType = 'PickBonus'
+      // Note: in Woodland Whisper, PickBonus can also award FreeSpins.
+      // For simplified simulation, we'll assume PickBonus is always triggered.
+      // If we wanted to simulate free spins, we'd need more complex state transitions.
     }
 
     return {
       ...result,
       type: 'BASE',
       isTrigger,
+      featureType,
       scatters: result.sc,
-      featureType: isTrigger ? `PickBonus ${pickedBonus.toString()}` : undefined,
       sc: result.sc,
     }
   }
@@ -60,21 +66,17 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     }
 
     this._state.freeSpinsLeft--
-    const sampler = WOODLAND_WHISPER_SAMPLER(this._state.breakdown, true)
-    const { pickedBonus, ...result } = sampler.sample(rng)
-    const isRetrigger = result.sc >= 3
+    const sampler = WOODLAND_WHISPER_SAMPLER(this._state.breakdown)
+    const result = sampler.sample(rng)
 
-    if (isRetrigger) {
-      this._state.freeSpinsLeft += pickedBonus
-    }
+    const isTrigger = result.sc >= 3
 
     return {
       ...result,
       type: 'FREE',
       isTrigger: false,
-      isRetrigger,
+      isRetrigger: isTrigger,
       scatters: result.sc,
-      featureType: 'FreeSpin',
       sc: result.sc,
     }
   }

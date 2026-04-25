@@ -326,10 +326,13 @@ export const Metrics = {
 
 // ─── State machine interface expected by runCycle ──────────────────────────
 
+import { WagerBreakdown } from '@tgslots/slots-core/betting'
+
 export interface StateMachine<TResult extends SpinResult, TState = unknown> {
   readonly state: TState
   spin(rng: Rng): TResult
   next(rng: Rng): TResult | null
+  setWager?(breakdown: WagerBreakdown): void
 }
 
 export function runCycle<TResult extends SpinResult>(

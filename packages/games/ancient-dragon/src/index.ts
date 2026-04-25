@@ -11,5 +11,6 @@ export const SIM_CONFIG = {
     targetRTP: 0.8805,
     scatterCycle: 142.1,
   },
+  betConfig: BET_CONFIG,
   StateMachine: AncientDragonStateMachine,
 }

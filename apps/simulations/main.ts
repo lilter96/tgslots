@@ -119,7 +119,13 @@ async function main() {
   } else {
     // ── Benchmark / Verify mode ─────────────────────────────────────────────
     const workerURL = new URL(`./${game.workerFile}`, import.meta.url)
-    await runAndPrint(workerURL, opts, SIM_CONFIG.parsheet, SIM_CONFIG.name)
+    await runAndPrint(
+      workerURL,
+      opts,
+      SIM_CONFIG.parsheet,
+      SIM_CONFIG.name,
+      (SIM_CONFIG as any).betConfig,
+    )
   }
 }
 

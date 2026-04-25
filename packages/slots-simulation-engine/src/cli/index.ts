@@ -4,6 +4,7 @@
 
 import { cpus } from 'node:os'
 import * as fs from 'node:fs'
+import { BetConfiguration } from '@tgslots/slots-core/betting'
 import type { SimRunnerConfig, SimRunnerResult } from '../runner/index.js'
 import { runSimulation } from '../runner/index.js'
 import { formatJson, formatPretty } from './formatter.js'
@@ -20,6 +21,7 @@ export interface SimCliOpts extends SimRunnerConfig {
   jsonOutput: string | null
   warmup: number
   snapshotInterval: number // seconds, 0 = disabled
+  betMultiplier: number
 }
 
 function parseNum(s: string): number {
@@ -42,6 +44,7 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
     json: defaults?.json ?? false,
     jsonOutput: defaults?.jsonOutput ?? null,
     snapshotInterval: defaults?.snapshotInterval ?? 0,
+    betMultiplier: defaults?.betMultiplier ?? 1,
   }
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!,
@@ -83,6 +86,11 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
         break
       case '--snapshot-interval':
         opts.snapshotInterval = parseFloat(v!)
+        i++
+        break
+      case '--multiplier':
+      case '-m':
+        opts.betMultiplier = parseInt(v!, 10)
         i++
         break
     }
@@ -191,6 +199,7 @@ export async function runAndPrint(
   opts: SimCliOpts,
   parsheet: ParsheetConfig,
   gameName: string,
+  betConfig?: BetConfiguration,
 ): Promise<void> {
   if (opts.mode === 'sample') {
     return
@@ -202,7 +211,7 @@ export async function runAndPrint(
 
   const result = await runSimulation(
     workerURL,
-    opts,
+    { ...opts, betConfig },
     opts.snapshotInterval > 0
       ? (metrics, elapsedSec) =>
           printFullSnapshot(metrics, elapsedSec, gameName, opts.workers, parsheet)

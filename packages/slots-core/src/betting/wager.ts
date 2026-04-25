@@ -1,40 +1,52 @@
-import { BetConfiguration, MultiFrameBetConfiguration } from './config.js'
+import { BetConfiguration, Denomination, MultiFrameBetConfiguration } from './config.js'
 
 /**
  * Represents a specific wager placed by a player.
+ * Combines a bet level (multiplier), denomination, and the game's cost structure.
  */
-export class Bet {
+export class Wager {
   constructor(
     /** How many credits are spent per "base unit" of the game's cost. */
     public readonly betMultiplier: number,
-    /** The total amount of credits wagered. */
-    public readonly totalWager: number,
-  ) {}
-
-  /** Create a Bet from a total credit amount and a game configuration. */
-  static fromTotalWager(totalWager: number, config: BetConfiguration): Bet {
-    return new Bet(totalWager / config.baseCost, totalWager)
-  }
-
-  /** Create a Bet for multi-frame games. */
-  static fromTotalWagerMulti(totalWager: number, config: MultiFrameBetConfiguration): Bet {
-    return new Bet(totalWager / config.allFrames.baseCost, totalWager)
-  }
-
-  /** Validates that a total wager is consistent with a given configuration. */
-  static validate(betMultiplier: number, totalWager: number, config: BetConfiguration): Bet {
-    const expectedTotal = betMultiplier * config.baseCost
-    if (Math.abs(expectedTotal - totalWager) > 1e-6) {
-      throw new Error(
-        `Total wager ${totalWager} inconsistent with bet multiplier ${betMultiplier} and base cost ${config.baseCost}. Expected ${expectedTotal}.`,
-      )
+    /** The denomination used for this wager. */
+    public readonly denomination: Denomination,
+    /** The game's cost configuration. */
+    public readonly config: BetConfiguration,
+  ) {
+    if (!Number.isInteger(betMultiplier) || betMultiplier <= 0) {
+      throw new Error(`betMultiplier must be a positive integer: ${betMultiplier}`)
     }
-    return new Bet(betMultiplier, totalWager)
+  }
+
+  /** Total credits wagered. */
+  get totalCredits(): number {
+    return this.betMultiplier * this.config.baseCost
+  }
+
+  /** Total amount wagered in cents. */
+  get totalAmountInCents(): number {
+    return this.totalCredits * this.denomination.valueInCents
+  }
+
+  /** Gets the breakdown for this wager. */
+  getBreakdown(): WagerBreakdown {
+    return WagerBreakdown.fromWager(this)
+  }
+
+  toJSON() {
+    return {
+      betMultiplier: this.betMultiplier,
+      denomination: this.denomination,
+      config: this.config.toJSON(),
+      totalCredits: this.totalCredits,
+      totalAmountInCents: this.totalAmountInCents,
+    }
   }
 }
 
 /**
  * A breakdown of a wager into components used by game logic.
+ * ALL values are strict integers (credits).
  */
 export class WagerBreakdown {
   constructor(
@@ -55,14 +67,22 @@ export class WagerBreakdown {
     public readonly totalWager: number,
     /** The total base units for this cost structure. */
     public readonly baseCost: number,
-  ) {}
+  ) {
+    // Sanity checks
+    if (!Number.isInteger(creditsPerLine)) {
+      throw new Error(`creditsPerLine must be an integer: ${creditsPerLine}`)
+    }
+  }
 
-  static fromBet(bet: Bet, config: BetConfiguration): WagerBreakdown {
-    const betMultiplier = bet.betMultiplier
+  static fromWager(wager: Wager): WagerBreakdown {
+    return WagerBreakdown.fromBet(wager.betMultiplier, wager.config)
+  }
+
+  static fromBet(betMultiplier: number, config: BetConfiguration): WagerBreakdown {
     const totalSideBet = config.sideBetBase * betMultiplier
     const creditsPerLine = config.costPerLine * betMultiplier
     const totalLineWager = creditsPerLine * config.lineCount
-    const totalWager = bet.totalWager
+    const totalWager = betMultiplier * config.baseCost
 
     return new WagerBreakdown(
       betMultiplier,
@@ -76,13 +96,8 @@ export class WagerBreakdown {
   }
 
   /** Helper to build breakdown for a single frame of a multi-frame game. */
-  static fromMulti(betAllFrames: Bet, config: MultiFrameBetConfiguration): WagerBreakdownMulti {
-    const betPerFrame = Bet.fromTotalWager(
-      betAllFrames.totalWager / config.frameCount,
-      config.perFrame,
-    )
-    const breakdownPerFrame = WagerBreakdown.fromBet(betPerFrame, config.perFrame)
-
+  static fromMulti(betMultiplier: number, config: MultiFrameBetConfiguration): WagerBreakdownMulti {
+    const breakdownPerFrame = WagerBreakdown.fromBet(betMultiplier, config.perFrame)
     return new WagerBreakdownMulti(config.frameCount, breakdownPerFrame)
   }
 }

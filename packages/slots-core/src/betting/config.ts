@@ -1,6 +1,22 @@
 /**
+ * Denomination represents the mapping between game credits and real currency.
+ */
+export interface Denomination {
+  readonly id: string
+  readonly valueInCents: number // Must be integer
+  readonly label: string
+}
+
+/**
+ * BetLevel represents a multiplier applied to the base cost of a game.
+ */
+export interface BetLevel {
+  readonly multiplier: number // Must be integer
+}
+
+/**
  * Describes the cost structure of a game.
- * Base cost is measured in "base units" which are then multiplied by a bet multiplier (credits).
+ * All costs are measured in "base units" which correspond to credits at multiplier 1.
  */
 export class BetConfiguration {
   constructor(
@@ -8,13 +24,27 @@ export class BetConfiguration {
     public readonly baseCost: number,
     /** Number of paylines or multiway cost equivalent. */
     public readonly lineCount: number,
-    /** Base units per payline (usually 1, but can be fractional or > 1). */
+    /** Base units per payline (MUST be an integer for strict math). */
     public readonly costPerLine: number,
     /** Extra base units for features/bonuses not tied to paylines. */
     public readonly sideBetBase: number,
   ) {
+    // Enforce integer invariants
+    if (!Number.isInteger(baseCost) || baseCost <= 0) {
+      throw new Error(`baseCost must be a positive integer: ${baseCost}`)
+    }
+    if (!Number.isInteger(lineCount) || lineCount < 0) {
+      throw new Error(`lineCount must be a non-negative integer: ${lineCount}`)
+    }
+    if (!Number.isInteger(costPerLine) || costPerLine < 0) {
+      throw new Error(`costPerLine must be a non-negative integer: ${costPerLine}`)
+    }
+    if (!Number.isInteger(sideBetBase) || sideBetBase < 0) {
+      throw new Error(`sideBetBase must be a non-negative integer: ${sideBetBase}`)
+    }
+
     const calculatedTotal = lineCount * costPerLine + sideBetBase
-    if (Math.abs(calculatedTotal - baseCost) > 1e-6) {
+    if (calculatedTotal !== baseCost) {
       throw new Error(
         `Inconsistent BetConfiguration: lineCount(${lineCount}) * costPerLine(${costPerLine}) + sideBetBase(${sideBetBase}) != baseCost(${baseCost})`,
       )
@@ -50,7 +80,18 @@ export class BetConfiguration {
     )
   }
 
-  /** Derived cost per line from total cost, line count and side bet. */
+  /**
+   * Implicit side bet is the difference between base cost and line count (assuming 1 unit per line).
+   * Note: baseCost MUST be >= lineCount.
+   */
+  static fromBaseCostAndLineCount(baseCost: number, lineCount: number): BetConfiguration {
+    return new BetConfiguration(baseCost, lineCount, 1, baseCost - lineCount)
+  }
+
+  /**
+   * Derived cost per line from total cost, line count and side bet.
+   * MUST result in an integer cost per line.
+   */
   static fromBaseCostAndLineCountAndSideBet(
     baseCost: number,
     lineCount: number,
@@ -60,9 +101,13 @@ export class BetConfiguration {
     return new BetConfiguration(baseCost, lineCount, costPerLine, sideBetBase)
   }
 
-  /** Implicit side bet is the difference between base cost and line count (assuming 1 unit per line). */
-  static fromBaseCostAndLineCount(baseCost: number, lineCount: number): BetConfiguration {
-    return new BetConfiguration(baseCost, lineCount, 1, baseCost - lineCount)
+  toJSON() {
+    return {
+      baseCost: this.baseCost,
+      lineCount: this.lineCount,
+      costPerLine: this.costPerLine,
+      sideBetBase: this.sideBetBase,
+    }
   }
 }
 
@@ -84,5 +129,13 @@ export class MultiFrameBetConfiguration {
       perFrame.sideBetBase * frameCount,
     )
     return new MultiFrameBetConfiguration(allFrames, perFrame, frameCount)
+  }
+
+  toJSON() {
+    return {
+      allFrames: this.allFrames.toJSON(),
+      perFrame: this.perFrame.toJSON(),
+      frameCount: this.frameCount,
+    }
   }
 }

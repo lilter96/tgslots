@@ -49,7 +49,7 @@ function evaluateWithBreakdown(
 
   const featureMult = isFreeSpin ? FREE_SPIN_MULTIPLIER : 1
 
-  const lineWin = lineResult.totalWin * (breakdown.totalWager / breakdown.lineCount) * featureMult
+  const lineWin = lineResult.totalWin * breakdown.creditsPerLine * featureMult
   const scatterWin = scatterResult.win * breakdown.totalWager * featureMult
 
   return { win: lineWin + scatterWin, sc: scatterResult.count }

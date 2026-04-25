@@ -16,6 +16,7 @@
 - [[task_014_game_code_cleanup_and_alignment]] — 2026-04-21 — buildEngineFromArrays helper; removed boilerplate, dead code, alias exports; fixed scatter distribution bug; explicit index.ts exports
 - [[task_015_pick_bonus_sampler_refactor]] — 2026-04-21 — Pick bonus moved to Sampler via flatMap; no rng in game logic; config-driven values; RNG discipline rule in coding_rules.md
 - [[task_017_wager_and_cost_system]] — 2026-04-23 — Robust betting system ported from C# with improved naming
+- [[task_018_production_betting_system]] — 2026-04-25 — Strict integer credits, denominations, and simulation engine integration
 
 ## In Progress
 

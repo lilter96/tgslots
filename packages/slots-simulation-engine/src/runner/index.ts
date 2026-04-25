@@ -28,38 +28,36 @@ export interface SimRunnerConfig {
   snapshotBatchSize?: number
 }
 
+import { BetConfiguration, WagerBreakdown } from '@tgslots/slots-core/betting'
+
+// ... (other imports)
+
 export interface WorkerPayload {
   seed: number
   numSpins: number
   workerId: number
   warmup: number
   snapshotBatchSize: number
+  betMultiplier: number
+  betConfig: {
+    baseCost: number
+    lineCount: number
+    costPerLine: number
+    sideBetBase: number
+  }
 }
 
-export interface WorkerSnapshot {
-  metrics: RawSimulationMetrics
-  workerId: number
-  /** true when this is the last message from the worker */
-  final: boolean
-  spinsProcessed: number
-  elapsed?: number // only present in final message
-}
-
-export interface SimRunnerResult {
-  metrics: SimulationMetrics
-  wallTime: number
-  workerTimes: number[]
-}
-
-// ─── Runner ───────────────────────────────────────────────────────────────
+// ... (SimRunnerConfig)
 
 export async function runSimulation(
   workerPath: URL,
-  config: SimRunnerConfig,
+  config: SimRunnerConfig & { betMultiplier?: number; betConfig?: BetConfiguration },
   progressCallback?: (snapshot: SimulationMetrics, elapsedSec: number) => void,
 ): Promise<SimRunnerResult> {
   const numWorkers = config.workers === 0 ? cpus().length : config.workers
   const batchSize = config.snapshotBatchSize ?? 50_000
+  const betMultiplier = config.betMultiplier ?? 1
+  const betConfig = config.betConfig ?? BetConfiguration.fromLineCount(1) // fallback
 
   if (config.spins === 0) {
     return {
@@ -107,8 +105,11 @@ export async function runSimulation(
         workerId: w,
         warmup: config.warmup ?? 0,
         snapshotBatchSize: batchSize,
+        betMultiplier,
+        betConfig: betConfig.toJSON(),
       }
       const worker = new Worker(workerPath, { workerData: payload })
+      // ...
       workers.push(worker)
 
       worker.on('message', (msg: WorkerSnapshot) => {
@@ -180,19 +181,37 @@ export function runWorkerLoop<T extends SpinResult>(
     numSpins: number
     snapshotBatchSize: number
     workerId: number
-    betAmount: number
+    betMultiplier: number
+    betConfig: {
+      baseCost: number
+      lineCount: number
+      costPerLine: number
+      sideBetBase: number
+    }
   },
   postMessage: (msg: WorkerSnapshot) => void,
 ): void {
   const t0 = performance.now()
   let spinsDone = 0
+  const betAmount = config.betConfig.baseCost * config.betMultiplier
+
+  if (sm.setWager) {
+    const bConfig = new BetConfiguration(
+      config.betConfig.baseCost,
+      config.betConfig.lineCount,
+      config.betConfig.costPerLine,
+      config.betConfig.sideBetBase,
+    )
+    sm.setWager(WagerBreakdown.fromBet(config.betMultiplier, bConfig))
+  }
 
   while (spinsDone < config.numSpins) {
     const batchEnd = Math.min(spinsDone + config.snapshotBatchSize, config.numSpins)
 
     for (let i = spinsDone; i < batchEnd; i++) {
-      runCycle(sm, rng, collector, config.betAmount)
+      runCycle(sm, rng, collector, betAmount)
     }
+    // ...
 
     spinsDone = batchEnd
     const isFinal = spinsDone >= config.numSpins

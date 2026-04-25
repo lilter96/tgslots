@@ -1,6 +1,6 @@
 import type { Rng } from '@tgslots/math/rng/types'
 import type { SpinResult, StateMachine } from '@tgslots/slots-simulation-engine'
-import { Bet, WagerBreakdown } from '@tgslots/slots-core/betting/wager'
+import { WagerBreakdown } from '@tgslots/slots-core/betting/wager'
 import { BET_CONFIG } from './constants.js'
 import { ANCIENT_DRAGON_SAMPLER } from './logic.js'
 
@@ -26,11 +26,16 @@ export class AncientDragonStateMachine implements StateMachine<
     return this._state
   }
 
-  spin(rng: Rng): AncientDragonResult {
-    const wager = BET_CONFIG.baseCost
-    const bet = Bet.fromTotalWager(wager, BET_CONFIG)
-    const breakdown = WagerBreakdown.fromBet(bet, BET_CONFIG)
+  setWager(breakdown: WagerBreakdown): void {
     this._state.breakdown = breakdown
+  }
+
+  spin(rng: Rng): AncientDragonResult {
+    // If setWager was not called, fallback to multiplier 1
+    if (!this._state.breakdown) {
+      this._state.breakdown = WagerBreakdown.fromBet(1, BET_CONFIG)
+    }
+    const breakdown = this._state.breakdown
 
     const sampler = ANCIENT_DRAGON_SAMPLER(breakdown)
     const result = sampler.sample(rng)

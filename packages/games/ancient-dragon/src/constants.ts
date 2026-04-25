@@ -50,7 +50,7 @@ export const PAY_TABLE: readonly (readonly number[])[] = [
 
 export const SCATTER_PAY = [0, 0, 1, 5, 10, 500] as const
 import { BetConfiguration } from '@tgslots/slots-core/betting/config'
-export const BET_CONFIG = BetConfiguration.fromBaseCostAndLineCount(30, 100)
+export const BET_CONFIG = BetConfiguration.fromLineCount(100)
 
 export const PAYLINE_DATA = new Uint8Array([
   1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 1, 2, 1, 0, 2, 1, 0, 1, 2, 0, 0, 1, 0, 0, 2, 2, 1,
