@@ -42,7 +42,7 @@ function evaluateWithWager(
   wager: Wager,
   isFreeSpin: boolean,
 ): { win: number; sc: number } {
-  const grid = new ProjectedGrid(strips, positions)
+  const grid = new ProjectedGrid(strips, positions, 3)
 
   const lineResult = evaluateSpin(grid, engine)
   const scatterResult = scatterEngine.evaluateAtPositions(positions, 1)

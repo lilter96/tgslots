@@ -7,11 +7,9 @@ export class BaseScatterEngine implements ScatterEngine {
 
   evaluate(grid: EvalGrid, bet: number): ScatterResult {
     let count = 0
-    const { symbols } = grid
-    for (let r = 0; r < symbols.length; r++) {
-      const reel = symbols[r]!
-      for (let i = 0; i < reel.length; i++) {
-        if (reel[i] === this.def.symbolId) count++
+    for (let r = 0; r < grid.reelCount; r++) {
+      for (let i = 0; i < grid.rowCount; i++) {
+        if (grid.getSymbol(r, i) === this.def.symbolId) count++
       }
     }
     const win = (this.def.payouts[count] ?? 0) * bet

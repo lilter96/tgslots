@@ -14,6 +14,7 @@ import {
   type SpinResult,
 } from '../core/state-machine.js'
 import type { Rng } from '@tgslots/math/rng/types'
+import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
 
 // ─── Public types ─────────────────────────────────────────────────────────
 
@@ -28,9 +29,20 @@ export interface SimRunnerConfig {
   snapshotBatchSize?: number
 }
 
-import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
+export interface WorkerSnapshot {
+  metrics: RawSimulationMetrics
+  workerId: number
+  /** true when this is the last message from the worker */
+  final: boolean
+  spinsProcessed: number
+  elapsed?: number // only present in final message
+}
 
-// ... (other imports)
+export interface SimRunnerResult {
+  metrics: SimulationMetrics
+  wallTime: number
+  workerTimes: number[]
+}
 
 export interface WorkerPayload {
   seed: number
@@ -47,7 +59,7 @@ export interface WorkerPayload {
   }
 }
 
-// ... (SimRunnerConfig)
+// ─── Runner ───────────────────────────────────────────────────────────────
 
 export async function runSimulation(
   workerPath: URL,
@@ -109,7 +121,6 @@ export async function runSimulation(
         betConfig: betConfig.toJSON(),
       }
       const worker = new Worker(workerPath, { workerData: payload })
-      // ...
       workers.push(worker)
 
       worker.on('message', (msg: WorkerSnapshot) => {
@@ -209,8 +220,6 @@ export function runWorkerLoop<T extends SpinResult>(
     for (let i = spinsDone; i < batchEnd; i++) {
       runCycle(sm, rng, collector, wager)
     }
-    // ...
-    // ...
 
     spinsDone = batchEnd
     const isFinal = spinsDone >= config.numSpins

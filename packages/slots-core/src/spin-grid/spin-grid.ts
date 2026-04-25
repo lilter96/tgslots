@@ -7,6 +7,8 @@ import type { SymbolId } from '../symbol-registry.js'
 export interface EvalGrid {
   getSymbol(reel: number, row: number): SymbolId
   getMultiplier(reel: number, row: number): number
+  readonly reelCount: number
+  readonly rowCount: number
 }
 
 /**
@@ -16,6 +18,8 @@ export class ProjectedGrid implements EvalGrid {
   constructor(
     private readonly strips: readonly Uint8Array[],
     private readonly positions: readonly number[],
+    public readonly rowCount: number,
+    public readonly reelCount: number = 5,
   ) {}
 
   getSymbol(reel: number, row: number): SymbolId {
@@ -33,8 +37,8 @@ export class ProjectedGrid implements EvalGrid {
 export function createGrid(
   strips: readonly Uint8Array[],
   positions: readonly number[],
-  _rows: number,
-  _reels: number = 5,
+  rows: number,
+  reels: number = 5,
 ): EvalGrid {
-  return new ProjectedGrid(strips, positions)
+  return new ProjectedGrid(strips, positions, rows, reels)
 }
