@@ -1,6 +1,7 @@
 import type { Rng } from '@tgslots/math/rng/types'
 import type { SpinResult, StateMachine } from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
+import { FREE_SPIN_MULTIPLIER } from './constants.js'
 import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
 
 export interface WoodlandWhisperState {
@@ -25,24 +26,26 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     return this._state
   }
 
+  setWager(breakdown: Wager): void {
+    this._state.lastWager = breakdown
+  }
+
   spin(rng: Rng, wager: Wager): WoodlandWhisperResult {
     this._state.lastWager = wager
 
-    const sampler = WOODLAND_WHISPER_SAMPLER(wager)
+    const sampler = WOODLAND_WHISPER_SAMPLER(wager, false)
     const result = sampler.sample(rng)
 
-    // Feature trigger logic
     const isTrigger = result.sc >= 3
-    let featureType: string | undefined = undefined
     if (isTrigger) {
-      featureType = 'PickBonus'
+      this._state.freeSpinsLeft += result.pickedBonus
     }
 
     return {
       ...result,
       type: 'BASE',
       isTrigger,
-      featureType,
+      featureType: isTrigger ? 'PickBonus' : undefined,
       scatters: result.sc,
       sc: result.sc,
     }
@@ -54,13 +57,20 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     }
 
     this._state.freeSpinsLeft--
-    const sampler = WOODLAND_WHISPER_SAMPLER(this._state.lastWager)
+    const sampler = WOODLAND_WHISPER_SAMPLER(this._state.lastWager, true)
     const result = sampler.sample(rng)
 
+    // Free spin wins are multiplied by 2
+    const win = result.win * FREE_SPIN_MULTIPLIER
     const isTrigger = result.sc >= 3
+
+    if (isTrigger) {
+      this._state.freeSpinsLeft += result.pickedBonus
+    }
 
     return {
       ...result,
+      win,
       type: 'FREE',
       isTrigger: false,
       isRetrigger: isTrigger,
