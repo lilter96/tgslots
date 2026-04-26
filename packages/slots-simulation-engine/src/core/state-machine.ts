@@ -1,7 +1,7 @@
 import type { Rng } from '@tgslots/math/rng/types'
 import { Wager } from '@tgslots/slots-core/betting'
 
-export type SpinType = 'BASE' | 'FREE' | 'RESPIN'
+export type SpinType = 'BASE' | 'FREE' | 'RESPIN' | 'PICK'
 export type MetricScopePath = readonly string[]
 
 export interface SpinResult {
@@ -566,8 +566,7 @@ export const Metrics = {
       totalSpinResults: a.totalSpinResults + b.totalSpinResults,
       maxRoundWin: Math.max(a.maxRoundWin, b.maxRoundWin),
       sumRoundWinMultiplier: a.sumRoundWinMultiplier + b.sumRoundWinMultiplier,
-      sumSquaresRoundWinMultiplier:
-        a.sumSquaresRoundWinMultiplier + b.sumSquaresRoundWinMultiplier,
+      sumSquaresRoundWinMultiplier: a.sumSquaresRoundWinMultiplier + b.sumSquaresRoundWinMultiplier,
       rootScope: mergeScopes(a.rootScope, b.rootScope),
     }
   },
@@ -664,11 +663,7 @@ export interface StateMachine<TResult extends SpinResult, TState = unknown> {
     result: TResult,
     context: { phase: 'spin' | 'next'; wager: Wager },
   ): void
-  recordRoundMetrics?(
-    collector: DataCollector,
-    round: RoundMetricsSnapshot,
-    wager: Wager,
-  ): void
+  recordRoundMetrics?(collector: DataCollector, round: RoundMetricsSnapshot, wager: Wager): void
 }
 
 export function runCycle<TResult extends SpinResult>(

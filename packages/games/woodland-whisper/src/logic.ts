@@ -34,6 +34,7 @@ const scatterEngine = new PrecomputedScatterEngine(
 export interface SpinEvaluationResult {
   readonly win: number
   readonly sc: number
+  readonly grid: number[][]
   readonly pickedBonus: number
 }
 
@@ -42,7 +43,7 @@ function evaluateWithWager(
   positions: readonly number[],
   wager: Wager,
   isFreeSpin: boolean,
-): { win: number; sc: number } {
+): { win: number; sc: number; grid: number[][] } {
   const grid = new ProjectedGrid(strips, positions, 3)
 
   const lineResult = evaluateSpin(grid, engine)
@@ -53,7 +54,16 @@ function evaluateWithWager(
   const lineWin = lineResult.totalWin * wager.creditsPerLine * featureMult
   const scatterWin = scatterResult.win * wager.totalWager * featureMult
 
-  return { win: lineWin + scatterWin, sc: scatterResult.count }
+  const symbols: number[][] = []
+  for (let r = 0; r < 3; r++) {
+    const row: number[] = []
+    for (let c = 0; c < 5; c++) {
+      row.push(grid.getSymbol(c, r))
+    }
+    symbols.push(row)
+  }
+
+  return { win: lineWin + scatterWin, sc: scatterResult.count, grid: symbols }
 }
 
 // ─── Encoding ──────────────────────────────────────────────────────────────
@@ -89,7 +99,7 @@ const POS_SAMPLERS = REEL_SIZES.map(
   (size) => new Sampler(SamplingPlan.draw(0, size), (rng: Rng) => rng(0, size)),
 )
 
-const ballSampler = Sampler.fromWeighted(Array1.unsafeFromArray(PICK_BONUS_TABLE))
+export const ballSampler = Sampler.fromWeighted(Array1.unsafeFromArray(PICK_BONUS_TABLE))
 
 const createPickUntilRepeatSampler = (seen: readonly number[] = []): Sampler<number> =>
   ballSampler.flatMap((ball) => {
@@ -99,9 +109,111 @@ const createPickUntilRepeatSampler = (seen: readonly number[] = []): Sampler<num
     return createPickUntilRepeatSampler([...seen, ball])
   })
 
-const pickBonusSampler = createPickUntilRepeatSampler()
+export const pickBonusSampler = createPickUntilRepeatSampler()
 
-function withPickBonus(base: Sampler<{ win: number; sc: number }>): Sampler<SpinEvaluationResult> {
+/**
+ * Creates a Sampler for the pick sequence given a result value.
+ * We sample unique balls according to weights until winValue repeat is reached.
+ */
+function createPickSequenceValuesSampler(
+  winValue: number,
+  seen: readonly number[] = [],
+): Sampler<number[]> {
+  return ballSampler.flatMap((val) => {
+    if (seen.includes(val)) {
+      if (val === winValue) {
+        return Sampler.pure([...seen, val])
+      }
+      // Force winValue to be the first repeat.
+      return createPickSequenceValuesSampler(winValue, seen)
+    }
+    return createPickSequenceValuesSampler(winValue, [...seen, val])
+  })
+}
+
+/**
+ * Sampler that produces a sequence of swaps for a Fisher-Yates shuffle.
+ */
+function shuffleSwapsSampler(length: number): Sampler<number[]> {
+  const indices: number[] = []
+  for (let i = length - 1; i > 0; i--) {
+    indices.push(i)
+  }
+  return Sampler.traverse(
+    indices,
+    (i) => new Sampler(SamplingPlan.draw(0, i + 1), (rng) => rng(0, i + 1)),
+  )
+}
+
+/**
+ * Generates a full pick bonus state given the winValue from the sampler.
+ * Resulting board and sequence are used for step-by-step picking.
+ */
+export function generatePickBonus(winValue: number): Sampler<{
+  board: number[]
+  pickSequence: number[]
+}> {
+  return createPickSequenceValuesSampler(winValue).flatMap((pickSequenceValues) => {
+    const distinctValues = PICK_BONUS_TABLE.map(([val]) => val)
+    const initialBoard: number[] = []
+    for (const val of distinctValues) {
+      initialBoard.push(val, val)
+    }
+
+    return shuffleSwapsSampler(initialBoard.length).flatMap((boardSwaps) => {
+      const board = [...initialBoard]
+      boardSwaps.forEach((j, offset) => {
+        const i = initialBoard.length - 1 - offset
+        const temp = board[i]!
+        board[i] = board[j]!
+        board[j] = temp
+      })
+
+      const valToIndices = new Map<number, number[]>()
+      board.forEach((val, idx) => {
+        if (!valToIndices.has(val)) valToIndices.set(val, [])
+        valToIndices.get(val)!.push(idx)
+      })
+
+      // We have 10 distinct values, each with 2 indices.
+      // We sample a single bit for each to decide if we swap the indices.
+      const indexShuffles = Sampler.traverse(
+        Array.from(valToIndices.keys()),
+        () => new Sampler(SamplingPlan.draw(0, 2), (rng) => rng(0, 2)),
+      )
+
+      return indexShuffles.map((swaps) => {
+        const keys = Array.from(valToIndices.keys())
+        const finalValToIndices = new Map<number, number[]>()
+        keys.forEach((key, i) => {
+          const indices = [...valToIndices.get(key)!]
+          if (swaps[i] === 1) {
+            const temp = indices[0]!
+            indices[0] = indices[1]!
+            indices[1] = temp
+          }
+          finalValToIndices.set(key, indices)
+        })
+
+        const pickSequence: number[] = []
+        const usedCount = new Map<number, number>()
+        for (const val of pickSequenceValues) {
+          const count = usedCount.get(val) ?? 0
+          const indices = finalValToIndices.get(val)
+          if (!indices) throw new Error(`Value ${val} not found in board`)
+          pickSequence.push(indices[count]!)
+          usedCount.set(val, count + 1)
+        }
+
+        return { board, pickSequence }
+      })
+    })
+  })
+}
+
+function withPickBonus(
+  base: Sampler<{ win: number; sc: number; grid: number[][] }>,
+): Sampler<SpinEvaluationResult> {
   return base.flatMap((result) =>
     result.sc >= 3
       ? pickBonusSampler.map((fs) => ({ ...result, pickedBonus: fs }))
