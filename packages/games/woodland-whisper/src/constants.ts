@@ -1,8 +1,6 @@
 import { BetConfiguration } from '@tgslots/slots-core/betting/config'
 import config from '../config/config.json' with { type: 'json' }
 
-// ... (symbols)
-
 export const BET_CONFIG = BetConfiguration.fromLineCount(config.game_metadata.lines)
 
 // ─── Pay Table ─────────────────────────────────────────────────────────────
@@ -54,10 +52,6 @@ Object.entries(scatterPay).forEach(([count, pay]) => {
 
 export const SCATTER_PAY: readonly number[] = _SCATTER_PAY
 
-// ─── Game Metadata ─────────────────────────────────────────────────────────
-
-export const BET = config.game_metadata.cost_to_play
-
 // ─── Paylines ──────────────────────────────────────────────────────────────
 
 // 30 paylines for 5-reel 3-row game; row indices: 0=top, 1=middle, 2=bottom
@@ -82,7 +76,10 @@ export const STRIP_STRINGS: readonly string[][] = [
 
 // ─── Feature Config ────────────────────────────────────────────────────────
 
-export const PICK_BONUS_VALUES: readonly number[] = config.feature.pick_bonus
+export const PICK_BONUS_TABLE = config.feature.pick_bonus as unknown as readonly (readonly [
+  number,
+  number,
+])[]
 export const FREE_SPIN_MULTIPLIER: number = config.feature.free_spin_multiplier
 
 // ─── Mystery / Replacement Symbol Weights ──────────────────────────────────

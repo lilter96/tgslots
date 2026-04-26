@@ -6,7 +6,6 @@ import type {
   StateMachine,
 } from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
-import { FREE_SPIN_MULTIPLIER } from './constants.js'
 import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
 
 export interface WoodlandWhisperState {
@@ -17,6 +16,8 @@ export interface WoodlandWhisperState {
 export interface WoodlandWhisperResult extends SpinResult {
   sc: number
   pickedBonus: number
+  triggeredPickBonus: boolean
+  retriggeredPickBonus?: boolean
 }
 
 export class WoodlandWhisperStateMachine implements StateMachine<
@@ -40,7 +41,9 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   spin(rng: Rng, wager: Wager): WoodlandWhisperResult {
     this._state.lastWager = wager
 
-    const sampler = WOODLAND_WHISPER_SAMPLER(wager, false)
+    const isFreeSpin = this._state.freeSpinsLeft > 0
+
+    const sampler = WOODLAND_WHISPER_SAMPLER(wager, isFreeSpin)
     const result = sampler.sample(rng)
 
     const isTrigger = result.sc >= 3
@@ -52,9 +55,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     return {
       ...result,
       type: 'BASE',
-      isTrigger,
-      featureType: isTrigger ? 'PickBonus' : undefined,
-      scatters: result.sc,
+      triggeredPickBonus: isTrigger,
       sc: result.sc,
     }
   }
@@ -68,8 +69,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     const sampler = WOODLAND_WHISPER_SAMPLER(this._state.lastWager, true)
     const result = sampler.sample(rng)
 
-    // Free spin wins are multiplied by 2
-    const win = result.win * FREE_SPIN_MULTIPLIER
+    const win = result.win
     const isTrigger = result.sc >= 3
 
     if (isTrigger) {
@@ -80,9 +80,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       ...result,
       win,
       type: 'FREE',
-      isTrigger: false,
-      isRetrigger: isTrigger,
-      scatters: result.sc,
+      triggeredPickBonus: false,
+      retriggeredPickBonus: isTrigger,
       sc: result.sc,
     }
   }
@@ -90,61 +89,52 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   recordResultMetrics(
     collector: DataCollector,
     result: WoodlandWhisperResult,
-    _context: { phase: 'spin' | 'next'; wager: Wager },
+    context: { phase: 'spin' | 'next'; wager: Wager },
   ): void {
     const baseScope = collector.scope('base-game')
     const freeSpinScope = collector.scope(['features', 'free-spins'])
-    const pickBonusScope = freeSpinScope.scope('pick-bonus')
+    const pickBonusBaseScope = collector.scope(['features', 'pick-bonus-base-game'])
+    const pickBonusFreeScope = collector.scope(['features', 'pick-bonus-free-game'])
 
     if (result.type === 'BASE') {
+      baseScope.payout('win', result.win, context.wager.totalWager)
       baseScope.distribution('scatter-count', String(result.sc))
-      if (result.win > 0) baseScope.count('hits')
+      if (result.win > 0) baseScope.count('winning-spins')
 
-      if (result.isTrigger) {
+      if (result.triggeredPickBonus) {
         freeSpinScope.count('triggers')
-        freeSpinScope.value('awarded-spins', result.pickedBonus)
-        pickBonusScope.count('triggers')
-        pickBonusScope.value('awarded-spins', result.pickedBonus)
+        freeSpinScope.value('spins-awarded', result.pickedBonus)
+        pickBonusBaseScope.count('triggers')
+        pickBonusBaseScope.value('spins-awarded', result.pickedBonus)
       }
       return
     }
 
-    freeSpinScope.count('spins')
+    freeSpinScope.count('spins-played')
     freeSpinScope.payout('spin-win', result.win)
     freeSpinScope.distribution('scatter-count', String(result.sc))
-    if (result.win > 0) freeSpinScope.count('hits')
+    if (result.win > 0) freeSpinScope.count('winning-spins')
 
-    pickBonusScope.count('spins')
-    pickBonusScope.payout('spin-win', result.win)
-    pickBonusScope.distribution('scatter-count', String(result.sc))
-    if (result.win > 0) pickBonusScope.count('hits')
-
-    if (result.isRetrigger) {
+    if (result.retriggeredPickBonus) {
       freeSpinScope.count('retriggers')
-      freeSpinScope.value('awarded-spins', result.pickedBonus)
-      pickBonusScope.count('retriggers')
-      pickBonusScope.value('awarded-spins', result.pickedBonus)
+      freeSpinScope.value('spins-awarded', result.pickedBonus)
+      pickBonusFreeScope.count('retriggers')
+      pickBonusFreeScope.value('spins-awarded', result.pickedBonus)
     }
   }
 
-  recordRoundMetrics(
-    collector: DataCollector,
-    round: RoundMetricsSnapshot,
-    _wager: Wager,
-  ): void {
-    if (!this.roundTriggeredFeature && (round.countsByType.FREE ?? 0) === 0) {
-      return
-    }
-
+  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
     const freeSpinScope = collector.scope(['features', 'free-spins'])
-    const pickBonusScope = freeSpinScope.scope('pick-bonus')
 
-    freeSpinScope.payout('bonus-payout', round.winsByType.FREE ?? 0, round.bet)
-    freeSpinScope.payout('round-payout', round.totalWin, round.bet)
+    // Record on every round so ratio = feature_wins / total_bets = feature RTP
+    freeSpinScope.payout('feature-rtp', round.winsByType.FREE ?? 0, round.bet)
 
-    pickBonusScope.payout('bonus-payout', round.winsByType.FREE ?? 0, round.bet)
-    pickBonusScope.payout('round-payout', round.totalWin, round.bet)
-
+    const hadFeature = this.roundTriggeredFeature || (round.countsByType.FREE ?? 0) > 0
     this.roundTriggeredFeature = false
+    if (!hadFeature) return
+
+    freeSpinScope.payout('feature-win', round.winsByType.FREE ?? 0, round.bet)
+    freeSpinScope.payout('round-win', round.totalWin, round.bet)
+    freeSpinScope.value('total-spins-per-trigger', round.countsByType.FREE ?? 0)
   }
 }

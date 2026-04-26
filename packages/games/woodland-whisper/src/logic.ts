@@ -9,6 +9,7 @@ import { engine } from './engine.js'
 import {
   FREE_SPIN_MULTIPLIER,
   INNER_WEIGHTS,
+  PICK_BONUS_TABLE,
   SCATTER_PAY,
   STRIP_STRINGS,
   Symbols,
@@ -88,20 +89,7 @@ const POS_SAMPLERS = REEL_SIZES.map(
   (size) => new Sampler(SamplingPlan.draw(0, size), (rng: Rng) => rng(0, size)),
 )
 
-const ballSampler = Sampler.fromWeighted(
-  Array1.unsafeFromArray([
-    [100, 1],
-    [75, 4],
-    [50, 15],
-    [30, 80],
-    [20, 490],
-    [15, 1022],
-    [13, 1130],
-    [10, 996],
-    [9, 741],
-    [8, 54],
-  ] as const),
-)
+const ballSampler = Sampler.fromWeighted(Array1.unsafeFromArray(PICK_BONUS_TABLE))
 
 const createPickUntilRepeatSampler = (seen: readonly number[] = []): Sampler<number> =>
   ballSampler.flatMap((ball) => {

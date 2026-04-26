@@ -102,8 +102,7 @@ async function main() {
     const sm = new SIM_CONFIG.StateMachine()
     const wager = new Wager(opts.betMultiplier, SIM_CONFIG.betConfig)
 
-    // Helper to safely extract scatter count
-    const scattersOf = (spin: SpinResult) => spin.scatters ?? 0
+    const scattersOf = (spin: SpinResult) => ('sc' in spin ? (spin as { sc: number }).sc : 0)
 
     for (let i = 0; i < 10; i++) {
       const r = sm.spin(rng, wager)

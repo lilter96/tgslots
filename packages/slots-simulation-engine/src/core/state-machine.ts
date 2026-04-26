@@ -7,10 +7,6 @@ export type MetricScopePath = readonly string[]
 export interface SpinResult {
   type: SpinType
   win: number
-  isTrigger: boolean
-  isRetrigger?: boolean
-  scatters?: number
-  featureType?: string
 }
 
 export interface RawCountMetric {

@@ -10,7 +10,10 @@ function escapeHtml(value: string): string {
     .replaceAll('"', '&quot;')
 }
 
-function formatValue(value: number | null, format: 'number' | 'percent' | 'multiplier' = 'number'): string {
+function formatValue(
+  value: number | null,
+  format: 'number' | 'percent' | 'multiplier' = 'number',
+): string {
   if (value === null) return 'N/A'
   switch (format) {
     case 'percent':
@@ -24,25 +27,38 @@ function formatValue(value: number | null, format: 'number' | 'percent' | 'multi
   }
 }
 
+function cell(label: string, value: string): string {
+  return `<td><span class="field-label">${label}</span>${value}</td>`
+}
+
 function metricRows(metricName: string, metric: FinalScopedMetric): string {
   switch (metric.kind) {
     case 'count':
       return `
-        <tr><td>${escapeHtml(metricName)}</td><td>count</td><td>${metric.total.toLocaleString()}</td><td>${metric.rate.toFixed(
-          4,
-        )}</td><td>${metric.cycle === null ? 'N/A' : metric.cycle.toFixed(2)}</td></tr>
+        <tr>
+          <td>${escapeHtml(metricName)}</td><td>count</td>
+          ${cell('total', metric.total.toLocaleString())}
+          ${cell('rate', metric.rate.toFixed(4))}
+          ${cell('cycle', metric.cycle === null ? 'N/A' : metric.cycle.toFixed(2))}
+        </tr>
       `
     case 'value':
       return `
-        <tr><td>${escapeHtml(metricName)}</td><td>value</td><td>${metric.average.toFixed(4)}</td><td>${
-          metric.min ?? 'N/A'
-        }</td><td>${metric.max ?? 'N/A'}</td></tr>
+        <tr>
+          <td>${escapeHtml(metricName)}</td><td>value</td>
+          ${cell('avg', metric.average.toFixed(4))}
+          ${cell('min', metric.min?.toString() ?? 'N/A')}
+          ${cell('max', metric.max?.toString() ?? 'N/A')}
+        </tr>
       `
     case 'payout':
       return `
-        <tr><td>${escapeHtml(metricName)}</td><td>payout</td><td>${metric.average.toFixed(4)}</td><td>${metric.total.toLocaleString()}</td><td>${
-          metric.ratio === null ? 'N/A' : metric.ratio.toFixed(4)
-        }</td></tr>
+        <tr>
+          <td>${escapeHtml(metricName)}</td><td>payout</td>
+          ${cell('avg', metric.average.toFixed(4))}
+          ${cell('total', metric.total.toLocaleString())}
+          ${cell('rtp', metric.ratio === null ? 'N/A' : metric.ratio.toFixed(4))}
+        </tr>
       `
     case 'distribution': {
       const buckets = Object.entries(metric.buckets)
@@ -81,7 +97,7 @@ function renderScope(scope: FinalMetricScope, title = 'root'): string {
       <h3>${escapeHtml(title)}</h3>
       ${
         metricTableRows
-          ? `<table><thead><tr><th>Metric</th><th>Kind</th><th>Primary</th><th>Secondary</th><th>Tertiary</th></tr></thead><tbody>${metricTableRows}</tbody></table>`
+          ? `<table><thead><tr><th>Metric</th><th>Kind</th><th colspan="3">Values</th></tr></thead><tbody>${metricTableRows}</tbody></table>`
           : '<p class="muted">No direct metrics in this scope.</p>'
       }
       ${children}
@@ -92,8 +108,7 @@ function renderScope(scope: FinalMetricScope, title = 'root'): string {
 function renderHtml(report: SimulationJsonReport): string {
   const comparisons = report.comparisons
     .map((comparison) => {
-      const stateClass =
-        comparison.passed === null ? 'info' : comparison.passed ? 'pass' : 'fail'
+      const stateClass = comparison.passed === null ? 'info' : comparison.passed ? 'pass' : 'fail'
       const stateText = comparison.passed === null ? 'INFO' : comparison.passed ? 'PASS' : 'FAIL'
       return `
         <tr class="${stateClass}">
@@ -227,6 +242,7 @@ function renderHtml(report: SimulationJsonReport): string {
         vertical-align: top;
       }
       thead th { border-top: 0; color: var(--muted); }
+      .field-label { color: var(--muted); font-size: 0.78em; margin-right: 4px; }
       .pass td:last-child { color: var(--pass); font-weight: 700; }
       .fail td:last-child { color: var(--fail); font-weight: 700; }
       .info td:last-child { color: var(--info); font-weight: 700; }
@@ -300,6 +316,9 @@ function renderHtml(report: SimulationJsonReport): string {
 </html>`
 }
 
-export async function visualizeMetrics(report: SimulationJsonReport, outputPath: string): Promise<void> {
+export async function visualizeMetrics(
+  report: SimulationJsonReport,
+  outputPath: string,
+): Promise<void> {
   fs.writeFileSync(outputPath, renderHtml(report), 'utf-8')
 }

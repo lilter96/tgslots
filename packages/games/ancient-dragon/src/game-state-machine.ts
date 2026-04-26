@@ -15,6 +15,8 @@ export interface AncientDragonState {
 
 export interface AncientDragonResult extends SpinResult {
   sc: number
+  triggeredFreeSpins: boolean
+  retriggeredFreeSpins?: boolean
 }
 
 export class AncientDragonStateMachine implements StateMachine<
@@ -44,8 +46,7 @@ export class AncientDragonStateMachine implements StateMachine<
     return {
       ...result,
       type: 'BASE',
-      isTrigger,
-      scatters: result.sc,
+      triggeredFreeSpins: isTrigger,
       sc: result.sc,
     }
   }
@@ -67,9 +68,8 @@ export class AncientDragonStateMachine implements StateMachine<
     return {
       ...result,
       type: 'FREE',
-      isTrigger: false,
-      isRetrigger: isTrigger,
-      scatters: result.sc,
+      triggeredFreeSpins: false,
+      retriggeredFreeSpins: isTrigger,
       sc: result.sc,
     }
   }
@@ -85,7 +85,7 @@ export class AncientDragonStateMachine implements StateMachine<
     if (result.type === 'BASE') {
       baseScope.distribution('scatter-count', String(result.sc))
       if (result.win > 0) baseScope.count('hits')
-      if (result.isTrigger) {
+      if (result.triggeredFreeSpins) {
         freeSpinScope.count('triggers')
         freeSpinScope.value('awarded-spins', 10)
       }
@@ -96,7 +96,7 @@ export class AncientDragonStateMachine implements StateMachine<
     freeSpinScope.payout('spin-win', result.win)
     freeSpinScope.distribution('scatter-count', String(result.sc))
     if (result.win > 0) freeSpinScope.count('hits')
-    if (result.isRetrigger) {
+    if (result.retriggeredFreeSpins) {
       freeSpinScope.count('retriggers')
       freeSpinScope.value('awarded-spins', 10)
     }

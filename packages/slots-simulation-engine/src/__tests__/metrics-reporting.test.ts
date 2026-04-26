@@ -14,6 +14,8 @@ import { evaluateComparisons } from '../cli/comparison.js'
 
 interface StubResult extends SpinResult {
   scatters: number
+  isTrigger: boolean
+  isRetrigger?: boolean
 }
 
 class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }> {
