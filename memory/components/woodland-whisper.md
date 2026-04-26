@@ -53,11 +53,13 @@ class WoodlandWhisperStateMachine implements StateMachine<
 > {
   spin(rng: Rng, wager: Wager): WoodlandWhisperResult
   next(rng: Rng): WoodlandWhisperResult | null
+  recordResultMetrics(collector: DataCollector, result: WoodlandWhisperResult, ...): void
+  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, ...): void
   get state(): WoodlandWhisperState
 }
 
 interface WoodlandWhisperState { freeSpinsLeft: number; lastWager: Wager | null }
-interface WoodlandWhisperResult extends SpinResult { sc: number }
+interface WoodlandWhisperResult extends SpinResult { sc: number; pickedBonus: number }
 ```
 
 ### Logic (internal)
@@ -90,4 +92,4 @@ function WOODLAND_WHISPER_SAMPLER(
 - `constants.ts` — loads + validates config, exports typed constants (no BASE_STRIP_STRINGS alias)
 - `logic.ts` — strip encoding, pick-bonus sampling, free-spin evaluation, `WOODLAND_WHISPER_SAMPLER`
 - `game-state-machine.ts` — pick-bonus and free-spin transitions with retained wager
-- `index.ts` — exports `WoodlandWhisperStateMachine`, sampler, `BET_CONFIG`, and `SIM_CONFIG`
+- `index.ts` — exports `WoodlandWhisperStateMachine`, sampler, `BET_CONFIG`, and `SIM_CONFIG` with normalized comparison targets

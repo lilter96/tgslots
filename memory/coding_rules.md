@@ -39,6 +39,12 @@ up:
 - Constants (symbols, reels, paytable) live in `constants.ts`
 - Config-driven where possible (prefer JSON config like Woodland Whisper)
 
+## Simulation Metrics
+
+- Keep `SpinResult` lean; do not add reporting-specific fields just to feed CLI or visualization output
+- Record game-specific telemetry through `recordResultMetrics()` and `recordRoundMetrics()` collector hooks
+- Prefer scoped generic metrics (`count`, `value`, `distribution`, `payout`) over slot-specific ad hoc report fields
+
 ## RNG Discipline (CRITICAL)
 
 **All randomness in game packages must go through `Sampler<T>` monads.**

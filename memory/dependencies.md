@@ -31,9 +31,7 @@ apps/simulations
 @tgslots/slots-simulation-engine
   ├── @tgslots/math                  (Rng type)
   ├── @tgslots/slots-core            (BetConfiguration, Wager)
-  ├── chart.js, chartjs-node-canvas  (visual report charts)
-  ├── pdfkit                         (PDF report generation)
-  └── node:worker_threads, node:os   (Node/Bun built-ins)
+  └── node:worker_threads, node:os, node:fs (worker pool + HTML reporting)
 
 @tgslots/slots-core
   └── @tgslots/math                  (Rng, symbol types)
@@ -57,12 +55,12 @@ Layer 3 (apps):        apps/simulations
 | Package           | External Deps                         |
 | ----------------- | ------------------------------------- |
 | All               | TypeScript 5.9 (dev), bun-types (dev) |
-| simulation-engine | `chart.js`, `chartjs-node-canvas`, `pdfkit`, Node/Bun built-ins |
+| simulation-engine | Node/Bun built-ins only |
 | All games         | None (pure TS logic)                  |
 
 ## Critical Coupling Risks
 
 1. **Worker protocol**: `apps/simulations` worker files and `runWorkerLoop()` depend on the game state-machine contract and serialized `betConfig`.
 2. **Rng interface**: All packages depend on the functional `Rng` type from `@tgslots/math`. Changing it is cross-cutting.
-3. **Simulation metadata**: The unified CLI expects each game package to export `SIM_CONFIG` with parsheet, betting, and state-machine wiring.
+3. **Simulation metadata**: The unified CLI expects each game package to export `SIM_CONFIG` with normalized comparison targets, betting, and state-machine wiring.
 4. **Betting contract**: `Wager` and `BetConfiguration` semantics now affect games, workers, and reporting together.

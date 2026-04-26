@@ -1,15 +1,8 @@
-// ════════════════════════════════════════════════════════════════════════════════
-// core/state-machine.ts — Enhanced simulation metrics collector
-// Provides the DataCollector, Metrics helpers, and the state-machine interface
-// that games must implement.
-// ════════════════════════════════════════════════════════════════════════════════
-
 import type { Rng } from '@tgslots/math/rng/types'
 import { Wager } from '@tgslots/slots-core/betting'
 
-// ─── 1. Enhanced Types ─────────────────────────────────────────────────────
-
 export type SpinType = 'BASE' | 'FREE' | 'RESPIN'
+export type MetricScopePath = readonly string[]
 
 export interface SpinResult {
   type: SpinType
@@ -17,320 +10,669 @@ export interface SpinResult {
   isTrigger: boolean
   isRetrigger?: boolean
   scatters?: number
-  featureType?: string // game sets this, e.g. 'PickBonus' | 'FreeSpin'
+  featureType?: string
 }
 
-/** Raw counters for merging across workers */
+export interface RawCountMetric {
+  kind: 'count'
+  total: number
+}
+
+export interface RawValueMetric {
+  kind: 'value'
+  count: number
+  sum: number
+  min: number | null
+  max: number | null
+}
+
+export interface RawDistributionMetric {
+  kind: 'distribution'
+  total: number
+  buckets: Record<string, number>
+}
+
+export interface RawPayoutMetric {
+  kind: 'payout'
+  count: number
+  total: number
+  denominatorTotal: number
+  min: number | null
+  max: number | null
+}
+
+export type RawScopedMetric =
+  | RawCountMetric
+  | RawValueMetric
+  | RawDistributionMetric
+  | RawPayoutMetric
+
+export interface RawMetricScope {
+  metrics: Record<string, RawScopedMetric>
+  scopes: Record<string, RawMetricScope>
+}
+
 export interface RawSimulationMetrics {
-  totalSamples: number
-  totalBet: number
-  totalBaseWin: number
-  totalFeatureWin: number
-  baseHits: number
-  triggers: number
-  retriggers: number
-  maxRoundWin: number
-  distribution: Record<string, number>
-  totalWinJackpot: number
-  freeSpinsPlayed: number
-  featureCounts: Record<string, number>
-  scatterDist: Record<string, number> // '0'..'5' → count
-  sumSquaresRound: number // Σ(roundWin/bet)²
-}
-
-/** Final calculated metrics for reporting */
-export interface SimulationMetrics {
-  totalSamples: number
+  rounds: number
   totalBet: number
   totalWin: number
-  rtp: {
-    total: number
-    base: number
-    feature: number
-    withoutJackpots: number
-  }
-  hitRates: {
-    baseHitRate: number
-    featureTriggerRate: number
-  }
-  features: {
-    totalTriggers: number
-    totalRetriggers: number
-    averageFeatureWin: number
-    freeSpinsPlayed: number
-    featureCounts: Record<string, number>
-    featureCycles: Record<string, number>
-  }
-  scatter: {
-    distribution: Record<string, number>
-    frequencies: Record<string, number>
-    cycle: number
-  }
+  totalSpinResults: number
+  maxRoundWin: number
+  sumRoundWinMultiplier: number
+  sumSquaresRoundWinMultiplier: number
+  rootScope: RawMetricScope
+}
+
+export interface FinalCountMetric {
+  kind: 'count'
+  total: number
+  rate: number
+  cycle: number | null
+}
+
+export interface FinalValueMetric {
+  kind: 'value'
+  count: number
+  sum: number
+  average: number
+  min: number | null
+  max: number | null
+}
+
+export interface FinalDistributionBucket {
+  count: number
+  ratio: number
+}
+
+export interface FinalDistributionMetric {
+  kind: 'distribution'
+  total: number
+  buckets: Record<string, FinalDistributionBucket>
+}
+
+export interface FinalPayoutMetric {
+  kind: 'payout'
+  count: number
+  total: number
+  average: number
+  min: number | null
+  max: number | null
+  denominatorTotal: number
+  ratio: number | null
+}
+
+export type FinalScopedMetric =
+  | FinalCountMetric
+  | FinalValueMetric
+  | FinalDistributionMetric
+  | FinalPayoutMetric
+
+export interface FinalMetricScope {
+  path: string[]
+  metrics: Record<string, FinalScopedMetric>
+  scopes: Record<string, FinalMetricScope>
+}
+
+export interface SimulationSummary {
+  rounds: number
+  totalBet: number
+  totalWin: number
+  averageBet: number
+  averageRoundWin: number
+  totalSpinResults: number
+  rtp: number
+  maxRoundWin: number
+  maxRoundWinMultiplier: number
   variance: {
     mean: number
     variance: number
     stdDev: number
   }
-  maxWinObserved: number
-  winDistribution: Record<string, number>
+  roundWinDistribution: FinalDistributionMetric
+  resultTypeDistribution: FinalDistributionMetric
 }
 
-// ─── 2. Enhanced Data Collector ────────────────────────────────────────────
+export interface SimulationMetrics {
+  schemaVersion: 2
+  summary: SimulationSummary
+  scopes: FinalMetricScope
+}
 
-export interface DataCollector {
+export interface RoundMetricsSnapshot {
+  bet: number
+  totalWin: number
+  resultCount: number
+  maxResultWin: number
+  countsByType: Partial<Record<SpinType, number>>
+  winsByType: Partial<Record<SpinType, number>>
+}
+
+export interface ScopedMetrics {
+  scope(path: string | MetricScopePath): ScopedMetrics
+  count(name: string, amount?: number): void
+  value(name: string, observed: number): void
+  distribution(name: string, bucket: string, amount?: number): void
+  payout(name: string, amount: number, denominator?: number): void
+}
+
+export interface DataCollector extends ScopedMetrics {
   beginRound(bet: number): void
   collect(result: SpinResult): void
   endRound(): void
   getRawMetrics(): RawSimulationMetrics
+  getLastRoundSnapshot(): RoundMetricsSnapshot | null
+}
+
+const DEFAULT_WIN_BUCKETS = [
+  '0x',
+  '<1x',
+  '1x-5x',
+  '5x-20x',
+  '20x-50x',
+  '50x-100x',
+  '>100x',
+] as const
+
+function normalizeScopePath(path: string | MetricScopePath): string[] {
+  if (typeof path === 'string') {
+    return path
+      .split('/')
+      .map((segment) => segment.trim())
+      .filter(Boolean)
+  }
+  return [...path]
+}
+
+function emptyScope(): RawMetricScope {
+  return { metrics: {}, scopes: {} }
+}
+
+function bucketRoundWin(multiplier: number): (typeof DEFAULT_WIN_BUCKETS)[number] {
+  if (multiplier === 0) return '0x'
+  if (multiplier < 1) return '<1x'
+  if (multiplier < 5) return '1x-5x'
+  if (multiplier < 20) return '5x-20x'
+  if (multiplier < 50) return '20x-50x'
+  if (multiplier < 100) return '50x-100x'
+  return '>100x'
+}
+
+function cloneScope(scope: RawMetricScope): RawMetricScope {
+  return {
+    metrics: Object.fromEntries(
+      Object.entries(scope.metrics).map(([name, metric]) => [name, structuredClone(metric)]),
+    ),
+    scopes: Object.fromEntries(
+      Object.entries(scope.scopes).map(([name, child]) => [name, cloneScope(child)]),
+    ),
+  }
+}
+
+function mergeScopedMetric(a: RawScopedMetric, b: RawScopedMetric): RawScopedMetric {
+  if (a.kind !== b.kind) {
+    throw new Error(`Cannot merge scoped metrics of different kinds: ${a.kind} vs ${b.kind}`)
+  }
+
+  switch (a.kind) {
+    case 'count': {
+      const right = b as RawCountMetric
+      return { kind: 'count', total: a.total + right.total }
+    }
+    case 'value': {
+      const right = b as RawValueMetric
+      return {
+        kind: 'value',
+        count: a.count + right.count,
+        sum: a.sum + right.sum,
+        min: a.min === null ? right.min : right.min === null ? a.min : Math.min(a.min, right.min),
+        max: a.max === null ? right.max : right.max === null ? a.max : Math.max(a.max, right.max),
+      }
+    }
+    case 'distribution': {
+      const right = b as RawDistributionMetric
+      const buckets: Record<string, number> = {}
+      const keys = new Set([...Object.keys(a.buckets), ...Object.keys(right.buckets)])
+      for (const key of keys) {
+        buckets[key] = (a.buckets[key] ?? 0) + (right.buckets[key] ?? 0)
+      }
+      return {
+        kind: 'distribution',
+        total: a.total + right.total,
+        buckets,
+      }
+    }
+    case 'payout': {
+      const right = b as RawPayoutMetric
+      return {
+        kind: 'payout',
+        count: a.count + right.count,
+        total: a.total + right.total,
+        denominatorTotal: a.denominatorTotal + right.denominatorTotal,
+        min: a.min === null ? right.min : right.min === null ? a.min : Math.min(a.min, right.min),
+        max: a.max === null ? right.max : right.max === null ? a.max : Math.max(a.max, right.max),
+      }
+    }
+  }
+}
+
+function mergeScopes(a: RawMetricScope, b: RawMetricScope): RawMetricScope {
+  const metrics: Record<string, RawScopedMetric> = {}
+  const metricNames = new Set([...Object.keys(a.metrics), ...Object.keys(b.metrics)])
+  for (const name of metricNames) {
+    const left = a.metrics[name]
+    const right = b.metrics[name]
+    if (left && right) {
+      metrics[name] = mergeScopedMetric(left, right)
+    } else {
+      metrics[name] = structuredClone((left ?? right)!)
+    }
+  }
+
+  const scopes: Record<string, RawMetricScope> = {}
+  const scopeNames = new Set([...Object.keys(a.scopes), ...Object.keys(b.scopes)])
+  for (const name of scopeNames) {
+    const left = a.scopes[name]
+    const right = b.scopes[name]
+    if (left && right) {
+      scopes[name] = mergeScopes(left, right)
+    } else {
+      scopes[name] = cloneScope((left ?? right)!)
+    }
+  }
+
+  return { metrics, scopes }
+}
+
+function finalizeMetric(metric: RawScopedMetric, rounds: number): FinalScopedMetric {
+  switch (metric.kind) {
+    case 'count':
+      return {
+        kind: 'count',
+        total: metric.total,
+        rate: rounds > 0 ? metric.total / rounds : 0,
+        cycle: metric.total > 0 ? rounds / metric.total : null,
+      }
+    case 'value':
+      return {
+        kind: 'value',
+        count: metric.count,
+        sum: metric.sum,
+        average: metric.count > 0 ? metric.sum / metric.count : 0,
+        min: metric.min,
+        max: metric.max,
+      }
+    case 'distribution':
+      return {
+        kind: 'distribution',
+        total: metric.total,
+        buckets: Object.fromEntries(
+          Object.entries(metric.buckets).map(([bucket, count]) => [
+            bucket,
+            {
+              count,
+              ratio: metric.total > 0 ? count / metric.total : 0,
+            },
+          ]),
+        ),
+      }
+    case 'payout':
+      return {
+        kind: 'payout',
+        count: metric.count,
+        total: metric.total,
+        average: metric.count > 0 ? metric.total / metric.count : 0,
+        min: metric.min,
+        max: metric.max,
+        denominatorTotal: metric.denominatorTotal,
+        ratio: metric.denominatorTotal > 0 ? metric.total / metric.denominatorTotal : null,
+      }
+  }
+}
+
+function finalizeScope(scope: RawMetricScope, path: string[], rounds: number): FinalMetricScope {
+  return {
+    path,
+    metrics: Object.fromEntries(
+      Object.entries(scope.metrics).map(([name, metric]) => [name, finalizeMetric(metric, rounds)]),
+    ),
+    scopes: Object.fromEntries(
+      Object.entries(scope.scopes).map(([name, child]) => [
+        name,
+        finalizeScope(child, [...path, name], rounds),
+      ]),
+    ),
+  }
+}
+
+class ScopeHandle implements ScopedMetrics {
+  constructor(
+    private readonly collector: ModernDataCollector,
+    private readonly path: string[],
+  ) {}
+
+  scope(path: string | MetricScopePath): ScopedMetrics {
+    return new ScopeHandle(this.collector, [...this.path, ...normalizeScopePath(path)])
+  }
+
+  count(name: string, amount = 1): void {
+    this.collector.recordCount(this.path, name, amount)
+  }
+
+  value(name: string, observed: number): void {
+    this.collector.recordValue(this.path, name, observed)
+  }
+
+  distribution(name: string, bucket: string, amount = 1): void {
+    this.collector.recordDistribution(this.path, name, bucket, amount)
+  }
+
+  payout(name: string, amount: number, denominator = 0): void {
+    this.collector.recordPayout(this.path, name, amount, denominator)
+  }
 }
 
 export class ModernDataCollector implements DataCollector {
+  private readonly rootRecorder = new ScopeHandle(this, [])
+  private raw: RawSimulationMetrics = Metrics.emptyRaw()
+
   private betAmount = 0
-  private samples = 0
-  private totalBet = 0
+  private currentRoundWin = 0
+  private currentRoundResultCount = 0
+  private currentRoundMaxResultWin = 0
+  private currentCountsByType: Partial<Record<SpinType, number>> = {}
+  private currentWinsByType: Partial<Record<SpinType, number>> = {}
+  private lastRoundSnapshot: RoundMetricsSnapshot | null = null
 
-  private totalBaseWin = 0
-  private totalFeatureWin = 0
-
-  private baseHits = 0
-  private triggers = 0
-  private retriggers = 0
-
-  private maxRoundWin = 0
-
-  private distribution: Record<string, number> = {
-    '0x': 0,
-    '<1x': 0,
-    '1x-5x': 0,
-    '5x-20x': 0,
-    '20x-50x': 0,
-    '50x-100x': 0,
-    '>100x': 0,
+  scope(path: string | MetricScopePath): ScopedMetrics {
+    return this.rootRecorder.scope(path)
   }
 
-  private currentRoundWin = 0
+  count(name: string, amount = 1): void {
+    this.rootRecorder.count(name, amount)
+  }
 
-  private totalWinJackpot = 0
-  private freeSpinsPlayed = 0
-  private featureCounts: Record<string, number> = {}
-  private scatterDist: Record<string, number> = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 }
-  private sumSquaresRound = 0
+  value(name: string, observed: number): void {
+    this.rootRecorder.value(name, observed)
+  }
+
+  distribution(name: string, bucket: string, amount = 1): void {
+    this.rootRecorder.distribution(name, bucket, amount)
+  }
+
+  payout(name: string, amount: number, denominator = 0): void {
+    this.rootRecorder.payout(name, amount, denominator)
+  }
 
   beginRound(bet: number): void {
     this.betAmount = bet
-    this.totalBet += bet
     this.currentRoundWin = 0
+    this.currentRoundResultCount = 0
+    this.currentRoundMaxResultWin = 0
+    this.currentCountsByType = {}
+    this.currentWinsByType = {}
+    this.lastRoundSnapshot = null
   }
 
   collect(result: SpinResult): void {
+    this.raw.totalWin += result.win
+    this.raw.totalSpinResults++
+
     this.currentRoundWin += result.win
-
-    if (result.type === 'BASE') {
-      this.samples++
-      this.totalBaseWin += result.win
-      if (result.win > 0) this.baseHits++
-
-      const sc = Math.min(result.scatters ?? 0, 5)
-      const key = String(sc)
-      this.scatterDist[key] = (this.scatterDist[key] ?? 0) + 1
-
-      if (result.isTrigger) {
-        this.triggers++
-        if (result.featureType) {
-          this.featureCounts[result.featureType] = (this.featureCounts[result.featureType] || 0) + 1
-        }
-      }
-    } else {
-      this.totalFeatureWin += result.win
-      this.freeSpinsPlayed++
-      if (result.isRetrigger || result.isTrigger) this.retriggers++
-    }
+    this.currentRoundResultCount++
+    this.currentRoundMaxResultWin = Math.max(this.currentRoundMaxResultWin, result.win)
+    this.currentCountsByType[result.type] = (this.currentCountsByType[result.type] ?? 0) + 1
+    this.currentWinsByType[result.type] = (this.currentWinsByType[result.type] ?? 0) + result.win
   }
 
   endRound(): void {
     if (this.betAmount <= 0) return
 
-    if (this.currentRoundWin > this.maxRoundWin) {
-      this.maxRoundWin = this.currentRoundWin
+    this.raw.rounds++
+    this.raw.totalBet += this.betAmount
+    this.raw.maxRoundWin = Math.max(this.raw.maxRoundWin, this.currentRoundWin)
+
+    const roundMultiplier = this.currentRoundWin / this.betAmount
+    this.raw.sumRoundWinMultiplier += roundMultiplier
+    this.raw.sumSquaresRoundWinMultiplier += roundMultiplier * roundMultiplier
+
+    this.count('rounds')
+    this.payout('round-payout', this.currentRoundWin, this.betAmount)
+    this.value('round-win', this.currentRoundWin)
+    this.value('result-count', this.currentRoundResultCount)
+    this.distribution('round-win-multiplier', bucketRoundWin(roundMultiplier))
+
+    for (const [type, count] of Object.entries(this.currentCountsByType)) {
+      this.scope(['spin-types', type.toLowerCase()]).count('results', count)
     }
 
-    const mob = this.currentRoundWin / this.betAmount
-
-    if (mob === 0) {
-      this.distribution['0x'] = (this.distribution['0x'] ?? 0) + 1
-    } else if (mob < 1) {
-      this.distribution['<1x'] = (this.distribution['<1x'] ?? 0) + 1
-    } else if (mob < 5) {
-      this.distribution['1x-5x'] = (this.distribution['1x-5x'] ?? 0) + 1
-    } else if (mob < 20) {
-      this.distribution['5x-20x'] = (this.distribution['5x-20x'] ?? 0) + 1
-    } else if (mob < 50) {
-      this.distribution['20x-50x'] = (this.distribution['20x-50x'] ?? 0) + 1
-    } else if (mob < 100) {
-      this.distribution['50x-100x'] = (this.distribution['50x-100x'] ?? 0) + 1
-    } else {
-      this.distribution['>100x'] = (this.distribution['>100x'] ?? 0) + 1
+    this.lastRoundSnapshot = {
+      bet: this.betAmount,
+      totalWin: this.currentRoundWin,
+      resultCount: this.currentRoundResultCount,
+      maxResultWin: this.currentRoundMaxResultWin,
+      countsByType: { ...this.currentCountsByType },
+      winsByType: { ...this.currentWinsByType },
     }
+  }
 
-    this.sumSquaresRound += mob * mob
-    if (mob >= 100) {
-      this.totalWinJackpot += this.currentRoundWin
-    }
+  getLastRoundSnapshot(): RoundMetricsSnapshot | null {
+    return this.lastRoundSnapshot
   }
 
   getRawMetrics(): RawSimulationMetrics {
     return {
-      totalSamples: this.samples,
-      totalBet: this.totalBet,
-      totalBaseWin: this.totalBaseWin,
-      totalFeatureWin: this.totalFeatureWin,
-      baseHits: this.baseHits,
-      triggers: this.triggers,
-      retriggers: this.retriggers,
-      maxRoundWin: this.maxRoundWin,
-      distribution: { ...this.distribution },
-      totalWinJackpot: this.totalWinJackpot,
-      freeSpinsPlayed: this.freeSpinsPlayed,
-      featureCounts: { ...this.featureCounts },
-      scatterDist: { ...this.scatterDist },
-      sumSquaresRound: this.sumSquaresRound,
+      rounds: this.raw.rounds,
+      totalBet: this.raw.totalBet,
+      totalWin: this.raw.totalWin,
+      totalSpinResults: this.raw.totalSpinResults,
+      maxRoundWin: this.raw.maxRoundWin,
+      sumRoundWinMultiplier: this.raw.sumRoundWinMultiplier,
+      sumSquaresRoundWinMultiplier: this.raw.sumSquaresRoundWinMultiplier,
+      rootScope: cloneScope(this.raw.rootScope),
     }
+  }
+
+  recordCount(path: string[], name: string, amount: number): void {
+    if (amount === 0) return
+    const scope = this.resolveScope(path)
+    const current = scope.metrics[name]
+    if (!current) {
+      scope.metrics[name] = { kind: 'count', total: amount }
+      return
+    }
+    if (current.kind !== 'count') {
+      throw new Error(`Metric "${name}" in scope "${path.join('/')}" is not a count`)
+    }
+    current.total += amount
+  }
+
+  recordValue(path: string[], name: string, observed: number): void {
+    const scope = this.resolveScope(path)
+    const current = scope.metrics[name]
+    if (!current) {
+      scope.metrics[name] = {
+        kind: 'value',
+        count: 1,
+        sum: observed,
+        min: observed,
+        max: observed,
+      }
+      return
+    }
+    if (current.kind !== 'value') {
+      throw new Error(`Metric "${name}" in scope "${path.join('/')}" is not a value`)
+    }
+    current.count++
+    current.sum += observed
+    current.min = current.min === null ? observed : Math.min(current.min, observed)
+    current.max = current.max === null ? observed : Math.max(current.max, observed)
+  }
+
+  recordDistribution(path: string[], name: string, bucket: string, amount: number): void {
+    if (amount === 0) return
+    const scope = this.resolveScope(path)
+    const current = scope.metrics[name]
+    if (!current) {
+      scope.metrics[name] = {
+        kind: 'distribution',
+        total: amount,
+        buckets: { [bucket]: amount },
+      }
+      return
+    }
+    if (current.kind !== 'distribution') {
+      throw new Error(`Metric "${name}" in scope "${path.join('/')}" is not a distribution`)
+    }
+    current.total += amount
+    current.buckets[bucket] = (current.buckets[bucket] ?? 0) + amount
+  }
+
+  recordPayout(path: string[], name: string, amount: number, denominator: number): void {
+    const scope = this.resolveScope(path)
+    const current = scope.metrics[name]
+    if (!current) {
+      scope.metrics[name] = {
+        kind: 'payout',
+        count: 1,
+        total: amount,
+        denominatorTotal: denominator,
+        min: amount,
+        max: amount,
+      }
+      return
+    }
+    if (current.kind !== 'payout') {
+      throw new Error(`Metric "${name}" in scope "${path.join('/')}" is not a payout`)
+    }
+    current.count++
+    current.total += amount
+    current.denominatorTotal += denominator
+    current.min = current.min === null ? amount : Math.min(current.min, amount)
+    current.max = current.max === null ? amount : Math.max(current.max, amount)
+  }
+
+  private resolveScope(path: string[]): RawMetricScope {
+    let scope = this.raw.rootScope
+    for (const segment of path) {
+      scope.scopes[segment] ??= emptyScope()
+      scope = scope.scopes[segment]!
+    }
+    return scope
   }
 }
 
-// ─── Metrics utilities ─────────────────────────────────────────────────────
-
 export const Metrics = {
   merge(a: RawSimulationMetrics, b: RawSimulationMetrics): RawSimulationMetrics {
-    const dist: Record<string, number> = {}
-    const distKeys = new Set([...Object.keys(a.distribution), ...Object.keys(b.distribution)])
-    for (const k of distKeys) {
-      dist[k] = (a.distribution[k] || 0) + (b.distribution[k] || 0)
-    }
-
-    const featCounts: Record<string, number> = {}
-    const featKeys = new Set([
-      ...Object.keys(a.featureCounts || {}),
-      ...Object.keys(b.featureCounts || {}),
-    ])
-    for (const k of featKeys) {
-      featCounts[k] = (a.featureCounts[k] || 0) + (b.featureCounts[k] || 0)
-    }
-
-    const scDist: Record<string, number> = {}
-    const scKeys = new Set([
-      ...Object.keys(a.scatterDist || {}),
-      ...Object.keys(b.scatterDist || {}),
-    ])
-    for (const k of scKeys) {
-      scDist[k] = (a.scatterDist[k] || 0) + (b.scatterDist[k] || 0)
-    }
-
     return {
-      totalSamples: a.totalSamples + b.totalSamples,
+      rounds: a.rounds + b.rounds,
       totalBet: a.totalBet + b.totalBet,
-      totalBaseWin: a.totalBaseWin + b.totalBaseWin,
-      totalFeatureWin: a.totalFeatureWin + b.totalFeatureWin,
-      baseHits: a.baseHits + b.baseHits,
-      triggers: a.triggers + b.triggers,
-      retriggers: a.retriggers + b.retriggers,
+      totalWin: a.totalWin + b.totalWin,
+      totalSpinResults: a.totalSpinResults + b.totalSpinResults,
       maxRoundWin: Math.max(a.maxRoundWin, b.maxRoundWin),
-      distribution: dist,
-      totalWinJackpot: a.totalWinJackpot + b.totalWinJackpot,
-      freeSpinsPlayed: a.freeSpinsPlayed + b.freeSpinsPlayed,
-      featureCounts: featCounts,
-      scatterDist: scDist,
-      sumSquaresRound: a.sumSquaresRound + b.sumSquaresRound,
+      sumRoundWinMultiplier: a.sumRoundWinMultiplier + b.sumRoundWinMultiplier,
+      sumSquaresRoundWinMultiplier:
+        a.sumSquaresRoundWinMultiplier + b.sumSquaresRoundWinMultiplier,
+      rootScope: mergeScopes(a.rootScope, b.rootScope),
     }
   },
 
   emptyRaw(): RawSimulationMetrics {
+    const rootScope = emptyScope()
+    rootScope.metrics['round-win-multiplier'] = {
+      kind: 'distribution',
+      total: 0,
+      buckets: Object.fromEntries(DEFAULT_WIN_BUCKETS.map((key) => [key, 0])),
+    }
+
     return {
-      totalSamples: 0,
+      rounds: 0,
       totalBet: 0,
-      totalBaseWin: 0,
-      totalFeatureWin: 0,
-      baseHits: 0,
-      triggers: 0,
-      retriggers: 0,
+      totalWin: 0,
+      totalSpinResults: 0,
       maxRoundWin: 0,
-      distribution: {
-        '0x': 0,
-        '<1x': 0,
-        '1x-5x': 0,
-        '5x-20x': 0,
-        '20x-50x': 0,
-        '50x-100x': 0,
-        '>100x': 0,
-      },
-      totalWinJackpot: 0,
-      freeSpinsPlayed: 0,
-      featureCounts: {},
-      scatterDist: { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
-      sumSquaresRound: 0,
+      sumRoundWinMultiplier: 0,
+      sumSquaresRoundWinMultiplier: 0,
+      rootScope,
     }
   },
 
   finalize(raw: RawSimulationMetrics): SimulationMetrics {
-    const totalWin = raw.totalBaseWin + raw.totalFeatureWin
-    const mean = raw.totalBet > 0 ? totalWin / raw.totalBet : 0
-    const eX2 = raw.totalSamples > 0 ? raw.sumSquaresRound / raw.totalSamples : 0
+    const mean = raw.rounds > 0 ? raw.sumRoundWinMultiplier / raw.rounds : 0
+    const eX2 = raw.rounds > 0 ? raw.sumSquaresRoundWinMultiplier / raw.rounds : 0
     const variance = Math.max(0, eX2 - mean * mean)
+    const scopes = finalizeScope(raw.rootScope, [], raw.rounds)
 
-    const featCycles: Record<string, number> = {}
-    for (const [type, count] of Object.entries(raw.featureCounts)) {
-      featCycles[type] = count > 0 ? raw.totalSamples / count : 0
-    }
+    const roundWinDistributionMetric = scopes.metrics['round-win-multiplier']
+    const roundWinDistribution: FinalDistributionMetric =
+      roundWinDistributionMetric?.kind === 'distribution'
+        ? roundWinDistributionMetric
+        : {
+            kind: 'distribution',
+            total: 0,
+            buckets: Object.fromEntries(
+              DEFAULT_WIN_BUCKETS.map((bucket) => [bucket, { count: 0, ratio: 0 }]),
+            ),
+          }
 
-    const scFreqs: Record<string, number> = {}
-    for (const [sc, count] of Object.entries(raw.scatterDist)) {
-      scFreqs[sc] = raw.totalSamples > 0 ? count / raw.totalSamples : 0
+    const spinTypeScope = scopes.scopes['spin-types']
+    const spinTypeBuckets: Record<string, FinalDistributionBucket> = {}
+    let spinTypeTotal = 0
+    if (spinTypeScope) {
+      for (const [name, scope] of Object.entries(spinTypeScope.scopes)) {
+        const resultsMetric = scope.metrics['results']
+        if (resultsMetric?.kind === 'count') {
+          spinTypeTotal += resultsMetric.total
+          spinTypeBuckets[name] = { count: resultsMetric.total, ratio: 0 }
+        }
+      }
+      for (const bucket of Object.values(spinTypeBuckets)) {
+        bucket.ratio = spinTypeTotal > 0 ? bucket.count / spinTypeTotal : 0
+      }
     }
 
     return {
-      totalSamples: raw.totalSamples,
-      totalBet: raw.totalBet,
-      totalWin: totalWin,
-      rtp: {
-        total: mean,
-        base: raw.totalBet > 0 ? raw.totalBaseWin / raw.totalBet : 0,
-        feature: raw.totalBet > 0 ? raw.totalFeatureWin / raw.totalBet : 0,
-        withoutJackpots: raw.totalBet > 0 ? (totalWin - raw.totalWinJackpot) / raw.totalBet : 0,
+      schemaVersion: 2,
+      summary: {
+        rounds: raw.rounds,
+        totalBet: raw.totalBet,
+        totalWin: raw.totalWin,
+        averageBet: raw.rounds > 0 ? raw.totalBet / raw.rounds : 0,
+        averageRoundWin: raw.rounds > 0 ? raw.totalWin / raw.rounds : 0,
+        totalSpinResults: raw.totalSpinResults,
+        rtp: raw.totalBet > 0 ? raw.totalWin / raw.totalBet : 0,
+        maxRoundWin: raw.maxRoundWin,
+        maxRoundWinMultiplier: raw.totalBet > 0 ? raw.maxRoundWin / (raw.totalBet / raw.rounds) : 0,
+        variance: {
+          mean,
+          variance,
+          stdDev: Math.sqrt(variance),
+        },
+        roundWinDistribution,
+        resultTypeDistribution: {
+          kind: 'distribution',
+          total: spinTypeTotal,
+          buckets: spinTypeBuckets,
+        },
       },
-      hitRates: {
-        baseHitRate: raw.totalSamples > 0 ? raw.baseHits / raw.totalSamples : 0,
-        featureTriggerRate: raw.totalSamples > 0 ? raw.triggers / raw.totalSamples : 0,
-      },
-      features: {
-        totalTriggers: raw.triggers,
-        totalRetriggers: raw.retriggers,
-        averageFeatureWin: raw.triggers > 0 ? raw.totalFeatureWin / raw.triggers : 0,
-        freeSpinsPlayed: raw.freeSpinsPlayed,
-        featureCounts: raw.featureCounts,
-        featureCycles: featCycles,
-      },
-      scatter: {
-        distribution: raw.scatterDist,
-        frequencies: scFreqs,
-        cycle: raw.triggers > 0 ? raw.totalSamples / raw.triggers : 0,
-      },
-      variance: {
-        mean: mean,
-        variance: variance,
-        stdDev: Math.sqrt(variance),
-      },
-      maxWinObserved: raw.maxRoundWin,
-      winDistribution: raw.distribution,
+      scopes,
     }
   },
 }
-
-// ─── State machine interface expected by runCycle ──────────────────────────
 
 export interface StateMachine<TResult extends SpinResult, TState = unknown> {
   readonly state: TState
   spin(rng: Rng, wager: Wager): TResult
   next(rng: Rng): TResult | null
+  recordResultMetrics?(
+    collector: DataCollector,
+    result: TResult,
+    context: { phase: 'spin' | 'next'; wager: Wager },
+  ): void
+  recordRoundMetrics?(
+    collector: DataCollector,
+    round: RoundMetricsSnapshot,
+    wager: Wager,
+  ): void
 }
 
 export function runCycle<TResult extends SpinResult>(
@@ -340,10 +682,21 @@ export function runCycle<TResult extends SpinResult>(
   wager: Wager,
 ): void {
   collector.beginRound(wager.totalWager)
-  collector.collect(sm.spin(rng, wager))
+
+  const initial = sm.spin(rng, wager)
+  collector.collect(initial)
+  sm.recordResultMetrics?.(collector, initial, { phase: 'spin', wager })
+
   let nextResult: TResult | null
   while ((nextResult = sm.next(rng)) !== null) {
     collector.collect(nextResult)
+    sm.recordResultMetrics?.(collector, nextResult, { phase: 'next', wager })
   }
+
   collector.endRound()
+
+  const round = collector.getLastRoundSnapshot()
+  if (round) {
+    sm.recordRoundMetrics?.(collector, round, wager)
+  }
 }

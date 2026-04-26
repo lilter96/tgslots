@@ -49,6 +49,8 @@ export { AncientDragonStateMachine, BET_CONFIG, SIM_CONFIG }
 class AncientDragonStateMachine implements StateMachine<AncientDragonResult, AncientDragonState> {
   spin(rng: Rng, wager: Wager): AncientDragonResult
   next(rng: Rng): AncientDragonResult | null
+  recordResultMetrics(collector: DataCollector, result: AncientDragonResult, ...): void
+  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, ...): void
   get state(): AncientDragonState
 }
 
@@ -74,4 +76,4 @@ function ANCIENT_DRAGON_SAMPLER(wager: Wager): Sampler<{ win: number; sc: number
 - `engine.ts` — builds `SlotWithPaylinesEngine` via `buildEngineFromArrays`
 - `logic.ts` — mystery-symbol resolution, positional sampling, wager-aware evaluation, `ANCIENT_DRAGON_SAMPLER`
 - `game-state-machine.ts` — base/free-spin transitions and wager retention between rounds
-- `index.ts` — exports `AncientDragonStateMachine`, `BET_CONFIG`, and `SIM_CONFIG`
+- `index.ts` — exports `AncientDragonStateMachine`, `BET_CONFIG`, and `SIM_CONFIG` with normalized comparison targets

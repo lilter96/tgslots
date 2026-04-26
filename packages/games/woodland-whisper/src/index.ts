@@ -8,10 +8,43 @@ export { WoodlandWhisperStateMachine, WOODLAND_WHISPER_SAMPLER, BET_CONFIG }
 export const SIM_CONFIG = {
   name: 'WOODLAND WHISPER',
   parsheet: {
-    bet: BET_CONFIG.baseCost,
-    targetRTP: 0.8804,
-    scatterCycle: 140.52,
-    featurePayout: 643.2,
+    metadata: {
+      bet: BET_CONFIG.baseCost,
+      source: 'inline',
+    },
+    comparisons: [
+      {
+        id: 'total-rtp',
+        label: 'Total RTP',
+        expected: 0.8804,
+        source: { kind: 'summary', key: 'rtp' },
+        tolerance: { type: 'absolute', value: 0.005 },
+        format: 'percent',
+      },
+      {
+        id: 'pick-bonus-trigger-cycle',
+        label: 'Pick Bonus Trigger Cycle',
+        expected: 140.52,
+        source: {
+          kind: 'scope',
+          scope: ['features', 'free-spins', 'pick-bonus'],
+          metric: 'triggers',
+          field: 'cycle',
+        },
+        tolerance: { type: 'relative', value: 0.05 },
+      },
+      {
+        id: 'pick-bonus-payout',
+        label: 'Pick Bonus Payout',
+        expected: 643.2,
+        source: {
+          kind: 'scope',
+          scope: ['features', 'free-spins', 'pick-bonus'],
+          metric: 'bonus-payout',
+          field: 'average',
+        },
+      },
+    ],
   },
   betConfig: BET_CONFIG,
   StateMachine: WoodlandWhisperStateMachine,

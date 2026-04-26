@@ -31,6 +31,7 @@ up:
 - [[task_022_add_simulation_visualizer]] — 2026-04-26 — Added --visualize CLI flag for PDF/HTML simulation reports
 - [[task_023_memory_sync]] — 2026-04-26 — Synchronized memory docs with current APIs, tests, dependencies, and contributor workflow
 - [[task_024_obsidian_memory_refactor]] — 2026-04-26 — Upgraded the full memory vault with Obsidian frontmatter, aliases, tags, and hub links
+- [[task_025_scoped_simulation_metrics_and_visualization]] — 2026-04-26 — Replaced slot-specific metrics with scoped generic metrics, normalized comparison targets, and HTML visualization.
 
 ## In Progress
 

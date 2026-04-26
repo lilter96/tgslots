@@ -46,7 +46,7 @@ up:
 1. `@tgslots/slots-core` — payline/scatter evaluation, symbol registry, slot engine
 2. `@tgslots/ancient-dragon` — sampler logic and state machine
 3. `@tgslots/woodland-whisper` — sampler logic and state machine
-4. `@tgslots/slots-simulation-engine` — metrics merge/finalize, runner, CLI parsing
+4. `@tgslots/slots-simulation-engine` — scoped metrics merge/finalize, comparisons, runner, CLI parsing
 5. Expand property/statistical checks where math primitives already have baseline coverage
 
 ## Test Seed Strategy
@@ -56,6 +56,6 @@ up:
 
 ## Current Status
 
-- **10 test files / 165 passing tests** as of 2026-04-26
-- Covered today: `@tgslots/math` RNG/probability/functionals and `@tgslots/slots-core` betting
-- Missing today: direct coverage for both game packages, payline/scatter core, and simulation-engine
+- **11 test files / 168 passing tests** as of 2026-04-26
+- Covered today: `@tgslots/math` RNG/probability/functionals, `@tgslots/slots-core` betting, and `@tgslots/slots-simulation-engine` scoped metrics/comparisons
+- Missing today: direct coverage for both game packages and payline/scatter core

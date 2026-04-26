@@ -14,7 +14,7 @@ tags:
 
 - **Phase**: Active Development — 2 games implemented, unified simulation CLI and report generation in place
 - **Runtime**: Bun + TypeScript strict
-- **Tests**: 10 files / 165 passing tests in `math` and `slots-core` as of 2026-04-26
+- **Tests**: 11 files / 168 passing tests across `math`, `slots-core`, and `slots-simulation-engine` as of 2026-04-26
 - **Date Initialized**: 2026-04-21
 
 ## Architecture
@@ -48,7 +48,7 @@ tags:
 | ---------- | ---------------------------------- | ------------------------------------------------- |
 | Math       | `@tgslots/math`                    | RNG, probability, Sampler/Distribution primitives |
 | Core       | `@tgslots/slots-core`              | Paylines, scatter, betting, paytable, slot engine |
-| Simulation | `@tgslots/slots-simulation-engine` | Parallel runner, metrics, CLI, JSON/PDF/HTML reports |
+| Simulation | `@tgslots/slots-simulation-engine` | Parallel runner, scoped metrics, CLI, JSON/HTML reports |
 | Game       | `@tgslots/ancient-dragon`          | 5×3, 100 lines, 88.05% RTP target, free spins     |
 | Game       | `@tgslots/woodland-whisper`        | 5×3, 30 lines, 88.04% RTP, pick bonus             |
 | App        | `apps/simulations`                 | Unified simulation CLI and worker entrypoints     |

@@ -16,7 +16,7 @@ up:
 | Runtime         | Bun v1.3.12+                     |
 | Language        | TypeScript 5.9, strict mode, ESM |
 | Package manager | Bun workspaces                   |
-| Testing         | bun:test (10 files / 165 passing tests as of 2026-04-26) |
+| Testing         | bun:test (11 files / 168 passing tests as of 2026-04-26) |
 | Parallelism     | node:worker_threads via Bun      |
 
 ## Repository Layout
@@ -40,7 +40,7 @@ tgslots/                        ← Bun monorepo root
 ┌─────────────────────────────────┐
 │       apps/simulations          │  CLI, worker spawning
 ├─────────────────────────────────┤
-│  @tgslots/slots-simulation-engine│  Parallel runner, metrics, state machine
+│  @tgslots/slots-simulation-engine│  Parallel runner, scoped metrics, reports
 ├──────────────┬──────────────────┤
 │ @tgslots/    │ @tgslots/        │
 │ ancient-     │ woodland-        │  Game logic, constants, sampling
@@ -93,10 +93,11 @@ src/
 
 ```
 src/
-  core/state-machine.ts   StateMachine, SpinResult, collectors, finalized metrics
+  core/state-machine.ts   StateMachine, scoped collectors, raw/finalized metrics
   runner/index.ts         Parallel worker pool + snapshot reporting
-  cli/index.ts            Arg parsing, benchmark/verify/sample modes, JSON output
-  visualizer/index.ts     HTML/PDF report generation with Chart.js + PDFKit
+  cli/index.ts            Arg parsing, benchmark/verify/sample modes, JSON/HTML output
+  cli/comparison.ts       Normalized parsheet comparisons and selectors
+  visualizer/index.ts     Self-contained HTML dashboard generation
   index.ts                root exports core state-machine types
 ```
 

@@ -1,5 +1,10 @@
 import type { Rng } from '@tgslots/math/rng/types'
-import type { SpinResult, StateMachine } from '@tgslots/slots-simulation-engine'
+import type {
+  DataCollector,
+  RoundMetricsSnapshot,
+  SpinResult,
+  StateMachine,
+} from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
 import { FREE_SPIN_MULTIPLIER } from './constants.js'
 import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
@@ -11,12 +16,14 @@ export interface WoodlandWhisperState {
 
 export interface WoodlandWhisperResult extends SpinResult {
   sc: number
+  pickedBonus: number
 }
 
 export class WoodlandWhisperStateMachine implements StateMachine<
   WoodlandWhisperResult,
   WoodlandWhisperState
 > {
+  private roundTriggeredFeature = false
   private _state: WoodlandWhisperState = {
     freeSpinsLeft: 0,
     lastWager: null,
@@ -37,6 +44,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     const result = sampler.sample(rng)
 
     const isTrigger = result.sc >= 3
+    this.roundTriggeredFeature = isTrigger
     if (isTrigger) {
       this._state.freeSpinsLeft += result.pickedBonus
     }
@@ -77,5 +85,66 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       scatters: result.sc,
       sc: result.sc,
     }
+  }
+
+  recordResultMetrics(
+    collector: DataCollector,
+    result: WoodlandWhisperResult,
+    _context: { phase: 'spin' | 'next'; wager: Wager },
+  ): void {
+    const baseScope = collector.scope('base-game')
+    const freeSpinScope = collector.scope(['features', 'free-spins'])
+    const pickBonusScope = freeSpinScope.scope('pick-bonus')
+
+    if (result.type === 'BASE') {
+      baseScope.distribution('scatter-count', String(result.sc))
+      if (result.win > 0) baseScope.count('hits')
+
+      if (result.isTrigger) {
+        freeSpinScope.count('triggers')
+        freeSpinScope.value('awarded-spins', result.pickedBonus)
+        pickBonusScope.count('triggers')
+        pickBonusScope.value('awarded-spins', result.pickedBonus)
+      }
+      return
+    }
+
+    freeSpinScope.count('spins')
+    freeSpinScope.payout('spin-win', result.win)
+    freeSpinScope.distribution('scatter-count', String(result.sc))
+    if (result.win > 0) freeSpinScope.count('hits')
+
+    pickBonusScope.count('spins')
+    pickBonusScope.payout('spin-win', result.win)
+    pickBonusScope.distribution('scatter-count', String(result.sc))
+    if (result.win > 0) pickBonusScope.count('hits')
+
+    if (result.isRetrigger) {
+      freeSpinScope.count('retriggers')
+      freeSpinScope.value('awarded-spins', result.pickedBonus)
+      pickBonusScope.count('retriggers')
+      pickBonusScope.value('awarded-spins', result.pickedBonus)
+    }
+  }
+
+  recordRoundMetrics(
+    collector: DataCollector,
+    round: RoundMetricsSnapshot,
+    _wager: Wager,
+  ): void {
+    if (!this.roundTriggeredFeature && (round.countsByType.FREE ?? 0) === 0) {
+      return
+    }
+
+    const freeSpinScope = collector.scope(['features', 'free-spins'])
+    const pickBonusScope = freeSpinScope.scope('pick-bonus')
+
+    freeSpinScope.payout('bonus-payout', round.winsByType.FREE ?? 0, round.bet)
+    freeSpinScope.payout('round-payout', round.totalWin, round.bet)
+
+    pickBonusScope.payout('bonus-payout', round.winsByType.FREE ?? 0, round.bet)
+    pickBonusScope.payout('round-payout', round.totalWin, round.bet)
+
+    this.roundTriggeredFeature = false
   }
 }

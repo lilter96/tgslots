@@ -21,7 +21,7 @@ component: "slots-simulation-engine"
 
 ## Responsibility
 
-Parallel simulation runner: distributes spin work across CPU worker threads, collects detailed metrics, formats reports, and can emit JSON/HTML/PDF outputs.
+Parallel simulation runner with worker-thread fanout, generic scoped metrics collection, normalized reference comparisons, CLI reporting, and self-contained HTML visualization.
 
 ## Public API
 
@@ -40,30 +40,32 @@ interface SpinResult {
 interface StateMachine<T extends SpinResult = SpinResult, S = unknown> {
   spin(rng: Rng, wager: Wager): T
   next(rng: Rng): T | null
-  readonly state?: S
+  recordResultMetrics?(collector: DataCollector, result: T, context: { phase: 'spin' | 'next'; wager: Wager }): void
+  recordRoundMetrics?(collector: DataCollector, round: RoundMetricsSnapshot, wager: Wager): void
+  readonly state: S
 }
 
-class ModernDataCollector {
+interface DataCollector {
   beginRound(bet: number): void
   collect(result: SpinResult): void
   endRound(): void
+  scope(path: string | string[]): ScopedMetrics
+  count(name: string, amount?: number): void
+  value(name: string, observed: number): void
+  distribution(name: string, bucket: string, amount?: number): void
+  payout(name: string, amount: number, denominator?: number): void
+  getLastRoundSnapshot(): RoundMetricsSnapshot | null
   getRawMetrics(): RawSimulationMetrics
 }
 
 interface SimulationMetrics {
-  totalSamples: number
-  totalBet: number
-  rtp: { total: number; base: number; feature: number; withoutJackpots: number }
-  hitRates: { baseHitRate: number; featureTriggerRate: number }
-  features: { totalTriggers: number; totalRetriggers: number; averageFeatureWin: number }
-  scatter: { distribution: Record<string, number>; cycle: number }
-  variance: { mean: number; variance: number; stdDev: number }
-  maxWinObserved: number
-  winDistribution: Record<string, number>
+  schemaVersion: 2
+  summary: SimulationSummary
+  scopes: FinalMetricScope
 }
 ```
 
-### Runner (runner/index.ts)
+### Runner (`runner/index.ts`)
 
 ```typescript
 async function runSimulation(
@@ -71,31 +73,36 @@ async function runSimulation(
   config: SimRunnerConfig & { betMultiplier?: number; betConfig?: BetConfiguration },
   progressCallback?: (snapshot: SimulationMetrics, elapsedSec: number) => void,
 ): Promise<SimRunnerResult>
-
-function performWarmup<T extends SpinResult>(...): void
-function runWorkerLoop<T extends SpinResult>(...): void
 ```
 
-### CLI (cli/index.ts)
+### CLI (`cli/index.ts`)
 
 ```typescript
+type ParsheetConfig = LegacyParsheetConfig | NormalizedParsheetConfig
+
 function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts
 async function runAndPrint(...): Promise<void>
-function printSimResult(...): void
+async function printSimResult(...): Promise<void>
 ```
 
-### Visualizer (`visualizer/index.ts`)
+### Visualization (`visualizer/index.ts`)
 
 ```typescript
-async function visualizeMetrics(metrics: SimulationMetrics, outputPath: string): Promise<void>
+async function visualizeMetrics(report: SimulationJsonReport, outputPath: string): Promise<void>
 ```
+
+## Key Behaviors
+
+- Built-in summary metrics are intentionally small: rounds, bet/win totals, variance, max round win, round-win distribution, and result-type distribution.
+- Game-specific telemetry must be recorded through scoped collector APIs in `recordResultMetrics()` and/or `recordRoundMetrics()`, not by expanding `SpinResult` into a slot-specific reporting schema.
+- Reference comparisons are normalized into selector-based targets, so CLI verify mode and HTML dashboards compare the same resolved metrics.
+- `--visualize` writes a self-contained HTML dashboard; the old chart/PDF pipeline is gone.
 
 ## Dependencies
 
 - `[[math]]` (Rng type)
 - `[[slots-core]]` (BetConfiguration, Wager)
-- `chart.js`, `chartjs-node-canvas`, `pdfkit`
-- `node:worker_threads`, `node:os`
+- `node:worker_threads`, `node:os`, `node:fs`
 
 ## Worker Protocol
 
@@ -103,4 +110,4 @@ Each game provides a worker entry point (for example `ancient-dragon-worker.ts`)
 
 1. Receives `workerData` containing spin count, seed, warmup, batch size, and serialized betting config.
 2. Runs the game state machine through `runWorkerLoop()`.
-3. Posts periodic snapshots and one final aggregated result back to the parent worker host.
+3. Posts periodic raw scoped metrics snapshots and one final aggregated result back to the parent worker host.
