@@ -8,70 +8,99 @@ import type {
 import { Wager } from '@tgslots/slots-core/betting'
 import { ANCIENT_DRAGON_SAMPLER } from './logic.js'
 
-export interface AncientDragonState {
-  freeSpinsLeft: number
-  lastWager: Wager | null
+export interface FreeSpinState {
+  triggeringWager: Wager
+  totalWin: number
+  spinsRemaining: number
 }
 
-export interface AncientDragonResult extends SpinResult {
+export interface AncientDragonState {
+  freeSpins: FreeSpinState | null
+}
+
+export interface AncientDragonBaseResult extends SpinResult {
+  type: 'BASE'
   sc: number
   triggeredFreeSpins: boolean
-  retriggeredFreeSpins?: boolean
 }
+
+export interface AncientDragonFreeResult extends SpinResult {
+  type: 'FREE'
+  sc: number
+  retriggeredFreeSpins: boolean
+}
+
+export type AncientDragonResult = AncientDragonBaseResult | AncientDragonFreeResult
 
 export class AncientDragonStateMachine implements StateMachine<
   AncientDragonResult,
   AncientDragonState
 > {
-  private roundTriggeredFeature = false
   private _state: AncientDragonState = {
-    freeSpinsLeft: 0,
-    lastWager: null,
+    freeSpins: null,
   }
 
   get state(): AncientDragonState {
     return this._state
   }
 
-  spin(rng: Rng, wager: Wager): AncientDragonResult {
-    this._state.lastWager = wager
-
+  baseGameSpin(rng: Rng, wager: Wager): AncientDragonBaseResult {
     const sampler = ANCIENT_DRAGON_SAMPLER(wager)
     const result = sampler.sample(rng)
     const isTrigger = result.sc >= 3
-    this.roundTriggeredFeature = isTrigger
+
     if (isTrigger) {
-      this._state.freeSpinsLeft += 10
+      this._state.freeSpins = {
+        triggeringWager: wager,
+        totalWin: 0,
+        spinsRemaining: 10,
+      }
     }
+
     return {
-      ...result,
       type: 'BASE',
-      triggeredFreeSpins: isTrigger,
+      win: result.win,
       sc: result.sc,
+      triggeredFreeSpins: isTrigger,
     }
   }
 
-  next(rng: Rng): AncientDragonResult | null {
-    if (this._state.freeSpinsLeft <= 0 || !this._state.lastWager) {
-      return null
+  freeGameSpin(rng: Rng): AncientDragonFreeResult {
+    if (!this._state.freeSpins || this._state.freeSpins.spinsRemaining <= 0) {
+      throw new Error('No free spins remaining')
     }
 
-    this._state.freeSpinsLeft--
-    const sampler = ANCIENT_DRAGON_SAMPLER(this._state.lastWager)
+    this._state.freeSpins.spinsRemaining--
+    const wager = this._state.freeSpins.triggeringWager
+    const sampler = ANCIENT_DRAGON_SAMPLER(wager)
     const result = sampler.sample(rng)
+
+    this._state.freeSpins.totalWin += result.win
 
     const isTrigger = result.sc >= 3
     if (isTrigger) {
-      this._state.freeSpinsLeft += 10
+      this._state.freeSpins.spinsRemaining += 10
     }
 
     return {
-      ...result,
       type: 'FREE',
-      triggeredFreeSpins: false,
-      retriggeredFreeSpins: isTrigger,
+      win: result.win,
       sc: result.sc,
+      retriggeredFreeSpins: isTrigger,
     }
+  }
+
+  spin(rng: Rng, wager: Wager): AncientDragonResult {
+    // Reset session-based state on new base spin
+    this._state.freeSpins = null
+    return this.baseGameSpin(rng, wager)
+  }
+
+  next(rng: Rng): AncientDragonResult | null {
+    if (this._state.freeSpins && this._state.freeSpins.spinsRemaining > 0) {
+      return this.freeGameSpin(rng)
+    }
+    return null
   }
 
   recordResultMetrics(
@@ -102,18 +131,17 @@ export class AncientDragonStateMachine implements StateMachine<
     }
   }
 
-  recordRoundMetrics(
-    collector: DataCollector,
-    round: RoundMetricsSnapshot,
-    _wager: Wager,
-  ): void {
-    if (!this.roundTriggeredFeature && (round.countsByType.FREE ?? 0) === 0) {
-      return
-    }
-
+  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
     const freeSpinScope = collector.scope(['features', 'free-spins'])
-    freeSpinScope.payout('bonus-payout', round.winsByType.FREE ?? 0, round.bet)
-    freeSpinScope.payout('round-payout', round.totalWin, round.bet)
-    this.roundTriggeredFeature = false
+
+    // Record on every round so ratio = feature_wins / total_bets = feature RTP
+    freeSpinScope.payout('feature-rtp', round.winsByType.FREE ?? 0, round.bet)
+
+    const hasFreeSpins = (round.countsByType.FREE ?? 0) > 0
+    if (!hasFreeSpins) return
+
+    freeSpinScope.payout('feature-win', round.winsByType.FREE ?? 0, round.bet)
+    freeSpinScope.payout('round-win', round.totalWin, round.bet)
+    freeSpinScope.value('total-spins-per-trigger', round.countsByType.FREE ?? 0)
   }
 }

@@ -6,7 +6,7 @@ import type {
   StateMachine,
 } from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
-import { WOODLAND_WHISPER_SAMPLER, generatePickBonus } from './logic.js'
+import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
 
 export interface FreeSpinState {
   triggeringWager: Wager
@@ -19,6 +19,7 @@ export interface PickBonusState {
   pickSequence: number[]
   currentIndex: number
   winValue: number
+  triggeringWager: Wager
 }
 
 export interface WoodlandWhisperState {
@@ -27,25 +28,49 @@ export interface WoodlandWhisperState {
   pickBonus: PickBonusState | null
 }
 
-export interface WoodlandWhisperResult extends SpinResult {
-  sc?: number
-  grid?: number[][]
-  pickedBonus?: number
-  triggeredPickBonus?: boolean
-  retriggeredPickBonus?: boolean
-  pick?: {
+export interface WoodlandWhisperBaseResult extends SpinResult {
+  type: 'BASE'
+  sc: number
+  grid: number[][]
+  pickedBonus: number
+  triggeredPickBonus: boolean
+  state: {
+    freeSpinsLeft: number
+    totalFreeSpinWin: number
+  }
+}
+
+export interface WoodlandWhisperFreeResult extends SpinResult {
+  type: 'FREE'
+  sc: number
+  grid: number[][]
+  pickedBonus: number
+  retriggeredPickBonus: boolean
+  state: {
+    freeSpinsLeft: number
+    totalFreeSpinWin: number
+  }
+}
+
+export interface WoodlandWhisperPickResult extends SpinResult {
+  type: 'PICK'
+  pick: {
     index: number
     value: number
     isMatch: boolean
     board: number[]
     picks: number[]
   }
-  // Current state snapshot for UI/Sim
   state: {
     freeSpinsLeft: number
     totalFreeSpinWin: number
   }
 }
+
+export type WoodlandWhisperResult =
+  | WoodlandWhisperBaseResult
+  | WoodlandWhisperFreeResult
+  | WoodlandWhisperPickResult
 
 export class WoodlandWhisperStateMachine implements StateMachine<
   WoodlandWhisperResult,
@@ -61,18 +86,19 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     return this._state
   }
 
-  baseGameSpin(rng: Rng, wager: Wager): WoodlandWhisperResult {
+  baseGameSpin(rng: Rng, wager: Wager): WoodlandWhisperBaseResult {
     const sampler = WOODLAND_WHISPER_SAMPLER(wager, false)
     const result = sampler.sample(rng)
 
     this._state.lastGrid = result.grid
 
     const isTrigger = result.sc >= 3
-    if (isTrigger) {
+    if (isTrigger && result.pickData) {
       this._state.pickBonus = {
-        ...generatePickBonus(result.pickedBonus).sample(rng),
+        ...result.pickData,
         currentIndex: 0,
         winValue: result.pickedBonus,
+        triggeringWager: wager,
       }
     }
 
@@ -90,12 +116,12 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     }
   }
 
-  pickBall(rng: Rng): WoodlandWhisperResult {
+  pickBall(): WoodlandWhisperPickResult {
     if (!this._state.pickBonus) {
       throw new Error('No active pick bonus')
     }
 
-    const { board, pickSequence, currentIndex, winValue } = this._state.pickBonus
+    const { board, pickSequence, currentIndex, winValue, triggeringWager } = this._state.pickBonus
     const pickIndex = pickSequence[currentIndex]!
     const pickValue = board[pickIndex]!
 
@@ -106,16 +132,14 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     const picksSoFar = pickSequence.slice(0, nextIndex)
 
     if (isMatch) {
-      if (this._state.freeSpins) {
-        this._state.freeSpins.spinsRemaining += winValue
-      } else {
-        // This is safe because baseGameSpin or freeGameSpin must have set a wager
-        // but we need to ensure we have a wager. In Woodland Whisper, wager is
-        // passed to spin() which calls baseGameSpin.
-        // If we are recovering from a state where freeSpins was null,
-        // we should have a triggeringWager.
-        // For simplicity, we assume baseGameSpin already occurred.
+      if (!this._state.freeSpins) {
+        this._state.freeSpins = {
+          triggeringWager,
+          totalWin: 0,
+          spinsRemaining: 0,
+        }
       }
+      this._state.freeSpins.spinsRemaining += winValue
       this._state.pickBonus = null
     } else {
       this._state.pickBonus.currentIndex = nextIndex
@@ -138,7 +162,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     }
   }
 
-  freeGameSpin(rng: Rng): WoodlandWhisperResult {
+  freeGameSpin(rng: Rng): WoodlandWhisperFreeResult {
     if (!this._state.freeSpins || this._state.freeSpins.spinsRemaining <= 0) {
       throw new Error('No free spins remaining')
     }
@@ -152,11 +176,12 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     this._state.freeSpins.totalWin += result.win
 
     const isTrigger = result.sc >= 3
-    if (isTrigger) {
+    if (isTrigger && result.pickData) {
       this._state.pickBonus = {
-        ...generatePickBonus(result.pickedBonus).sample(rng),
+        ...result.pickData,
         currentIndex: 0,
         winValue: result.pickedBonus,
+        triggeringWager: wager,
       }
     }
 
@@ -175,24 +200,19 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   }
 
   spin(rng: Rng, wager: Wager): WoodlandWhisperResult {
-    // Reset session-based state on new base spin
-    this._state.freeSpins = {
-      triggeringWager: wager,
-      totalWin: 0,
-      spinsRemaining: 0,
-    }
+    this._state.freeSpins = null
     this._state.pickBonus = null
 
     return this.baseGameSpin(rng, wager)
   }
 
-  next(rng: Rng): WoodlandWhisperResult | null {
+  next(_rng: Rng): WoodlandWhisperResult | null {
     if (this._state.pickBonus) {
-      return this.pickBall(rng)
+      return this.pickBall()
     }
 
     if (this._state.freeSpins && this._state.freeSpins.spinsRemaining > 0) {
-      return this.freeGameSpin(rng)
+      return this.freeGameSpin(_rng)
     }
 
     return null

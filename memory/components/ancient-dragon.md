@@ -49,13 +49,16 @@ export { AncientDragonStateMachine, BET_CONFIG, SIM_CONFIG }
 class AncientDragonStateMachine implements StateMachine<AncientDragonResult, AncientDragonState> {
   spin(rng: Rng, wager: Wager): AncientDragonResult
   next(rng: Rng): AncientDragonResult | null
+  baseGameSpin(rng: Rng, wager: Wager): AncientDragonResult
+  freeGameSpin(rng: Rng): AncientDragonResult
   recordResultMetrics(collector: DataCollector, result: AncientDragonResult, ...): void
   recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, ...): void
   get state(): AncientDragonState
 }
 
-interface AncientDragonState { freeSpinsLeft: number; lastWager: Wager | null }
-interface AncientDragonResult extends SpinResult { sc: number }
+interface FreeSpinState { triggeringWager: Wager; totalWin: number; spinsRemaining: number }
+interface AncientDragonState { freeSpins: FreeSpinState | null }
+interface AncientDragonResult extends SpinResult { sc: number; triggeredFreeSpins: boolean; retriggeredFreeSpins?: boolean }
 ```
 
 ### Logic (internal)

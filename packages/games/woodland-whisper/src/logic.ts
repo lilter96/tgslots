@@ -36,6 +36,10 @@ export interface SpinEvaluationResult {
   readonly sc: number
   readonly grid: number[][]
   readonly pickedBonus: number
+  readonly pickData?: {
+    board: number[]
+    pickSequence: number[]
+  }
 }
 
 function evaluateWithWager(
@@ -216,7 +220,13 @@ function withPickBonus(
 ): Sampler<SpinEvaluationResult> {
   return base.flatMap((result) =>
     result.sc >= 3
-      ? pickBonusSampler.map((fs) => ({ ...result, pickedBonus: fs }))
+      ? pickBonusSampler.flatMap((winValue) =>
+          generatePickBonus(winValue).map((pickData) => ({
+            ...result,
+            pickedBonus: winValue,
+            pickData,
+          })),
+        )
       : Sampler.pure({ ...result, pickedBonus: 0 }),
   )
 }
