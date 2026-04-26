@@ -1,3 +1,15 @@
+---
+title: "task_016_math_tests"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_016_math_tests"
+status: "completed"
+---
 # Task: task_016_math_tests
 
 ## Description

@@ -1,2 +1,16 @@
+---
+title: "Active Context"
+type: "active-context"
+aliases: 
+- "Current Task"
+tags: 
+- "memory"
+- "context"
+up: 
+- "[[index]]"
+current_task: "(none)"
+---
+# Active Context
+
 Current Task:
-[[task_020_fix_free_spin_simulation]]
+(none)

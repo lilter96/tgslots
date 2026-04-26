@@ -1,3 +1,12 @@
+---
+title: "Coding Rules"
+type: "coding-rules"
+tags: 
+- "memory"
+- "rules"
+up: 
+- "[[index]]"
+---
 # Coding Rules
 
 ## TypeScript

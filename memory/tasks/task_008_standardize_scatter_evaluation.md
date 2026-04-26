@@ -1,3 +1,15 @@
+---
+title: "task_008_standardize_scatter_evaluation"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_008_standardize_scatter_evaluation"
+status: "completed"
+---
 # Task: task_008_standardize_scatter_evaluation
 
 ## Description

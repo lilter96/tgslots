@@ -1,9 +1,18 @@
+---
+title: "Testing Strategy"
+type: "testing-strategy"
+tags: 
+- "memory"
+- "testing"
+up: 
+- "[[index]]"
+---
 # Testing Strategy
 
 ## Framework
 
 - **bun:test** (built into Bun runtime, Jest-compatible API)
-- Run: `bun test` from any package directory or monorepo root
+- Run: `bun test` from the repo root, or `bun --filter @tgslots/<pkg> test` for a single workspace that defines tests
 
 ## Coverage Target
 
@@ -32,13 +41,13 @@
 - Tolerance: ±0.5% of target RTP at 1M spins
 - Required for: each game, as regression guard
 
-## Priority Order (current — 0% coverage)
+## Priority Order (current)
 
-1. `@tgslots/math` — RNG, Sampler, Distribution, AliasSampler
-2. `@tgslots/slots-core` — evaluator, paytable, symbol registry
-3. `@tgslots/ancient-dragon` — logic.ts, state machine
-4. `@tgslots/woodland-whisper` — evaluation.ts, logic.ts, state machine
-5. `@tgslots/slots-simulation-engine` — metrics, runner
+1. `@tgslots/slots-core` — payline/scatter evaluation, symbol registry, slot engine
+2. `@tgslots/ancient-dragon` — sampler logic and state machine
+3. `@tgslots/woodland-whisper` — sampler logic and state machine
+4. `@tgslots/slots-simulation-engine` — metrics merge/finalize, runner, CLI parsing
+5. Expand property/statistical checks where math primitives already have baseline coverage
 
 ## Test Seed Strategy
 
@@ -47,6 +56,6 @@
 
 ## Current Status
 
-- **0 test files** as of 2026-04-21
-- No test scripts in any `package.json`
-- Adding tests is the highest-priority technical debt
+- **10 test files / 165 passing tests** as of 2026-04-26
+- Covered today: `@tgslots/math` RNG/probability/functionals and `@tgslots/slots-core` betting
+- Missing today: direct coverage for both game packages, payline/scatter core, and simulation-engine

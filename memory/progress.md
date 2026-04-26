@@ -1,3 +1,12 @@
+---
+title: "Progress"
+type: "progress-log"
+tags: 
+- "memory"
+- "progress"
+up: 
+- "[[index]]"
+---
 # Progress
 
 ## Completed
@@ -18,6 +27,10 @@
 - [[task_017_wager_and_cost_system]] — 2026-04-23 — Robust betting system ported from C# with improved naming
 - [[task_018_production_betting_system]] — 2026-04-25 — Strict integer credits, denominations, and simulation engine integration
 - [[task_019_betting_architecture_refactor]] — 2026-04-25 — Stateless state machines, zero-allocation grid projection, and pure credit math
+- [[task_020_fix_free_spin_simulation]] — 2026-04-26 — Fixed Woodland Whisper free-spin loop and applied the intended 2x free-spin payout multiplier
+- [[task_022_add_simulation_visualizer]] — 2026-04-26 — Added --visualize CLI flag for PDF/HTML simulation reports
+- [[task_023_memory_sync]] — 2026-04-26 — Synchronized memory docs with current APIs, tests, dependencies, and contributor workflow
+- [[task_024_obsidian_memory_refactor]] — 2026-04-26 — Upgraded the full memory vault with Obsidian frontmatter, aliases, tags, and hub links
 
 ## In Progress
 
@@ -27,7 +40,7 @@ _(none)_
 
 | Priority | Area           | Description                                              |
 | -------- | -------------- | -------------------------------------------------------- |
-| P0       | Testing        | Write bun:test unit tests — 0% coverage is critical debt |
+| P0       | Testing        | Expand direct test coverage for games, payline/scatter core, and simulation-engine |
 | P2       | Telegram Bot   | Bot layer, user sessions, bet handling                   |
 | P2       | Wallet Service | Balance, transactions, bet deduction                     |
 | P3       | New Game       | Third slot game                                          |
@@ -39,5 +52,5 @@ _(none yet)_
 
 ## Simulation RTP Verification Results (from code, not run)
 
-- Ancient Dragon target: 88.04%
+- Ancient Dragon target: 88.05%
 - Woodland Whisper target: 88.04%

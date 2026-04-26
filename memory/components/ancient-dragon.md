@@ -1,3 +1,18 @@
+---
+title: "Ancient Dragon"
+type: "component"
+aliases: 
+- "ancient-dragon"
+tags: 
+- "memory"
+- "component"
+- "ancient-dragon"
+up: 
+- "[[index]]"
+- "[[architecture]]"
+- "[[dependencies]]"
+component: "ancient-dragon"
+---
 # Component: Ancient Dragon
 
 ## Package
@@ -6,15 +21,15 @@
 
 ## Responsibility
 
-Slot game implementation: 5×5 grid, 100 paylines, 88.04% RTP target. Features free spins triggered by scatter symbol. Built on `@tgslots/slots-core`.
+Slot game implementation: 5×3 grid, 100 paylines, 88.05% RTP target. Features free spins triggered by scatter symbol. Built on `@tgslots/slots-core` and wired into the unified simulation runner.
 
 ## Game Spec
 
 | Property   | Value                                                       |
 | ---------- | ----------------------------------------------------------- |
-| Grid       | 5 reels × 5 rows                                            |
+| Grid       | 5 reels × 3 rows                                            |
 | Paylines   | 100                                                         |
-| RTP Target | 88.04%                                                      |
+| RTP Target | 88.05%                                                      |
 | Wild       | GOLDDRAGON (id=0)                                           |
 | Scatter    | YINYANG (separate pay; ≥3 → trigger 10 free spins)          |
 | Mystery    | INNER symbol → replaced with weighted random symbol on land |
@@ -22,50 +37,41 @@ Slot game implementation: 5×5 grid, 100 paylines, 88.04% RTP target. Features f
 
 ## Public API
 
-### Exports (index.ts)
+### Exports (`index.ts`)
 
 ```typescript
-export { AncientDragonStateMachine } from './game-state-machine'
-export type { AncientDragonState, AncientDragonResult } from './game-state-machine'
-export { BET } from './constants'
-export { SPIN_WITH_SCATTER } from './logic'
+export { AncientDragonStateMachine, BET_CONFIG, SIM_CONFIG }
 ```
 
 ### State Machine
 
 ```typescript
 class AncientDragonStateMachine implements StateMachine<AncientDragonResult, AncientDragonState> {
-  spin(rng: Rng): AncientDragonResult
+  spin(rng: Rng, wager: Wager): AncientDragonResult
   next(rng: Rng): AncientDragonResult | null
   get state(): AncientDragonState
 }
 
-interface AncientDragonResult extends SpinResult {
-  sc: number // scatter count this spin
-  scatters: number // same value — feeds ModernDataCollector scatter distribution
-}
+interface AncientDragonState { freeSpinsLeft: number; lastWager: Wager | null }
+interface AncientDragonResult extends SpinResult { sc: number }
 ```
 
 ### Logic (internal)
 
 ```typescript
-// Paylines via slots-core; scatter via PrecomputedScatterEngine (O(R))
-function evaluateWithScatter(
-  strips: readonly Uint8Array[],
-  positions: readonly number[],
-): { win: number; sc: number }
-function resolveStrips(stripStrings: readonly string[][], repSym: number): Uint8Array[]
+function ANCIENT_DRAGON_SAMPLER(wager: Wager): Sampler<{ win: number; sc: number }>
 ```
 
 ## Dependencies
 
-- `[[math]]` (mt19937, Sampler, AliasSampler)
-- `[[slots-core]]` (engine via buildEngineFromArrays, payline evaluation, PrecomputedScatterEngine)
+- `[[math]]` (Rng, Sampler, Array1, SamplingPlan)
+- `[[slots-core]]` (engine via `buildEngineFromArrays`, payline evaluation, `PrecomputedScatterEngine`, betting)
+- `[[slots-simulation-engine]]` (StateMachine and SpinResult types)
 
 ## Files
 
 - `constants.ts` — symbol enum, paytable array, 5 reel strip arrays, 100 payline definitions
-- `engine.ts` — 11 lines: builds SlotWithPaylinesEngine via `buildEngineFromArrays`
-- `logic.ts` — evaluation + sampling (evaluateWithScatter, resolveStrips, SPIN_WITH_SCATTER, FREE_SPIN_WITH_SCATTER)
-- `game-state-machine.ts` — state transitions; sets both `sc` and `scatters` on result
-- `index.ts` — explicit named exports only
+- `engine.ts` — builds `SlotWithPaylinesEngine` via `buildEngineFromArrays`
+- `logic.ts` — mystery-symbol resolution, positional sampling, wager-aware evaluation, `ANCIENT_DRAGON_SAMPLER`
+- `game-state-machine.ts` — base/free-spin transitions and wager retention between rounds
+- `index.ts` — exports `AncientDragonStateMachine`, `BET_CONFIG`, and `SIM_CONFIG`

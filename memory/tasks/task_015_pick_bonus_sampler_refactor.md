@@ -1,3 +1,15 @@
+---
+title: "task_015_pick_bonus_sampler_refactor"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_015_pick_bonus_sampler_refactor"
+status: "completed"
+---
 # Task: task_015_pick_bonus_sampler_refactor
 
 ## Description

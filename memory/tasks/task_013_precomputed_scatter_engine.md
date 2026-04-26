@@ -1,3 +1,15 @@
+---
+title: "task_013_precomputed_scatter_engine"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_013_precomputed_scatter_engine"
+status: "completed"
+---
 # Task: task_013_precomputed_scatter_engine
 
 ## Description

@@ -1,3 +1,15 @@
+---
+title: "task_014_game_code_cleanup_and_alignment"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_014_game_code_cleanup_and_alignment"
+status: "completed"
+---
 # Task: task_014_game_code_cleanup_and_alignment
 
 ## Description

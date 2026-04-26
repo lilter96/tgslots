@@ -1,3 +1,15 @@
+---
+title: "task_019_betting_architecture_refactor"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_019_betting_architecture_refactor"
+status: "completed"
+---
 # Task: task_019_betting_architecture_refactor
 
 ## Description

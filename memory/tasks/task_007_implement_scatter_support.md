@@ -1,3 +1,15 @@
+---
+title: "task_007_implement_scatter_support"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_007_implement_scatter_support"
+status: "completed"
+---
 # Task: task_007_implement_scatter_support
 
 ## Description

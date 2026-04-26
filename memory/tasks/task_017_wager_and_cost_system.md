@@ -1,3 +1,15 @@
+---
+title: "task_017_wager_and_cost_system"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_017_wager_and_cost_system"
+status: "completed"
+---
 # Task: task_017_wager_and_cost_system
 
 ## Description

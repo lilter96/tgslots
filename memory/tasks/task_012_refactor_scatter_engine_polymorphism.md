@@ -1,3 +1,15 @@
+---
+title: "task_012_refactor_scatter_engine_polymorphism"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_012_refactor_scatter_engine_polymorphism"
+status: "completed"
+---
 # Task: task_012_refactor_scatter_engine_polymorphism
 
 ## Description

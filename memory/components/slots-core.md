@@ -1,3 +1,18 @@
+---
+title: "Slots Core"
+type: "component"
+aliases: 
+- "slots-core"
+tags: 
+- "memory"
+- "component"
+- "slots-core"
+up: 
+- "[[index]]"
+- "[[architecture]]"
+- "[[dependencies]]"
+component: "slots-core"
+---
 # Component: Slots Core
 
 ## Package
@@ -6,88 +21,44 @@
 
 ## Responsibility
 
-Shared slot engine primitives: symbol registry, payline evaluation (iterative DFS via prefix trie), flat paytable lookups. Used by all game packages.
+Shared slot engine primitives: symbol registry, payline and scatter evaluation, flat paytable lookups, projected grids, and integer-credit betting primitives. Used by all game packages and the simulation runner.
 
 ## Public API
 
-### GameConfig
+### Core config and engine
 
 ```typescript
-interface GameConfig {
-  rows: number
-  reels: number
-  paylines: ReadonlyArray<ReadonlyArray<number>>
+interface GameWithPaylinesConfig {
+  readonly reelCount: number
+  readonly rowCount: number
+  readonly paytable: PaytableConfig
+  readonly paylines: readonly PaylineDefinition[]
+  readonly scatterDefinition?: ScatterDefinition
+  readonly wildSymbol?: string
 }
+function createSlotEngine(config: GameWithPaylinesConfig): SlotWithPaylinesEngine
+function buildEngineFromArrays(raw: RawGameArrays): SlotWithPaylinesEngine
 ```
 
-### SymbolRegistry
+### Registry, evaluation, and scatter
 
 ```typescript
-class SymbolRegistry {
-  constructor(symbols: string[])
-  getId(symbol: string): SymbolId
-  getSymbol(id: SymbolId): string
-  size: number
-}
-```
-
-### Scatter Evaluation
-
-```typescript
-interface ScatterDefinition {
-  symbolId: number
-  payouts: number[] // Index = count
-}
-
-// Grid-based engine — O(R×C) per spin; useful when positions are unavailable
-class BaseScatterEngine implements ScatterEngine {
-  constructor(def: ScatterDefinition)
-  evaluate(grid: EvalGrid, bet: number): ScatterResult
-}
-
-// Positional engine — O(R) per spin via prefix-sum precomputation at init O(R×N)
-// Requires strips + row count at construction; call evaluateAtPositions in hot path
-class PrecomputedScatterEngine implements PositionalScatterEngine {
-  constructor(def: ScatterDefinition, strips: readonly Uint8Array[], rows: number)
+function createSymbolRegistry(paytableSymbols: readonly string[], wildSymbol: string): SymbolRegistry
+function evaluateSpin(grid: EvalGrid, engine: SlotWithPaylinesEngine): EvaluationResult
+class BaseScatterEngine { evaluate(grid: EvalGrid, bet: number): ScatterResult }
+class PrecomputedScatterEngine {
   evaluateAtPositions(positions: readonly number[], bet: number): ScatterResult
 }
 ```
 
-### PaylineTrie
+### Betting
 
 ```typescript
-// Prefix trie — groups paylines by shared prefixes for batch evaluation
-function buildPaylineTrie(paylines: number[][]): PaylineTrie
-```
-
-### FlatPaytable
-
-```typescript
-// O(1) lookup: (symbolId, count) → win multiplier
-class FlatPaytable {
-  constructor(config: PaytableConfig)
-  lookup(symbolId: SymbolId, count: number): number
-}
-```
-
-### SlotEngine (combined)
-
-```typescript
-// Build engine from raw array constants (PAYLINE_DATA flat Uint8Array, PAY_TABLE, Symbols enum)
-interface RawGameArrays {
-  paylineData: Uint8Array // flat: reelCount values per payline
-  reelCount: number
-  rowCount: number
-  wildSymbol: string
-  payTable: readonly (readonly number[])[] // [symbolId][matchCount-2] → multiplier
-  symbols: Record<string, number> // name → id
-}
-function buildEngineFromArrays(raw: RawGameArrays): SlotWithPaylinesEngine
-
-// Low-level constructor — prefer buildEngineFromArrays for game packages
-function createSlotEngine(config: GameWithPaylinesConfig): SlotWithPaylinesEngine
+class BetConfiguration { static fromLineCount(lineCount: number): BetConfiguration }
+class MultiFrameBetConfiguration { static build(...): MultiFrameBetConfiguration }
+class Wager { constructor(multiplier: number, config: BetConfiguration) }
 ```
 
 ## Dependencies
 
-- `[[math]]` (Rng, symbol types)
+- `[[math]]` (Rng-related types used by higher layers)

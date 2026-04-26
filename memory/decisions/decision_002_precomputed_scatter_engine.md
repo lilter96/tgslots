@@ -1,3 +1,17 @@
+---
+title: "PrecomputedScatterEngine for simulation hot path"
+type: "decision"
+aliases: 
+- "decision_002_precomputed_scatter_engine"
+tags: 
+- "memory"
+- "decision"
+up: 
+- "[[index]]"
+- "[[architecture]]"
+decision_id: "decision_002_precomputed_scatter_engine"
+status: "accepted"
+---
 # Decision: PrecomputedScatterEngine for simulation hot path
 
 ## Context

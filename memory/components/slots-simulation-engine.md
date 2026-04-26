@@ -1,3 +1,18 @@
+---
+title: "Slots Simulation Engine"
+type: "component"
+aliases: 
+- "slots-simulation-engine"
+tags: 
+- "memory"
+- "component"
+- "slots-simulation-engine"
+up: 
+- "[[index]]"
+- "[[architecture]]"
+- "[[dependencies]]"
+component: "slots-simulation-engine"
+---
 # Component: Slots Simulation Engine
 
 ## Package
@@ -6,34 +21,43 @@
 
 ## Responsibility
 
-Parallel simulation runner: distributes spin work across CPU worker threads, collects metrics, formats results. Also provides CLI arg parsing and RTP verification mode.
+Parallel simulation runner: distributes spin work across CPU worker threads, collects detailed metrics, formats reports, and can emit JSON/HTML/PDF outputs.
 
 ## Public API
 
-### State Machine Types (core/state-machine.ts)
+### Core state-machine types (`core/state-machine.ts`)
 
 ```typescript
-// Events games emit during simulation
-type SimulationEvent =
-  | { type: 'spin'; betAmount: number; winAmount: number }
-  | { type: 'feature_trigger'; featureType: string }
-  | { type: 'feature_retrigger'; featureType: string }
-  | { type: 'feature_win'; winAmount: number }
-
-// Collects events from one simulation run
-class ModernDataCollector {
-  emit(event: SimulationEvent): void
-  getMetrics(): Metrics
+interface SpinResult {
+  type: 'BASE' | 'FREE' | 'RESPIN'
+  win: number
+  isTrigger: boolean
+  isRetrigger?: boolean
+  scatters?: number
+  featureType?: string
 }
 
-// Final simulation metrics
-interface Metrics {
-  totalSpins: number
+interface StateMachine<T extends SpinResult = SpinResult, S = unknown> {
+  spin(rng: Rng, wager: Wager): T
+  next(rng: Rng): T | null
+  readonly state?: S
+}
+
+class ModernDataCollector {
+  beginRound(bet: number): void
+  collect(result: SpinResult): void
+  endRound(): void
+  getRawMetrics(): RawSimulationMetrics
+}
+
+interface SimulationMetrics {
+  totalSamples: number
   totalBet: number
-  totalWin: number
-  rtp: number
-  baseGame: { totalWin: number; winRate: number; averageWin: number }
-  feature: { totalTriggers: number; totalRetriggers: number; averageFeatureWin: number }
+  rtp: { total: number; base: number; feature: number; withoutJackpots: number }
+  hitRates: { baseHitRate: number; featureTriggerRate: number }
+  features: { totalTriggers: number; totalRetriggers: number; averageFeatureWin: number }
+  scatter: { distribution: Record<string, number>; cycle: number }
+  variance: { mean: number; variance: number; stdDev: number }
   maxWinObserved: number
   winDistribution: Record<string, number>
 }
@@ -42,41 +66,41 @@ interface Metrics {
 ### Runner (runner/index.ts)
 
 ```typescript
-// Game adapter interface — implemented by each game
-interface GameAdapter {
-  createWorkerUrl(): URL
-  getDefaultSpins(): number
-}
-
-// Parallel runner
 async function runSimulation(
-  workerPath: string,
-  totalSpins: number,
-  workerCount?: number, // defaults to os.cpus().length
-): Promise<Metrics>
+  workerPath: URL,
+  config: SimRunnerConfig & { betMultiplier?: number; betConfig?: BetConfiguration },
+  progressCallback?: (snapshot: SimulationMetrics, elapsedSec: number) => void,
+): Promise<SimRunnerResult>
+
+function performWarmup<T extends SpinResult>(...): void
+function runWorkerLoop<T extends SpinResult>(...): void
 ```
 
 ### CLI (cli/index.ts)
 
 ```typescript
-// Parses process.argv, runs simulation, prints formatted table
-async function runCli(adapter: GameAdapter): Promise<void>
+function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts
+async function runAndPrint(...): Promise<void>
+function printSimResult(...): void
+```
 
-// Modes
-// --mode verify    : higher spin count, strict RTP assertion
-// --workers N      : override worker count
-// --spins N        : override spin count
+### Visualizer (`visualizer/index.ts`)
+
+```typescript
+async function visualizeMetrics(metrics: SimulationMetrics, outputPath: string): Promise<void>
 ```
 
 ## Dependencies
 
 - `[[math]]` (Rng type)
-- `node:worker_threads`, `node:os` (Bun built-ins)
+- `[[slots-core]]` (BetConfiguration, Wager)
+- `chart.js`, `chartjs-node-canvas`, `pdfkit`
+- `node:worker_threads`, `node:os`
 
 ## Worker Protocol
 
-Each game provides a worker entry point (e.g., `ancient-dragon-worker.ts`) that:
+Each game provides a worker entry point (for example `ancient-dragon-worker.ts`) that:
 
-1. Receives `{ spins: number; seed: number }` via `parentPort.on('message')`
-2. Runs the game state machine N times
-3. Posts `Metrics` back via `parentPort.postMessage`
+1. Receives `workerData` containing spin count, seed, warmup, batch size, and serialized betting config.
+2. Runs the game state machine through `runWorkerLoop()`.
+3. Posts periodic snapshots and one final aggregated result back to the parent worker host.

@@ -1,3 +1,15 @@
+---
+title: "task_018_production_betting_system"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_018_production_betting_system"
+status: "completed"
+---
 # Task: task_018_production_betting_system
 
 ## Description

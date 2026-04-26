@@ -1,3 +1,18 @@
+---
+title: "Woodland Whisper"
+type: "component"
+aliases: 
+- "woodland-whisper"
+tags: 
+- "memory"
+- "component"
+- "woodland-whisper"
+up: 
+- "[[index]]"
+- "[[architecture]]"
+- "[[dependencies]]"
+component: "woodland-whisper"
+---
 # Component: Woodland Whisper
 
 ## Package
@@ -26,10 +41,7 @@ Slot game implementation: 5×3 grid, 30 paylines, 88.04% RTP target. Features pi
 ### Exports (index.ts)
 
 ```typescript
-export { WoodlandWhisperStateMachine } from './game-state-machine'
-export type { WoodlandWhisperState, WoodlandWhisperResult } from './game-state-machine'
-export { BET } from './constants'
-export { SPIN_WITH_SCATTER } from './logic'
+export { WoodlandWhisperStateMachine, WOODLAND_WHISPER_SAMPLER, BET_CONFIG, SIM_CONFIG }
 ```
 
 ### State Machine
@@ -39,41 +51,29 @@ class WoodlandWhisperStateMachine implements StateMachine<
   WoodlandWhisperResult,
   WoodlandWhisperState
 > {
-  spin(rng: Rng): WoodlandWhisperResult
+  spin(rng: Rng, wager: Wager): WoodlandWhisperResult
   next(rng: Rng): WoodlandWhisperResult | null
   get state(): WoodlandWhisperState
 }
 
-interface WoodlandWhisperResult extends SpinResult {
-  sc: number // scatter count this spin
-  scatters: number // same value — feeds ModernDataCollector scatter distribution
-}
-```
-
-### Evaluation (internal)
-
-```typescript
-// Paylines via slots-core; scatter via PrecomputedScatterEngine (O(R))
-function evaluate(strips: readonly Uint8Array[], positions: readonly number[]): number
-function evaluateWithScatter(
-  strips: readonly Uint8Array[],
-  positions: readonly number[],
-): { win: number; sc: number }
+interface WoodlandWhisperState { freeSpinsLeft: number; lastWager: Wager | null }
+interface WoodlandWhisperResult extends SpinResult { sc: number }
 ```
 
 ### Logic (internal)
 
 ```typescript
-// Full spin outcome — pick bonus composed in via flatMap; pickedBonus=0 if sc < 3
-export const SPIN_WITH_SCATTER: Sampler<{ win: number; sc: number; pickedBonus: number }>
-export const FREE_SPIN_WITH_SCATTER: Sampler<{ win: number; sc: number; pickedBonus: number }>
-// pickBonusSampler is module-private; withPickBonus() composes it into both spin samplers
+function WOODLAND_WHISPER_SAMPLER(
+  wager: Wager,
+  isFreeSpin?: boolean,
+): Sampler<{ win: number; sc: number; pickedBonus: number }>
 ```
 
 ## Dependencies
 
-- `[[math]]` (mt19937, Sampler, AliasSampler)
-- `[[slots-core]]` (engine via buildEngineFromArrays, payline evaluation, PrecomputedScatterEngine)
+- `[[math]]` (Rng, Sampler, Array1, SamplingPlan)
+- `[[slots-core]]` (engine via `buildEngineFromArrays`, payline evaluation, `PrecomputedScatterEngine`, betting)
+- `[[slots-simulation-engine]]` (StateMachine and SpinResult types)
 
 ## Config
 
@@ -88,7 +88,6 @@ export const FREE_SPIN_WITH_SCATTER: Sampler<{ win: number; sc: number; pickedBo
 
 - `config/config.json` — complete game config
 - `constants.ts` — loads + validates config, exports typed constants (no BASE_STRIP_STRINGS alias)
-- `evaluation.ts` — line and grid evaluation (internal)
-- `logic.ts` — sampling + strip encoding; exports only SPIN_WITH_SCATTER, FREE_SPIN_WITH_SCATTER
-- `game-state-machine.ts` — state machine + pick bonus simulation; sets both `sc` and `scatters`
-- `index.ts` — explicit named exports only
+- `logic.ts` — strip encoding, pick-bonus sampling, free-spin evaluation, `WOODLAND_WHISPER_SAMPLER`
+- `game-state-machine.ts` — pick-bonus and free-spin transitions with retained wager
+- `index.ts` — exports `WoodlandWhisperStateMachine`, sampler, `BET_CONFIG`, and `SIM_CONFIG`

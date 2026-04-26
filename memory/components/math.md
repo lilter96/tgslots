@@ -1,3 +1,18 @@
+---
+title: "Math"
+type: "component"
+aliases: 
+- "math"
+tags: 
+- "memory"
+- "component"
+- "math"
+up: 
+- "[[index]]"
+- "[[architecture]]"
+- "[[dependencies]]"
+component: "math"
+---
 # Component: Math
 
 ## Package
@@ -10,19 +25,17 @@ Foundation layer providing RNG, probabilistic sampling primitives, and functiona
 
 ## Public API
 
-### RNG
+### Root exports (`@tgslots/math`)
 
 ```typescript
-// types.ts
-interface Rng {
-  nextInt32(): number
-}
-
-// mt19937.ts
+type Rng = (lo: number, hi: number) => number
 function mt19937(seed: number): Rng
+function jsRng(lo: number, hi: number): number
+type Array1<T> = [T, ...T[]]
+type Either<L, R> = { tag: 'left'; value: L } | { tag: 'right'; value: R }
 ```
 
-### Sampler (composable random process monad)
+### Probability subpath (`@tgslots/math/probability`)
 
 ```typescript
 class Sampler<T> {
@@ -38,9 +51,6 @@ class Sampler<T> {
 }
 ```
 
-### Distribution (discrete probability distribution)
-
-```typescript
 const Distribution = {
   pure<T>(value: T): Distribution<T>
   weighted<T>(items: Array1<readonly [number, T]>): Distribution<T>
@@ -49,27 +59,16 @@ const Distribution = {
   enumerate<T>(dist: Distribution<T>): Generator<{ value: T; probability: number }>
   expectedValue(dist: Distribution<number>): number
 }
+
+type TrackedDistribution<T, Path> = ...
 ```
 
 ### Samplers
 
 ```typescript
-// O(1) Walker-Vose alias method — use for large weighted sets (reels)
-class AliasSampler { constructor(weights: number[]); sample(rng: Rng): number }
-// O(n) cumulative — use for small sets
-class CumulativeSampler { ... }
-// O(n) linear scan
-class LinearSampler { ... }
-```
-
-### Functional Utilities
-
-```typescript
-// Non-empty array
-type Array1<T> = [T, ...T[]]
-
-// Either monad
-type Either<L, R> = { tag: 'left'; value: L } | { tag: 'right'; value: R }
+class AliasSampler<T> { static build<T>(items: ReadonlyArray<readonly [T, number]>): AliasSampler<T> }
+class CumulativeSampler<T> { ... }
+class LinearSampler<T> { ... }
 ```
 
 ## Dependencies
@@ -80,4 +79,4 @@ type Either<L, R> = { tag: 'left'; value: L } | { tag: 'right'; value: R }
 
 - AliasSampler uses interleaved uint32 pairs for cache efficiency
 - mt19937 rejection sampling eliminates modulo bias
-- Period: 2^19937-1
+- Tests currently cover RNG, samplers, distributions, `Array1`, and `Either`

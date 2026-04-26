@@ -1,3 +1,12 @@
+---
+title: "Dependency Graph"
+type: "dependency-graph"
+tags: 
+- "memory"
+- "dependencies"
+up: 
+- "[[index]]"
+---
 # Dependency Graph
 
 ## Package Dependency Graph
@@ -10,15 +19,20 @@ apps/simulations
   └── @tgslots/woodland-whisper
 
 @tgslots/ancient-dragon
-  ├── @tgslots/math                  (Rng, Sampler, AliasSampler)
-  └── @tgslots/slots-core            (Slot engine, evaluator)
+  ├── @tgslots/math                  (Rng, Sampler, Array1, SamplingPlan)
+  ├── @tgslots/slots-core            (slot engine, scatter engine, betting, projected grid)
+  └── @tgslots/slots-simulation-engine (StateMachine and SpinResult types)
 
 @tgslots/woodland-whisper
-  ├── @tgslots/math                  (Rng, Sampler, AliasSampler)
-  └── @tgslots/slots-core            (Slot engine, evaluator)
+  ├── @tgslots/math                  (Rng, Sampler, Array1, SamplingPlan)
+  ├── @tgslots/slots-core            (slot engine, scatter engine, betting, projected grid)
+  └── @tgslots/slots-simulation-engine (StateMachine and SpinResult types)
 
 @tgslots/slots-simulation-engine
-  └── @tgslots/math                  (Rng type)
+  ├── @tgslots/math                  (Rng type)
+  ├── @tgslots/slots-core            (BetConfiguration, Wager)
+  ├── chart.js, chartjs-node-canvas  (visual report charts)
+  ├── pdfkit                         (PDF report generation)
   └── node:worker_threads, node:os   (Node/Bun built-ins)
 
 @tgslots/slots-core
@@ -43,10 +57,12 @@ Layer 3 (apps):        apps/simulations
 | Package           | External Deps                         |
 | ----------------- | ------------------------------------- |
 | All               | TypeScript 5.9 (dev), bun-types (dev) |
-| simulation-engine | node:worker_threads, node:os          |
+| simulation-engine | `chart.js`, `chartjs-node-canvas`, `pdfkit`, Node/Bun built-ins |
 | All games         | None (pure TS logic)                  |
 
 ## Critical Coupling Risks
 
-1. **Worker protocol**: `apps/simulations` worker files couple to game package internals. Changes to game state machine interface break workers.
-2. **Rng interface**: All packages depend on the `Rng` type from `@tgslots/math`. Changing it is a cross-cutting concern.
+1. **Worker protocol**: `apps/simulations` worker files and `runWorkerLoop()` depend on the game state-machine contract and serialized `betConfig`.
+2. **Rng interface**: All packages depend on the functional `Rng` type from `@tgslots/math`. Changing it is cross-cutting.
+3. **Simulation metadata**: The unified CLI expects each game package to export `SIM_CONFIG` with parsheet, betting, and state-machine wiring.
+4. **Betting contract**: `Wager` and `BetConfiguration` semantics now affect games, workers, and reporting together.

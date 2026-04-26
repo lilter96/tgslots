@@ -1,3 +1,15 @@
+---
+title: "task_004_slots_core_adoption"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_004_slots_core_adoption"
+status: "completed"
+---
 # Task: task_004_slots_core_adoption
 
 ## Description

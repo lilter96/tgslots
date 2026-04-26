@@ -1,10 +1,28 @@
+---
+title: "task_002_sim_engine_enhanced_reporting"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_002_sim_engine_enhanced_reporting"
+status: "completed"
+---
 # Task: task_002_sim_engine_enhanced_reporting
 
-## Context
+## Description
 
 The current simulation reporting is too basic. We need enhanced metrics (variance, scatter cycle, per-mode RTP, feature analytics) to properly validate games against par sheets.
 
-## Status
+## Requirements
+
+- Extend `SpinResult` and simulation metrics to capture richer reporting data.
+- Add formatted CLI output for enhanced reporting.
+- Keep both games compatible with the expanded collector and formatter flow.
+
+## Implementation Plan
 
 - [x] Step 1: Create task file and update memory
 - [x] Step 2: Extend `SpinResult` and `RawSimulationMetrics` interfaces
@@ -15,7 +33,9 @@ The current simulation reporting is too basic. We need enhanced metrics (varianc
 - [x] Step 7: Update `cli/index.ts`
 - [x] Step 8: Update entry points
 
-## Progress
+## Status
+completed
 
-- 2026-04-21: Initialized task.
-- 2026-04-21: Implemented enhanced reporting. Discovered and fixed infinite loop bug in `mt19937` (rejection sampling limit truncation). Fixed out-of-bounds bug in `Ancient Dragon` payline evaluation. Verified both games with 1M spins.
+## Summary
+
+Implemented enhanced simulation reporting, including richer metrics and formatted CLI output. During the work, also fixed an infinite loop bug in `mt19937`, corrected an Ancient Dragon payline bounds bug, and verified both games with 1M-spin runs.

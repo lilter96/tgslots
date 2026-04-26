@@ -1,3 +1,15 @@
+---
+title: "task_001_memory_bank_init"
+type: "task"
+tags: 
+- "memory"
+- "task"
+up: 
+- "[[index]]"
+- "[[progress]]"
+task_id: "task_001_memory_bank_init"
+status: "completed"
+---
 # Task: task_001_memory_bank_init
 
 ## Description
