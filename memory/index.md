@@ -49,16 +49,16 @@ tags:
 | Math       | `@tgslots/math`                    | RNG, probability, Sampler/Distribution primitives |
 | Core       | `@tgslots/slots-core`              | Paylines, scatter, betting, paytable, slot engine |
 | Simulation | `@tgslots/slots-simulation-engine` | Parallel runner, scoped metrics, CLI, JSON/HTML reports |
-| Game       | `@tgslots/ancient-dragon`          | 5×3, 100 lines, 88.05% RTP target, free spins     |
+| Game       | `@tgslots/ancient-dragon`          | 5×3, 25 lines, 88.05% RTP target, mystery INNER + free spins |
 | Game       | `@tgslots/woodland-whisper`        | 5×3, 30 lines, 88.04% RTP, pick bonus             |
 | App        | `apps/simulations`                 | Unified simulation CLI and worker entrypoints     |
 
 ## Games Summary
 
-| Game             | Grid | Paylines | RTP    | Feature                      |
-| ---------------- | ---- | -------- | ------ | ---------------------------- |
-| Ancient Dragon   | 5×3  | 100      | 88.05% | Free Spins (10, ≥3 scatters) |
-| Woodland Whisper | 5×3  | 30       | 88.04% | Pick Bonus + Free Spins      |
+| Game             | Grid | Paylines | RTP    | Feature                              |
+| ---------------- | ---- | -------- | ------ | ------------------------------------ |
+| Ancient Dragon   | 5×3  | 25       | 88.05% | Mystery INNER + Free Spins (10, ≥3 scatters) |
+| Woodland Whisper | 5×3  | 30       | 88.04% | Pick Bonus + Free Spins              |
 
 ## Quick Navigation
 
