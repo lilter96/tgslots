@@ -3,7 +3,7 @@ import { mt19937 } from '@tgslots/math/rng/mt19937'
 import { Wager } from '@tgslots/slots-core/betting'
 import { BET_CONFIG } from '../constants.js'
 import { AncientDragonStateMachine } from '../game-state-machine.js'
-import type { AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
+import type { AncientDragonBaseResult, AncientDragonFreeResult, AncientDragonState } from '../game-state-machine.js'
 
 describe('AncientDragonStateMachine', () => {
   it('should transition from BASE to FREE', () => {
@@ -29,7 +29,7 @@ describe('AncientDragonStateMachine', () => {
     const sm = new AncientDragonStateMachine()
     const wager = new Wager(1, BET_CONFIG)
 
-    const state: any = {
+    const state: AncientDragonState = {
       freeSpins: {
         triggeringWager: wager,
         totalWin: 500,
