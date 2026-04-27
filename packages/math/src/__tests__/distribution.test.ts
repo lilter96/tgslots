@@ -209,7 +209,8 @@ describe('Distribution.expectedValue', () => {
 describe('Distributions.bernoulli', () => {
   test('E[bernoulli(0.7)] = 0.7', () => {
     const d = Distributions.bernoulli(0.7)
-    expect(Distribution.expectedValue(d as unknown as Distribution<number>)).toBeCloseTo(0.7, 4)
+    const numericDist = Distribution.map(d, (b: boolean) => (b ? 1 : 0))
+    expect(Distribution.expectedValue(numericDist)).toBeCloseTo(0.7, 4)
   })
 
   test('bernoulli(0) is always false', () => {

@@ -15,10 +15,10 @@ export const Either = {
     return e.tag === 0 ? onLeft(e.value) : onRight(e.value)
   },
   mapLeft<L, R, L2>(e: Either<L, R>, f: (l: L) => L2): Either<L2, R> {
-    return e.tag === 0 ? { tag: 0, value: f(e.value) } : (e as unknown as Either<L2, R>)
+    return e.tag === 0 ? { tag: 0, value: f(e.value) } : { tag: 1 as const, value: e.value }
   },
   mapRight<L, R, R2>(e: Either<L, R>, f: (r: R) => R2): Either<L, R2> {
-    return e.tag === 1 ? { tag: 1, value: f(e.value) } : (e as unknown as Either<L, R2>)
+    return e.tag === 1 ? { tag: 1, value: f(e.value) } : { tag: 0 as const, value: e.value }
   },
   isLeft<L, R>(e: Either<L, R>): e is { readonly tag: 0; readonly value: L } {
     return e.tag === 0

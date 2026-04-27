@@ -61,9 +61,7 @@ export class Sampler<T> {
   }
 
   static uniform<T>(items: Array1<T>): Sampler<T> {
-    return Sampler.fromWeighted(
-      items.map((v) => [v, 1] as const) as unknown as Array1<readonly [T, number]>,
-    )
+    return Sampler.fromWeighted(Array1.map(items, (v) => [v, 1] as const))
   }
 
   static traverse<A, B>(items: readonly A[], f: (a: A, i: number) => Sampler<B>): Sampler<B[]> {
@@ -149,14 +147,11 @@ export const TrackedDistribution = {
     items: Array1<readonly [number, T]>,
     pathFn: (v: T) => Path,
   ): TrackedDistribution<T, Path> {
-    const outcomes = items.map(
+    const outcomes = Array1.map(
+      items,
       ([w, v]) => [w, TrackedDistribution.resolved<T, Path>(v, pathFn(v))] as const,
     )
-    const sampler = createWeightedSampler(
-      outcomes.map(([w, o]) => [o, w] as const) as unknown as Array1<
-        readonly [TrackedDistribution<T, Path>, number]
-      >,
-    )
+    const sampler = createWeightedSampler(Array1.map(outcomes, ([w, o]) => [o, w] as const))
     return Either.right({
       asSampler: new Sampler(samplerToPlan(sampler)),
       weightedItems: outcomes,
@@ -241,9 +236,7 @@ export const Distribution = {
   },
 
   uniform<T>(items: Array1<T>): Distribution<T> {
-    return Distribution.weighted(
-      items.map((v) => [1, v] as const) as unknown as Array1<readonly [number, T]>,
-    )
+    return Distribution.weighted(Array1.map(items, (v) => [1, v] as const))
   },
 
   map<T, U>(dist: Distribution<T>, f: (v: T) => U): Distribution<U> {

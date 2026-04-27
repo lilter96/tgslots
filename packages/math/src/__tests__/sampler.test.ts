@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { Sampler } from '../probability'
+import { Sampler, SamplingPlan } from '../probability'
 import { mt19937 } from '../rng'
+import { Array1 } from '../functional/array1.js'
 
 describe('Sampler.pure', () => {
   test('always returns the wrapped value', () => {
@@ -48,7 +49,7 @@ describe('Sampler.fromWeighted', () => {
   test('uses LinearSampler path for ≤32 items', () => {
     // 5 items → LinearSampler path; just verify it samples correctly
     const items = Array.from({ length: 5 }, (_, i) => [i, 1] as const)
-    const s = Sampler.fromWeighted(items as any)
+    const s = Sampler.fromWeighted(Array1.unsafeFromArray(items))
     const rng = mt19937(1)
     const seen = new Set<number>()
     for (let i = 0; i < 10_000; i++) seen.add(s.sample(rng) as number)
@@ -57,7 +58,7 @@ describe('Sampler.fromWeighted', () => {
 
   test('uses AliasSampler path for >32 items', () => {
     const items = Array.from({ length: 50 }, (_, i) => [i, 1] as const)
-    const s = Sampler.fromWeighted(items as any)
+    const s = Sampler.fromWeighted(Array1.unsafeFromArray(items))
     const rng = mt19937(2)
     const seen = new Set<number>()
     for (let i = 0; i < 50_000; i++) seen.add(s.sample(rng) as number)
@@ -146,10 +147,7 @@ describe('Sampler.map', () => {
   test('plan is correct even when direct sampler unavailable', () => {
     // Sampler with no _sampler (constructed via plan only)
     const rng = mt19937(42)
-    const s = new (Sampler as any)(
-      { _t: 0, v: 10 }, // pure plan
-      null,
-    )
+    const s = new Sampler<number>(SamplingPlan.pure(10), null)
     const mapped = s.map((v: number) => v + 5)
     expect(mapped.sample(rng)).toBe(15)
   })
@@ -204,7 +202,7 @@ describe('Sampler.sampleN', () => {
     const rng1 = mt19937(3)
     const rng2 = mt19937(3)
     const direct = Sampler.pure(99)
-    const viaPlan = new (Sampler as any)({ _t: 0, v: 99 }, null)
+    const viaPlan = new Sampler<number>(SamplingPlan.pure(99), null)
     expect(direct.sampleN(5, rng1)).toEqual(viaPlan.sampleN(5, rng2))
   })
 })
