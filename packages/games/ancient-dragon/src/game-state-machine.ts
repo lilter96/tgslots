@@ -140,8 +140,8 @@ export class AncientDragonStateMachine implements StateMachine<
     const hasFreeSpins = (round.countsByType.FREE ?? 0) > 0
     if (!hasFreeSpins) return
 
-    freeSpinScope.payout('feature-win', round.winsByType.FREE?.total ?? 0, round.bet)
-    freeSpinScope.payout('round-win', round.totalWin, round.bet)
+    freeSpinScope.payout('feature-win', round.winsByType.FREE?.total ?? 0)
+    freeSpinScope.payout('round-win', round.totalWin)
     freeSpinScope.value('total-spins-per-trigger', round.countsByType.FREE ?? 0)
   }
 }
