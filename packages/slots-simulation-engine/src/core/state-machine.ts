@@ -4,10 +4,16 @@ import { Wager } from '@tgslots/slots-core/betting'
 export type SpinType = 'BASE' | 'FREE' | 'RESPIN' | 'PICK'
 export type MetricScopePath = readonly string[]
 
+export interface WinComponents {
+  total?: number
+  scatter?: number
+  lines?: number
+}
+
 export interface SpinResult {
   type: SpinType
   win: number
-  components?: Record<string, number>
+  components?: WinComponents
 }
 
 export interface RawCountMetric {
@@ -142,7 +148,7 @@ export interface RoundMetricsSnapshot {
   resultCount: number
   maxResultWin: number
   countsByType: Partial<Record<SpinType, number>>
-  winsByType: Partial<Record<SpinType, Record<string, number>>>
+  winsByType: Partial<Record<SpinType, WinComponents>>
 }
 
 export interface ScopedMetrics {
@@ -403,7 +409,7 @@ export class ModernDataCollector implements DataCollector {
   private currentRoundResultCount = 0
   private currentRoundMaxResultWin = 0
   private currentCountsByType: Partial<Record<SpinType, number>> = {}
-  private currentWinsByType: Partial<Record<SpinType, Record<string, number>>> = {}
+  private currentWinsByType: Partial<Record<SpinType, WinComponents>> = {}
   private lastRoundSnapshot: RoundMetricsSnapshot | null = null
 
   scope(path: string | MetricScopePath): ScopedMetrics {
@@ -450,9 +456,10 @@ export class ModernDataCollector implements DataCollector {
     const typeWins = (this.currentWinsByType[result.type] ??= {})
 
     if (result.components) {
-      for (const [component, value] of Object.entries(result.components)) {
-        typeWins[component] = (typeWins[component] ?? 0) + value
-      }
+      const c = result.components
+      if (c.total !== undefined) typeWins.total = (typeWins.total ?? 0) + c.total
+      if (c.scatter !== undefined) typeWins.scatter = (typeWins.scatter ?? 0) + c.scatter
+      if (c.lines !== undefined) typeWins.lines = (typeWins.lines ?? 0) + c.lines
     } else {
       typeWins.total = (typeWins.total ?? 0) + result.win
     }
@@ -490,7 +497,7 @@ export class ModernDataCollector implements DataCollector {
       countsByType: { ...this.currentCountsByType },
       winsByType: Object.fromEntries(
         Object.entries(this.currentWinsByType).map(([type, wins]) => [type, { ...wins }]),
-      ) as Partial<Record<SpinType, Record<string, number>>>,
+      ) as Partial<Record<SpinType, WinComponents>>,
     }
   }
 

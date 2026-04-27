@@ -9,6 +9,7 @@ import {
   type RoundMetricsSnapshot,
   type SpinResult,
   type StateMachine,
+  type WinComponents,
 } from '../core/state-machine.js'
 import { evaluateComparisons } from '../cli/comparison.js'
 
@@ -16,7 +17,7 @@ interface StubResult extends SpinResult {
   scatters: number
   isTrigger: boolean
   isRetrigger?: boolean
-  components?: Record<string, number>
+  components?: WinComponents
 }
 
 class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }> {
