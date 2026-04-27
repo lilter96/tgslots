@@ -33,6 +33,7 @@ up:
 - [[task_024_obsidian_memory_refactor]] — 2026-04-26 — Upgraded the full memory vault with Obsidian frontmatter, aliases, tags, and hub links
 - [[task_025_scoped_simulation_metrics_and_visualization]] — 2026-04-26 — Replaced slot-specific metrics with scoped generic metrics, normalized comparison targets, and HTML visualization.
 - [[task_026_ancient_dragon_standardization]] — 2026-04-26 — Refactored Ancient Dragon for granular state and standardized metrics.
+- [[task_027_woodland_whisper_scatter_rtp]] — 2026-04-26 — Added granular scatter RTP recording for base and free games.
 
 ## In Progress
 

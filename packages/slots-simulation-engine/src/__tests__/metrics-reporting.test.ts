@@ -16,6 +16,7 @@ interface StubResult extends SpinResult {
   scatters: number
   isTrigger: boolean
   isRetrigger?: boolean
+  components?: Record<string, number>
 }
 
 class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }> {
@@ -28,6 +29,7 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
       win: 20,
       isTrigger: true,
       scatters: 3,
+      components: { total: 20 }
     }
   }
 
@@ -40,6 +42,7 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
       isTrigger: false,
       isRetrigger: false,
       scatters: 1,
+      components: { total: 30 }
     }
   }
 
@@ -66,7 +69,7 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
     round: RoundMetricsSnapshot,
     _wager: Wager,
   ): void {
-    collector.scope(['features', 'free-spins']).payout('bonus-payout', round.winsByType.FREE ?? 0, round.bet)
+    collector.scope(['features', 'free-spins']).payout('bonus-payout', round.winsByType.FREE?.total ?? 0, round.bet)
   }
 }
 

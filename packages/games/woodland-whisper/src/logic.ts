@@ -33,6 +33,7 @@ const scatterEngine = new PrecomputedScatterEngine(
 
 export interface SpinEvaluationResult {
   readonly win: number
+  readonly scatterWin: number
   readonly sc: number
   readonly grid: number[][]
   readonly pickedBonus: number
@@ -47,7 +48,7 @@ function evaluateWithWager(
   positions: readonly number[],
   wager: Wager,
   isFreeSpin: boolean,
-): { win: number; sc: number; grid: number[][] } {
+): { win: number; scatterWin: number; sc: number; grid: number[][] } {
   const grid = new ProjectedGrid(strips, positions, 3)
 
   const lineResult = evaluateSpin(grid, engine)
@@ -67,7 +68,7 @@ function evaluateWithWager(
     symbols.push(row)
   }
 
-  return { win: lineWin + scatterWin, sc: scatterResult.count, grid: symbols }
+  return { win: lineWin + scatterWin, scatterWin, sc: scatterResult.count, grid: symbols }
 }
 
 // ─── Encoding ──────────────────────────────────────────────────────────────
@@ -216,7 +217,7 @@ export function generatePickBonus(winValue: number): Sampler<{
 }
 
 function withPickBonus(
-  base: Sampler<{ win: number; sc: number; grid: number[][] }>,
+  base: Sampler<{ win: number; scatterWin: number; sc: number; grid: number[][] }>,
 ): Sampler<SpinEvaluationResult> {
   return base.flatMap((result) =>
     result.sc >= 3

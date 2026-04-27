@@ -135,12 +135,12 @@ export class AncientDragonStateMachine implements StateMachine<
     const freeSpinScope = collector.scope(['features', 'free-spins'])
 
     // Record on every round so ratio = feature_wins / total_bets = feature RTP
-    freeSpinScope.payout('feature-rtp', round.winsByType.FREE ?? 0, round.bet)
+    freeSpinScope.payout('feature-rtp', round.winsByType.FREE?.total ?? 0, round.bet)
 
     const hasFreeSpins = (round.countsByType.FREE ?? 0) > 0
     if (!hasFreeSpins) return
 
-    freeSpinScope.payout('feature-win', round.winsByType.FREE ?? 0, round.bet)
+    freeSpinScope.payout('feature-win', round.winsByType.FREE?.total ?? 0, round.bet)
     freeSpinScope.payout('round-win', round.totalWin, round.bet)
     freeSpinScope.value('total-spins-per-trigger', round.countsByType.FREE ?? 0)
   }

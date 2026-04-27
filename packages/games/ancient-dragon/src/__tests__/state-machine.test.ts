@@ -2,7 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { mt19937 } from '@tgslots/math/rng/mt19937'
 import { Wager } from '@tgslots/slots-core/betting'
 import { BET_CONFIG } from '../constants.js'
-import { AncientDragonStateMachine, AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
+import { AncientDragonStateMachine } from '../game-state-machine.js'
+import type { AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
 
 describe('AncientDragonStateMachine', () => {
   it('should transition from BASE to FREE', () => {

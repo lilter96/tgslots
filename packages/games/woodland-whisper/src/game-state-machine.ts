@@ -31,6 +31,7 @@ export interface WoodlandWhisperState {
 export interface WoodlandWhisperBaseResult extends SpinResult {
   type: 'BASE'
   sc: number
+  scatterWin: number
   grid: number[][]
   pickedBonus: number
   triggeredPickBonus: boolean
@@ -43,6 +44,7 @@ export interface WoodlandWhisperBaseResult extends SpinResult {
 export interface WoodlandWhisperFreeResult extends SpinResult {
   type: 'FREE'
   sc: number
+  scatterWin: number
   grid: number[][]
   pickedBonus: number
   retriggeredPickBonus: boolean
@@ -81,6 +83,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     freeSpins: null,
     pickBonus: null,
   }
+  private _currentRoundFreeScatterWin = 0
 
   get state(): WoodlandWhisperState {
     return this._state
@@ -105,6 +108,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     return {
       type: 'BASE',
       win: result.win,
+      components: { total: result.win, scatter: result.scatterWin },
+      scatterWin: result.scatterWin,
       sc: result.sc,
       grid: result.grid,
       pickedBonus: result.pickedBonus,
@@ -188,6 +193,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     return {
       type: 'FREE',
       win: result.win,
+      components: { total: result.win, scatter: result.scatterWin },
+      scatterWin: result.scatterWin,
       sc: result.sc,
       grid: result.grid,
       pickedBonus: result.pickedBonus,
@@ -202,6 +209,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   spin(rng: Rng, wager: Wager): WoodlandWhisperResult {
     this._state.freeSpins = null
     this._state.pickBonus = null
+    this._currentRoundFreeScatterWin = 0
 
     return this.baseGameSpin(rng, wager)
   }
@@ -229,8 +237,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     const pickBonusFreeScope = collector.scope(['features', 'pick-bonus-free-game'])
 
     if (result.type === 'BASE') {
-      baseScope.payout('win', result.win, context.wager.totalWager)
       baseScope.distribution('scatter-count', String(result.sc ?? 0))
+
       if (result.win > 0) baseScope.count('winning-spins')
 
       if (result.triggeredPickBonus) {
@@ -250,8 +258,11 @@ export class WoodlandWhisperStateMachine implements StateMachine<
 
     if (result.type === 'FREE') {
       freeSpinScope.count('spins-played')
-      freeSpinScope.payout('spin-win', result.win)
+      freeSpinScope.payout('spin-win', result.win, context.wager.totalWager)
       freeSpinScope.distribution('scatter-count', String(result.sc ?? 0))
+      freeSpinScope.payout('scatter-win', result.scatterWin, context.wager.totalWager)
+      this._currentRoundFreeScatterWin += result.scatterWin
+
       if (result.win > 0) freeSpinScope.count('winning-spins')
 
       if (result.retriggeredPickBonus) {
@@ -264,16 +275,35 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   }
 
   recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
+    const baseScope = collector.scope('base-game')
     const freeSpinScope = collector.scope(['features', 'free-spins'])
 
-    // Record on every round so ratio = feature_wins / total_bets = feature RTP
-    freeSpinScope.payout('feature-rtp', round.winsByType.FREE ?? 0, round.bet)
+    const baseWins = round.winsByType['BASE']
+    const freeWins = round.winsByType['FREE']
 
-    const hasFreeSpins = (round.countsByType.FREE ?? 0) > 0 || (round.countsByType.PICK ?? 0) > 0
+    const baseTotalWin = baseWins?.total ?? 0
+    const baseScatterWin = baseWins?.scatter ?? 0
+
+    const freeTotalWin = freeWins?.total ?? 0
+    const freeScatterWin = freeWins?.scatter ?? 0
+
+    const freeCount = round.countsByType['FREE'] ?? 0
+    const pickCount = round.countsByType['PICK'] ?? 0
+
+    // BASE GAME METRICS
+    baseScope.payout('win', baseTotalWin, round.bet)
+    baseScope.payout('scatter-win', baseScatterWin, round.bet)
+
+    // FREE SPIN RTP (counted every round)
+    freeSpinScope.payout('feature-rtp', freeTotalWin, round.bet)
+    freeSpinScope.payout('scatter-rtp', freeScatterWin, round.bet)
+
+    const hasFreeSpins = freeCount > 0 || pickCount > 0
     if (!hasFreeSpins) return
 
-    freeSpinScope.payout('feature-win', round.winsByType.FREE ?? 0, round.bet)
+    freeSpinScope.payout('feature-win', freeTotalWin, round.bet)
     freeSpinScope.payout('round-win', round.totalWin, round.bet)
-    freeSpinScope.value('total-spins-per-trigger', round.countsByType.FREE ?? 0)
+
+    freeSpinScope.value('total-spins-per-trigger', freeCount)
   }
 }

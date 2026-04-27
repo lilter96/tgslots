@@ -64,7 +64,7 @@ describe('WoodlandWhisperStateMachine', () => {
       // 2. Picking
       let lastPickResult: any
       while (sm.state.pickBonus) {
-        const pickResult = sm.pickBall(rng)
+        const pickResult = sm.pickBall()
         expect(pickResult.type).toBe('PICK')
         expect(pickResult.pick).toBeDefined()
         lastPickResult = pickResult
@@ -113,15 +113,71 @@ describe('WoodlandWhisperStateMachine', () => {
     sm._state = state
 
     const rng = mt19937(42)
-    const pickResult = sm.pickBall(rng)
+    const pickResult = sm.pickBall()
     expect(pickResult.pick?.value).toBe(8)
     expect(pickResult.pick?.isMatch).toBe(false)
     expect(sm.state.pickBonus?.currentIndex).toBe(2)
 
-    const matchResult = sm.pickBall(rng)
+    const matchResult = sm.pickBall()
     expect(matchResult.pick?.value).toBe(10)
     expect(matchResult.pick?.isMatch).toBe(true)
     expect(sm.state.pickBonus).toBeNull()
     expect(sm.state.freeSpins?.spinsRemaining).toBe(15) // 5 + 10
+  })
+
+  it('should record scatter-win in recordResultMetrics', () => {
+    const sm = new WoodlandWhisperStateMachine()
+    const wager = new Wager(1, BET_CONFIG)
+    const mockCollector: any = {
+      _metrics: {} as any,
+      scope(name: string | string[]) {
+        const key = Array.isArray(name) ? name.join('.') : name
+        if (!this._metrics[key]) this._metrics[key] = { payouts: {} }
+        return {
+          payout: (id: string, win: number, w?: number) => {
+            this._metrics[key].payouts[id] = (this._metrics[key].payouts[id] ?? 0) + win
+          },
+          distribution: () => {},
+          count: () => {},
+          value: () => {},
+        }
+      },
+    }
+
+    // Test BASE result with 3 scatters
+    const baseResult: any = {
+      type: 'BASE',
+      sc: 3,
+      scatterWin: 150,
+      win: 150,
+      triggeredPickBonus: true,
+      pickedBonus: 10,
+    }
+
+    sm.recordResultMetrics(mockCollector, baseResult, { phase: 'spin', wager })
+
+    // scatter-win for BASE is now tracked via recordRoundMetrics (from winsByType), not recordResultMetrics
+    expect(mockCollector._metrics['base-game']?.payouts['scatter-win']).toBeUndefined()
+
+    // Test FREE result with 2 scatters
+    const freeResult: any = {
+      type: 'FREE',
+      sc: 2,
+      scatterWin: 60, // 2 scatters is 1x total bet = 30. * 2 multiplier in free spins = 60.
+      win: 60,
+    }
+
+    sm.recordResultMetrics(mockCollector, freeResult, { phase: 'next', wager })
+    expect(mockCollector._metrics['features.free-spins'].payouts['scatter-win']).toBe(60)
+
+    // Test recordRoundMetrics — scatter-win for BASE and FREE is sourced from winsByType
+    const roundSnapshot: any = {
+      bet: 30,
+      winsByType: { BASE: { total: 150, scatter: 150 }, FREE: { total: 60, scatter: 60 } },
+      countsByType: { FREE: 1 },
+    }
+    sm.recordRoundMetrics(mockCollector, roundSnapshot, wager)
+    expect(mockCollector._metrics['base-game'].payouts['scatter-win']).toBe(150)
+    expect(mockCollector._metrics['features.free-spins'].payouts['scatter-rtp']).toBe(60)
   })
 })

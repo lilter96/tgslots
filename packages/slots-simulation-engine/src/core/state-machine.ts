@@ -7,6 +7,7 @@ export type MetricScopePath = readonly string[]
 export interface SpinResult {
   type: SpinType
   win: number
+  components?: Record<string, number>
 }
 
 export interface RawCountMetric {
@@ -54,6 +55,7 @@ export interface RawSimulationMetrics {
   totalWin: number
   totalSpinResults: number
   maxRoundWin: number
+  maxRoundWinMultiplier: number
   sumRoundWinMultiplier: number
   sumSquaresRoundWinMultiplier: number
   rootScope: RawMetricScope
@@ -140,22 +142,30 @@ export interface RoundMetricsSnapshot {
   resultCount: number
   maxResultWin: number
   countsByType: Partial<Record<SpinType, number>>
-  winsByType: Partial<Record<SpinType, number>>
+  winsByType: Partial<Record<SpinType, Record<string, number>>>
 }
 
 export interface ScopedMetrics {
   scope(path: string | MetricScopePath): ScopedMetrics
+
   count(name: string, amount?: number): void
+
   value(name: string, observed: number): void
+
   distribution(name: string, bucket: string, amount?: number): void
+
   payout(name: string, amount: number, denominator?: number): void
 }
 
 export interface DataCollector extends ScopedMetrics {
   beginRound(bet: number): void
+
   collect(result: SpinResult): void
+
   endRound(): void
+
   getRawMetrics(): RawSimulationMetrics
+
   getLastRoundSnapshot(): RoundMetricsSnapshot | null
 }
 
@@ -253,26 +263,42 @@ function mergeScopedMetric(a: RawScopedMetric, b: RawScopedMetric): RawScopedMet
 
 function mergeScopes(a: RawMetricScope, b: RawMetricScope): RawMetricScope {
   const metrics: Record<string, RawScopedMetric> = {}
-  const metricNames = new Set([...Object.keys(a.metrics), ...Object.keys(b.metrics)])
-  for (const name of metricNames) {
-    const left = a.metrics[name]
+
+  for (const name in a.metrics) {
+    const left = a.metrics[name]!
     const right = b.metrics[name]
-    if (left && right) {
-      metrics[name] = mergeScopedMetric(left, right)
-    } else {
-      metrics[name] = structuredClone((left ?? right)!)
+
+    if (!right) {
+      metrics[name] = left
+      continue
+    }
+
+    metrics[name] = mergeScopedMetric(left, right)
+  }
+
+  for (const name in b.metrics) {
+    if (!(name in a.metrics)) {
+      metrics[name] = b.metrics[name]!
     }
   }
 
   const scopes: Record<string, RawMetricScope> = {}
-  const scopeNames = new Set([...Object.keys(a.scopes), ...Object.keys(b.scopes)])
-  for (const name of scopeNames) {
-    const left = a.scopes[name]
+
+  for (const name in a.scopes) {
+    const left = a.scopes[name]!
     const right = b.scopes[name]
-    if (left && right) {
-      scopes[name] = mergeScopes(left, right)
-    } else {
-      scopes[name] = cloneScope((left ?? right)!)
+
+    if (!right) {
+      scopes[name] = left
+      continue
+    }
+
+    scopes[name] = mergeScopes(left, right)
+  }
+
+  for (const name in b.scopes) {
+    if (!(name in a.scopes)) {
+      scopes[name] = b.scopes[name]!
     }
   }
 
@@ -370,13 +396,14 @@ class ScopeHandle implements ScopedMetrics {
 export class ModernDataCollector implements DataCollector {
   private readonly rootRecorder = new ScopeHandle(this, [])
   private raw: RawSimulationMetrics = Metrics.emptyRaw()
+  private scopeCache = new Map<string, RawMetricScope>()
 
   private betAmount = 0
   private currentRoundWin = 0
   private currentRoundResultCount = 0
   private currentRoundMaxResultWin = 0
   private currentCountsByType: Partial<Record<SpinType, number>> = {}
-  private currentWinsByType: Partial<Record<SpinType, number>> = {}
+  private currentWinsByType: Partial<Record<SpinType, Record<string, number>>> = {}
   private lastRoundSnapshot: RoundMetricsSnapshot | null = null
 
   scope(path: string | MetricScopePath): ScopedMetrics {
@@ -407,6 +434,7 @@ export class ModernDataCollector implements DataCollector {
     this.currentCountsByType = {}
     this.currentWinsByType = {}
     this.lastRoundSnapshot = null
+    this.scopeCache.clear()
   }
 
   collect(result: SpinResult): void {
@@ -416,8 +444,18 @@ export class ModernDataCollector implements DataCollector {
     this.currentRoundWin += result.win
     this.currentRoundResultCount++
     this.currentRoundMaxResultWin = Math.max(this.currentRoundMaxResultWin, result.win)
+
     this.currentCountsByType[result.type] = (this.currentCountsByType[result.type] ?? 0) + 1
-    this.currentWinsByType[result.type] = (this.currentWinsByType[result.type] ?? 0) + result.win
+
+    const typeWins = (this.currentWinsByType[result.type] ??= {})
+
+    if (result.components) {
+      for (const [component, value] of Object.entries(result.components)) {
+        typeWins[component] = (typeWins[component] ?? 0) + value
+      }
+    } else {
+      typeWins.total = (typeWins.total ?? 0) + result.win
+    }
   }
 
   endRound(): void {
@@ -428,6 +466,9 @@ export class ModernDataCollector implements DataCollector {
     this.raw.maxRoundWin = Math.max(this.raw.maxRoundWin, this.currentRoundWin)
 
     const roundMultiplier = this.currentRoundWin / this.betAmount
+
+    this.raw.maxRoundWinMultiplier = Math.max(this.raw.maxRoundWinMultiplier, roundMultiplier)
+
     this.raw.sumRoundWinMultiplier += roundMultiplier
     this.raw.sumSquaresRoundWinMultiplier += roundMultiplier * roundMultiplier
 
@@ -447,7 +488,9 @@ export class ModernDataCollector implements DataCollector {
       resultCount: this.currentRoundResultCount,
       maxResultWin: this.currentRoundMaxResultWin,
       countsByType: { ...this.currentCountsByType },
-      winsByType: { ...this.currentWinsByType },
+      winsByType: Object.fromEntries(
+        Object.entries(this.currentWinsByType).map(([type, wins]) => [type, { ...wins }]),
+      ) as Partial<Record<SpinType, Record<string, number>>>,
     }
   }
 
@@ -462,6 +505,7 @@ export class ModernDataCollector implements DataCollector {
       totalWin: this.raw.totalWin,
       totalSpinResults: this.raw.totalSpinResults,
       maxRoundWin: this.raw.maxRoundWin,
+      maxRoundWinMultiplier: this.raw.maxRoundWinMultiplier,
       sumRoundWinMultiplier: this.raw.sumRoundWinMultiplier,
       sumSquaresRoundWinMultiplier: this.raw.sumSquaresRoundWinMultiplier,
       rootScope: cloneScope(this.raw.rootScope),
@@ -548,11 +592,22 @@ export class ModernDataCollector implements DataCollector {
   }
 
   private resolveScope(path: string[]): RawMetricScope {
+    if (path.length === 0) return this.raw.rootScope
+
+    const key = path.join('/')
+
+    const cached = this.scopeCache.get(key)
+    if (cached) return cached
+
     let scope = this.raw.rootScope
+
     for (const segment of path) {
       scope.scopes[segment] ??= emptyScope()
       scope = scope.scopes[segment]!
     }
+
+    this.scopeCache.set(key, scope)
+
     return scope
   }
 }
@@ -565,6 +620,7 @@ export const Metrics = {
       totalWin: a.totalWin + b.totalWin,
       totalSpinResults: a.totalSpinResults + b.totalSpinResults,
       maxRoundWin: Math.max(a.maxRoundWin, b.maxRoundWin),
+      maxRoundWinMultiplier: Math.max(a.maxRoundWinMultiplier, b.maxRoundWinMultiplier),
       sumRoundWinMultiplier: a.sumRoundWinMultiplier + b.sumRoundWinMultiplier,
       sumSquaresRoundWinMultiplier: a.sumSquaresRoundWinMultiplier + b.sumSquaresRoundWinMultiplier,
       rootScope: mergeScopes(a.rootScope, b.rootScope),
@@ -585,6 +641,7 @@ export const Metrics = {
       totalWin: 0,
       totalSpinResults: 0,
       maxRoundWin: 0,
+      maxRoundWinMultiplier: 0,
       sumRoundWinMultiplier: 0,
       sumSquaresRoundWinMultiplier: 0,
       rootScope,
@@ -636,7 +693,7 @@ export const Metrics = {
         totalSpinResults: raw.totalSpinResults,
         rtp: raw.totalBet > 0 ? raw.totalWin / raw.totalBet : 0,
         maxRoundWin: raw.maxRoundWin,
-        maxRoundWinMultiplier: raw.totalBet > 0 ? raw.maxRoundWin / (raw.totalBet / raw.rounds) : 0,
+        maxRoundWinMultiplier: raw.maxRoundWinMultiplier,
         variance: {
           mean,
           variance,
@@ -656,13 +713,17 @@ export const Metrics = {
 
 export interface StateMachine<TResult extends SpinResult, TState = unknown> {
   readonly state: TState
+
   spin(rng: Rng, wager: Wager): TResult
+
   next(rng: Rng): TResult | null
+
   recordResultMetrics?(
     collector: DataCollector,
     result: TResult,
     context: { phase: 'spin' | 'next'; wager: Wager },
   ): void
+
   recordRoundMetrics?(collector: DataCollector, round: RoundMetricsSnapshot, wager: Wager): void
 }
 
