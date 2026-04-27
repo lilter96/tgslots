@@ -21,14 +21,14 @@ component: "ancient-dragon"
 
 ## Responsibility
 
-Slot game implementation: 5×3 grid, 100 paylines, 88.05% RTP target. Features free spins triggered by scatter symbol. Built on `@tgslots/slots-core` and wired into the unified simulation runner.
+Slot game implementation: 5×3 grid, 25 paylines, 88.05% RTP target. Features free spins triggered by scatter symbol and a mystery INNER symbol that resolves to a random symbol per spin. Built on `@tgslots/slots-core` and wired into the unified simulation runner.
 
 ## Game Spec
 
 | Property   | Value                                                       |
 | ---------- | ----------------------------------------------------------- |
 | Grid       | 5 reels × 3 rows                                            |
-| Paylines   | 100                                                         |
+| Paylines   | 25                                                          |
 | RTP Target | 88.05%                                                      |
 | Wild       | GOLDDRAGON (id=0)                                           |
 | Scatter    | YINYANG (separate pay; ≥3 → trigger 10 free spins)          |
@@ -75,7 +75,9 @@ function ANCIENT_DRAGON_SAMPLER(wager: Wager): Sampler<{ win: number; sc: number
 
 ## Files
 
-- `constants.ts` — symbol enum, paytable array, 5 reel strip arrays, 100 payline definitions
+- `config/config.json` — game mechanics: metadata (25 lines), symbols, paytable, scatter paytable, reel strips, inner reel strip, feature config
+- `config/parsheet.json` — simulation verification targets (RTP, cycles, feature metrics) consumed by SIM_CONFIG
+- `constants.ts` — loads all constants from config.json; exports BET_CONFIG, SYM_NAMES, Symbols, PAY_TABLE, SCATTER_PAY, PAYLINE_DATA, STRIP_STRINGS, INNER_WEIGHTS
 - `engine.ts` — builds `SlotWithPaylinesEngine` via `buildEngineFromArrays`
 - `logic.ts` — mystery-symbol resolution, positional sampling, wager-aware evaluation, `ANCIENT_DRAGON_SAMPLER`
 - `game-state-machine.ts` — base/free-spin transitions and wager retention between rounds
