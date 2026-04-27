@@ -28,7 +28,7 @@ function formatValue(
 }
 
 function cell(label: string, value: string): string {
-  return `<td><span class="field-label">${label}</span>${value}</td>`
+  return `<td><span class="field-label">${label}</span> ${value}</td>`
 }
 
 function metricRows(metricName: string, metric: FinalScopedMetric): string {

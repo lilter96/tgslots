@@ -301,8 +301,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     const hasFreeSpins = freeCount > 0 || pickCount > 0
     if (!hasFreeSpins) return
 
-    freeSpinScope.payout('feature-win', freeTotalWin, round.bet)
-    freeSpinScope.payout('round-win', round.totalWin, round.bet)
+    freeSpinScope.payout('feature-win', freeTotalWin)
+    freeSpinScope.payout('round-win', round.totalWin)
 
     freeSpinScope.value('total-spins-per-trigger', freeCount)
   }
