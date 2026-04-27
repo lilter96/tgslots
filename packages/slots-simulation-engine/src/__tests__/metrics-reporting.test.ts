@@ -116,8 +116,8 @@ describe('simulation metrics reporting', () => {
       ratio: 0.3,
     })
 
-    // The engine's automatic round-payout metric is rtp-kind and always equals summary.rtp
-    expect(metrics.scopes.metrics['round-payout']).toEqual({
+    // The engine's automatic round-rtp metric is rtp-kind and always equals summary.rtp
+    expect(metrics.scopes.metrics['round-rtp']).toEqual({
       kind: 'rtp',
       count: 1,
       total: 50,

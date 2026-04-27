@@ -88,18 +88,31 @@ async function runAndPrint(...): Promise<void>
 async function printSimResult(...): Promise<void>
 ```
 
-### Visualization (`visualizer/index.ts`)
+### Visualization (`visualizer/`)
 
 ```typescript
 async function visualizeMetrics(report: SimulationJsonReport, outputPath: string): Promise<void>
 ```
 
+Composed module split across `index.ts`, `template.ts`, `styles.ts`, `client.ts`, `assets.ts`, `labels.ts`, `format.ts`, and `sections/{header,kpis,rtp-donut,comparisons,distribution,scopes,toc}.ts`. ApexCharts UMD bundle is read at render time from `node_modules` and embedded inline so reports open offline.
+
+## Engine-emitted metrics (root scope)
+
+| Name | Kind | Meaning |
+| --- | --- | --- |
+| `rounds` | count | Rounds played. |
+| `round-rtp` | rtp | Per-round RTP contribution; `ratio` equals `summary.rtp`. |
+| `round-win-amount` | value | Round win aggregate (avg/min/max/sum). |
+| `spins-per-round` | value | Spin results per round (avg/min/max). |
+| `round-win-multiplier` | distribution | Bucketed `roundWin / bet`. |
+| `spin-types/<type>/results` | count | Spin results per spin type (BASE/FREE/PICK). |
+
 ## Key Behaviors
 
 - Built-in summary metrics are intentionally small: rounds, bet/win totals, variance, max round win, round-win distribution, and result-type distribution.
 - Game-specific telemetry must be recorded through scoped collector APIs in `recordResultMetrics()` and/or `recordRoundMetrics()`, not by expanding `SpinResult` into a slot-specific reporting schema.
-- Reference comparisons are normalized into selector-based targets, so CLI verify mode and HTML dashboards compare the same resolved metrics.
-- `--visualize` writes a self-contained HTML dashboard; the old chart/PDF pipeline is gone.
+- Reference comparisons are normalized into selector-based targets and may carry an optional `category` (`rtp` / `cycle` / `average` / `distribution` / `count`) plus `description`, both consumed by the visualizer for grouping and tooltips. CLI verify mode and HTML dashboards compare the same resolved metrics.
+- `--visualize` writes a self-contained HTML dashboard with ApexCharts inlined: KPI count-up cards, RTP composition donut, tolerance-band comparison cards, distribution histograms, spin-type donut, collapsible scope tree with per-metric charts (gauge/bar/min-max/distribution), sticky TOC, and dark/light theme toggle. No CDN access required.
 
 ## Dependencies
 

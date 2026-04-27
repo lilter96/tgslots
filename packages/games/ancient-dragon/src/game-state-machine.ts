@@ -117,18 +117,18 @@ export class AncientDragonStateMachine implements StateMachine<
       if (result.win > 0) baseScope.count('hits')
       if (result.triggeredFreeSpins) {
         freeSpinScope.count('triggers')
-        freeSpinScope.value('awarded-spins', 10)
+        freeSpinScope.value('spins-awarded', 10)
       }
       return
     }
 
-    freeSpinScope.count('spins')
+    freeSpinScope.count('spins-played')
     freeSpinScope.payout('spin-win', result.win)
     freeSpinScope.distribution('scatter-count', String(result.sc))
     if (result.win > 0) freeSpinScope.count('hits')
     if (result.retriggeredFreeSpins) {
       freeSpinScope.count('retriggers')
-      freeSpinScope.value('awarded-spins', 10)
+      freeSpinScope.value('spins-awarded', 10)
     }
   }
 
@@ -148,8 +148,8 @@ export class AncientDragonStateMachine implements StateMachine<
     const hasFreeSpins = (round.countsByType.FREE ?? 0) > 0
     if (!hasFreeSpins) return
 
-    freeSpinScope.payout('feature-win', freeWin)
-    freeSpinScope.payout('round-win', round.totalWin)
+    freeSpinScope.payout('session-win', freeWin)
+    freeSpinScope.payout('triggered-round-win', round.totalWin)
     freeSpinScope.value('total-spins-per-trigger', round.countsByType.FREE ?? 0)
   }
 }

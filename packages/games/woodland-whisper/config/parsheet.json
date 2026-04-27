@@ -25,7 +25,7 @@
       "id": "basic-game-win-cycle",
       "label": "Basic Game Win Cycle",
       "expected": 11.0522,
-      "source": { "kind": "scope", "scope": ["base-game"], "metric": "winning-spins", "field": "cycle" },
+      "source": { "kind": "scope", "scope": ["base-game"], "metric": "hits", "field": "cycle" },
       "tolerance": { "type": "relative", "value": 0.03 },
       "format": "number"
     },
@@ -65,7 +65,7 @@
       "id": "feature-avg-round-win",
       "label": "Feature Avg Round Win",
       "expected": 643.2,
-      "source": { "kind": "scope", "scope": ["features", "free-spins"], "metric": "feature-win", "field": "average" },
+      "source": { "kind": "scope", "scope": ["features", "free-spins"], "metric": "session-win", "field": "average" },
       "tolerance": { "type": "relative", "value": 0.05 },
       "format": "number"
     },

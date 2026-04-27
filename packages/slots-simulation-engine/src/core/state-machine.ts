@@ -537,9 +537,9 @@ export class ModernDataCollector implements DataCollector {
     this.raw.sumSquaresRoundWinMultiplier += roundMultiplier * roundMultiplier
 
     this.count('rounds')
-    this.rtp('round-payout', this.currentRoundWin)
-    this.value('round-win', this.currentRoundWin)
-    this.value('result-count', this.currentRoundResultCount)
+    this.rtp('round-rtp', this.currentRoundWin)
+    this.value('round-win-amount', this.currentRoundWin)
+    this.value('spins-per-round', this.currentRoundResultCount)
     this.distribution('round-win-multiplier', bucketRoundWin(roundMultiplier))
 
     for (const [type, count] of Object.entries(this.currentCountsByType)) {

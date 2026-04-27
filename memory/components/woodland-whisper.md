@@ -112,6 +112,30 @@ interface WoodlandWhisperResult extends SpinResult {
 - `[[slots-core]]` (engine, payline evaluation, `PrecomputedScatterEngine`, betting)
 - `[[slots-simulation-engine]]` (StateMachine and SpinResult types, introduced `'PICK'` spin type)
 
+## Recorded metrics (canonical names)
+
+| Scope | Metric | Kind | Description |
+| --- | --- | --- | --- |
+| `base-game` | `scatter-count` | distribution | Scatters per base spin. |
+| `base-game` | `hits` | count | Base spins with `win > 0`. |
+| `base-game` | `win` | rtp | Base game RTP contribution. |
+| `base-game` | `scatter-win` | rtp | Base game scatter-pay RTP contribution. |
+| `features/free-spins` | `triggers` | count | Pick-bonus triggers. |
+| `features/free-spins` | `spins-awarded` | value | Free spins granted on trigger / retrigger. |
+| `features/free-spins` | `spins-played` | count | Free spins played. |
+| `features/free-spins` | `spin-win` | payout | Per-free-spin win aggregate. |
+| `features/free-spins` | `scatter-count` | distribution | Scatters per free spin. |
+| `features/free-spins` | `scatter-win` | payout | Per-free-spin scatter-pay aggregate. |
+| `features/free-spins` | `hits` | count | Free spins with `win > 0`. |
+| `features/free-spins` | `retriggers` | count | Free spins that retriggered. |
+| `features/free-spins` | `feature-rtp` | rtp | Free-spin RTP contribution. |
+| `features/free-spins` | `scatter-rtp` | rtp | Free-spin scatter-pay RTP contribution. |
+| `features/free-spins` | `session-win` | payout | Per-trigger session total win. |
+| `features/free-spins` | `triggered-round-win` | payout | Round total win on triggered rounds. |
+| `features/free-spins` | `total-spins-per-trigger` | value | Total free spins per trigger session. |
+| `features/pick-bonus-base-game` | `triggers`, `spins-awarded` | count, value | Per-base-spin trigger telemetry. |
+| `features/pick-bonus-free-game` | `retriggers`, `spins-awarded` | count, value | Per-free-spin retrigger telemetry. |
+
 ## Files
 
 - `config/config.json` — complete game config
