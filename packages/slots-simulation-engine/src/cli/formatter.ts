@@ -50,7 +50,9 @@ function describeMetric(metric: FinalScopedMetric): string {
     case 'value':
       return `avg=${metric.average.toFixed(4)} min=${metric.min ?? 'N/A'} max=${metric.max ?? 'N/A'} sum=${metric.sum.toLocaleString()}`
     case 'payout':
-      return `avg=${metric.average.toFixed(4)} total=${metric.total.toLocaleString()} ratio=${
+      return `count=${metric.count.toLocaleString()} avg=${metric.average.toFixed(4)} total=${metric.total.toLocaleString()} min=${metric.min ?? 'N/A'} max=${metric.max ?? 'N/A'}`
+    case 'rtp':
+      return `total=${metric.total.toLocaleString()} ratio=${
         metric.ratio === null ? 'N/A' : metric.ratio.toFixed(4)
       }`
     case 'distribution': {

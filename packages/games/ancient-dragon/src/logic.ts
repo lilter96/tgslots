@@ -19,7 +19,7 @@ const _scatterStrips = STRIP_STRINGS.map((stripStr) => {
   return r
 })
 const scatterEngine = new PrecomputedScatterEngine(
-  { symbolId: Symbols.YINYANG, payouts: [...SCATTER_PAY] },
+  { symbolId: Symbols.YINYANG!, payouts: [...SCATTER_PAY] },
   _scatterStrips,
   3, // Ancient Dragon is 5x3
 )

@@ -134,8 +134,8 @@ export class AncientDragonStateMachine implements StateMachine<
   recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
     const freeSpinScope = collector.scope(['features', 'free-spins'])
 
-    // Record on every round so ratio = feature_wins / total_bets = feature RTP
-    freeSpinScope.payout('feature-rtp', round.winsByType.FREE?.total ?? 0, round.bet)
+    // Wager-normalized contribution: ratio = total free-spin wins / total wagered
+    freeSpinScope.rtp('feature-rtp', round.winsByType.FREE?.total ?? 0)
 
     const hasFreeSpins = (round.countsByType.FREE ?? 0) > 0
     if (!hasFreeSpins) return

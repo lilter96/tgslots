@@ -258,9 +258,9 @@ export class WoodlandWhisperStateMachine implements StateMachine<
 
     if (result.type === 'FREE') {
       freeSpinScope.count('spins-played')
-      freeSpinScope.payout('spin-win', result.win, context.wager.totalWager)
+      freeSpinScope.payout('spin-win', result.win)
       freeSpinScope.distribution('scatter-count', String(result.sc ?? 0))
-      freeSpinScope.payout('scatter-win', result.scatterWin, context.wager.totalWager)
+      freeSpinScope.payout('scatter-win', result.scatterWin)
       this._currentRoundFreeScatterWin += result.scatterWin
 
       if (result.win > 0) freeSpinScope.count('winning-spins')
@@ -290,13 +290,13 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     const freeCount = round.countsByType['FREE'] ?? 0
     const pickCount = round.countsByType['PICK'] ?? 0
 
-    // BASE GAME METRICS
-    baseScope.payout('win', baseTotalWin, round.bet)
-    baseScope.payout('scatter-win', baseScatterWin, round.bet)
+    // BASE GAME METRICS — wager-normalized contributions to total RTP
+    baseScope.rtp('win', baseTotalWin)
+    baseScope.rtp('scatter-win', baseScatterWin)
 
-    // FREE SPIN RTP (counted every round)
-    freeSpinScope.payout('feature-rtp', freeTotalWin, round.bet)
-    freeSpinScope.payout('scatter-rtp', freeScatterWin, round.bet)
+    // FREE SPIN RTP — wager-normalized contributions, recorded every round
+    freeSpinScope.rtp('feature-rtp', freeTotalWin)
+    freeSpinScope.rtp('scatter-rtp', freeScatterWin)
 
     const hasFreeSpins = freeCount > 0 || pickCount > 0
     if (!hasFreeSpins) return

@@ -143,6 +143,9 @@ function resolveScopeMetricValue(
       if (field === 'average') return metric.average
       if (field === 'min') return metric.min
       if (field === 'max') return metric.max
+      return null
+    case 'rtp':
+      if (field === 'total') return metric.total
       if (field === 'ratio') return metric.ratio
       return null
     case 'distribution':
