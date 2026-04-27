@@ -29,3 +29,9 @@ memory/.obsidian/
 .pnpm-debug.log
 
 apps/simulations/*.compiled.mjs
+
+# Simulation results
+apps/simulations/results/
+apps/simulations/*.html
+apps/simulations/*.json
+apps/simulations/*.pdf

@@ -17,6 +17,25 @@ import type { StateMachine, SpinResult } from '@tgslots/slots-simulation-engine'
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const GAMES_ROOT = path.resolve(process.cwd(), '../../packages/games')
+const RESULTS_ROOT = path.join(process.cwd(), 'results')
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function defaultOutputPath(gameId: string, ext: string): string {
+  const now = new Date()
+  const ts = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    '-',
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('')
+  const dir = path.join(RESULTS_ROOT, gameId)
+  fs.mkdirSync(dir, { recursive: true })
+  return path.join(dir, `${gameId}-${ts}.${ext}`)
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +110,13 @@ async function main() {
   if (!SIM_CONFIG) {
     console.error(`\n  [Error] Package "${game.packageName}" does not export SIM_CONFIG.`)
     process.exit(1)
+  }
+
+  if (opts.visualize !== null && opts.visualize === '') {
+    opts.visualize = defaultOutputPath(game.id, 'html')
+  }
+  if (opts.jsonOutput !== null && opts.jsonOutput === '') {
+    opts.jsonOutput = defaultOutputPath(game.id, 'json')
   }
 
   printSimHeader(opts, SIM_CONFIG.name)

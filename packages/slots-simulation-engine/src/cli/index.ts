@@ -86,12 +86,20 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
         opts.json = true
         break
       case '--json-output':
-        opts.jsonOutput = v!
-        i++
+        if (v !== undefined && !v.startsWith('--')) {
+          opts.jsonOutput = v
+          i++
+        } else {
+          opts.jsonOutput = ''
+        }
         break
       case '--visualize':
-        opts.visualize = v!
-        i++
+        if (v !== undefined && !v.startsWith('--')) {
+          opts.visualize = v
+          i++
+        } else {
+          opts.visualize = ''
+        }
         break
       case '--snapshot-interval':
         opts.snapshotInterval = parseFloat(v!)
