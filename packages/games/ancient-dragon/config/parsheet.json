@@ -61,6 +61,19 @@
       "format": "number"
     },
     {
+      "id": "basic-game-rtp",
+      "label": "Base Game RTP",
+      "expected": 0.8179,
+      "source": {
+        "kind": "scope",
+        "scope": ["base-game"],
+        "metric": "win",
+        "field": "ratio"
+      },
+      "tolerance": { "type": "absolute", "value": 0.015 },
+      "format": "percent"
+    },
+    {
       "id": "feature-rtp",
       "label": "Feature Game RTP",
       "expected": 0.0626,

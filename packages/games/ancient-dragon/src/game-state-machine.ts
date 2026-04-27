@@ -113,6 +113,7 @@ export class AncientDragonStateMachine implements StateMachine<
 
     if (result.type === 'BASE') {
       baseScope.distribution('scatter-count', String(result.sc))
+      baseScope.payout('spin-win', result.win)
       if (result.win > 0) baseScope.count('hits')
       if (result.triggeredFreeSpins) {
         freeSpinScope.count('triggers')
@@ -132,15 +133,22 @@ export class AncientDragonStateMachine implements StateMachine<
   }
 
   recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
+    const baseScope = collector.scope('base-game')
     const freeSpinScope = collector.scope(['features', 'free-spins'])
 
-    // Wager-normalized contribution: ratio = total free-spin wins / total wagered
-    freeSpinScope.rtp('feature-rtp', round.winsByType.FREE?.total ?? 0)
+    const baseWin = round.winsByType.BASE?.total ?? 0
+    const freeWin = round.winsByType.FREE?.total ?? 0
+
+    // BASE GAME RTP — wager-normalized contribution to total RTP
+    baseScope.rtp('win', baseWin)
+
+    // FREE SPIN RTP — wager-normalized contribution, recorded every round
+    freeSpinScope.rtp('feature-rtp', freeWin)
 
     const hasFreeSpins = (round.countsByType.FREE ?? 0) > 0
     if (!hasFreeSpins) return
 
-    freeSpinScope.payout('feature-win', round.winsByType.FREE?.total ?? 0)
+    freeSpinScope.payout('feature-win', freeWin)
     freeSpinScope.payout('round-win', round.totalWin)
     freeSpinScope.value('total-spins-per-trigger', round.countsByType.FREE ?? 0)
   }
