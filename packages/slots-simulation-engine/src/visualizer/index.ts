@@ -55,9 +55,18 @@ function metricRows(metricName: string, metric: FinalScopedMetric): string {
       return `
         <tr>
           <td>${escapeHtml(metricName)}</td><td>payout</td>
+          ${cell('count', metric.count.toLocaleString())}
           ${cell('avg', metric.average.toFixed(4))}
           ${cell('total', metric.total.toLocaleString())}
-          ${cell('rtp', metric.ratio === null ? 'N/A' : metric.ratio.toFixed(4))}
+        </tr>
+      `
+    case 'rtp':
+      return `
+        <tr>
+          <td>${escapeHtml(metricName)}</td><td>rtp</td>
+          ${cell('count', metric.count.toLocaleString())}
+          ${cell('total', metric.total.toLocaleString())}
+          ${cell('ratio', metric.ratio === null ? 'N/A' : metric.ratio.toFixed(4))}
         </tr>
       `
     case 'distribution': {

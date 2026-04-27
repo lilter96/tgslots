@@ -35,6 +35,7 @@ up:
 - [[task_026_ancient_dragon_standardization]] — 2026-04-26 — Refactored Ancient Dragon for granular state and standardized metrics.
 - [[task_027_woodland_whisper_scatter_rtp]] — 2026-04-26 — Added granular scatter RTP recording for base and free games.
 - [[task_028_fix_dragon_rtp_config]] — 2026-04-27 — Fixed Ancient Dragon 33% RTP (BetConfig/payline mismatch); migrated to external config/config.json + parsheet.json; restored INNER mystery mechanic; scaled paytable to 88.05% target (verified 88.95% over 2M spins).
+- [[task_029_split_payout_rtp_metric_kinds]] — 2026-04-27 — Split metrics into `payout` (aggregate) and `rtp` (wager-normalized) kinds; eliminated per-call denominator footgun; dashboard no longer shows `rtp N/A` or `rtp > 1`; ADR 003.
 
 ## In Progress
 

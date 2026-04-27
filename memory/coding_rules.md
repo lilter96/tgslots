@@ -43,7 +43,8 @@ up:
 
 - Keep `SpinResult` lean; do not add reporting-specific fields just to feed CLI or visualization output
 - Record game-specific telemetry through `recordResultMetrics()` and `recordRoundMetrics()` collector hooks
-- Prefer scoped generic metrics (`count`, `value`, `distribution`, `payout`) over slot-specific ad hoc report fields
+- Prefer scoped generic metrics (`count`, `value`, `distribution`, `payout`, `rtp`) over slot-specific ad hoc report fields
+- **Metric kind discipline:** use `scope.rtp(name, amount)` for wager-normalized contributions (ratio = `total / cumulative-totalBet`); use `scope.payout(name, amount)` for aggregates (count/avg/total/min/max). Never re-introduce a per-call denominator on either. See [[decision_003_split_payout_and_rtp_metric_kinds]].
 
 ## RNG Discipline (CRITICAL)
 

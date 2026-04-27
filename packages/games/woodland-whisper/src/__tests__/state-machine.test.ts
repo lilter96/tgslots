@@ -152,6 +152,10 @@ describe('WoodlandWhisperStateMachine', () => {
           if (!mockMetrics[key]) mockMetrics[key] = { payouts: {} }
           mockMetrics[key]!.payouts[id] = (mockMetrics[key]!.payouts[id] ?? 0) + win
         },
+        rtp(id, win) {
+          if (!mockMetrics[key]) mockMetrics[key] = { payouts: {} }
+          mockMetrics[key]!.payouts[id] = (mockMetrics[key]!.payouts[id] ?? 0) + win
+        },
         distribution() {},
         count() {},
         value() {},
@@ -167,6 +171,7 @@ describe('WoodlandWhisperStateMachine', () => {
       value() {},
       distribution() {},
       payout() {},
+      rtp() {},
       beginRound() {},
       collect() {},
       endRound() {},

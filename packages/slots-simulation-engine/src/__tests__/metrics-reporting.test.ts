@@ -70,7 +70,10 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
     round: RoundMetricsSnapshot,
     _wager: Wager,
   ): void {
-    collector.scope(['features', 'free-spins']).payout('bonus-payout', round.winsByType.FREE?.total ?? 0, round.bet)
+    const featureScope = collector.scope(['features', 'free-spins'])
+    const freeWin = round.winsByType.FREE?.total ?? 0
+    featureScope.payout('bonus-payout', freeWin)
+    featureScope.rtp('bonus-rtp', freeWin)
   }
 }
 
@@ -105,8 +108,55 @@ describe('simulation metrics reporting', () => {
       average: 30,
       min: 30,
       max: 30,
-      denominatorTotal: 100,
+    })
+    expect(freeSpins?.metrics['bonus-rtp']).toEqual({
+      kind: 'rtp',
+      count: 1,
+      total: 30,
       ratio: 0.3,
+    })
+
+    // The engine's automatic round-payout metric is rtp-kind and always equals summary.rtp
+    expect(metrics.scopes.metrics['round-payout']).toEqual({
+      kind: 'rtp',
+      count: 1,
+      total: 50,
+      ratio: 0.5,
+    })
+  })
+
+  it('rtp finalization divides by cumulative totalBet, not per-record denominator', () => {
+    const collector = new ModernDataCollector()
+    runCycle(new StubStateMachine(), rng, collector, wager)
+    runCycle(new StubStateMachine(), rng, collector, wager)
+
+    const metrics = Metrics.finalize(collector.getRawMetrics())
+    const freeSpins = metrics.scopes.scopes.features?.scopes['free-spins']
+
+    // 2 rounds * 100 bet = 200 cumulative wager
+    // 2 rounds * 30 free-spin win = 60 total free win
+    // ratio = 60 / 200 = 0.3 (recording cadence does not matter)
+    expect(freeSpins?.metrics['bonus-rtp']).toMatchObject({
+      kind: 'rtp',
+      count: 2,
+      total: 60,
+      ratio: 0.3,
+    })
+  })
+
+  it('rtp ratio is null when no rounds have been played', () => {
+    const collector = new ModernDataCollector()
+    // Record an rtp directly without running a cycle, so totalBet stays 0.
+    collector.scope(['features', 'free-spins']).rtp('orphan-rtp', 50)
+
+    const metrics = Metrics.finalize(collector.getRawMetrics())
+    const freeSpins = metrics.scopes.scopes.features?.scopes['free-spins']
+
+    expect(freeSpins?.metrics['orphan-rtp']).toEqual({
+      kind: 'rtp',
+      count: 1,
+      total: 50,
+      ratio: null,
     })
   })
 
@@ -169,12 +219,26 @@ describe('simulation metrics reporting', () => {
             field: 'average',
           },
         },
+        {
+          id: 'feature-rtp',
+          label: 'Feature RTP',
+          expected: 0.3,
+          source: {
+            kind: 'scope',
+            scope: ['features', 'free-spins'],
+            metric: 'bonus-rtp',
+            field: 'ratio',
+          },
+          tolerance: { type: 'absolute', value: 0.0001 },
+          format: 'percent',
+        },
       ],
     })
 
-    expect(comparisons).toHaveLength(3)
+    expect(comparisons).toHaveLength(4)
     expect(comparisons[0]).toMatchObject({ actual: 0.5, passed: true })
     expect(comparisons[1]).toMatchObject({ actual: 1, passed: true })
     expect(comparisons[2]).toMatchObject({ actual: 30, passed: null })
+    expect(comparisons[3]).toMatchObject({ actual: 0.3, passed: true })
   })
 })

@@ -53,7 +53,10 @@ interface DataCollector {
   count(name: string, amount?: number): void
   value(name: string, observed: number): void
   distribution(name: string, bucket: string, amount?: number): void
-  payout(name: string, amount: number, denominator?: number): void
+  /** Aggregate-style: count/avg/total/min/max. No ratio field. */
+  payout(name: string, amount: number): void
+  /** Wager-normalized: ratio = total / cumulative-totalBet at finalize. */
+  rtp(name: string, amount: number): void
   getLastRoundSnapshot(): RoundMetricsSnapshot | null
   getRawMetrics(): RawSimulationMetrics
 }

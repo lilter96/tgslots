@@ -39,9 +39,14 @@ export interface RawPayoutMetric {
   kind: 'payout'
   count: number
   total: number
-  denominatorTotal: number
   min: number | null
   max: number | null
+}
+
+export interface RawRtpMetric {
+  kind: 'rtp'
+  count: number
+  total: number
 }
 
 export type RawScopedMetric =
@@ -49,6 +54,7 @@ export type RawScopedMetric =
   | RawValueMetric
   | RawDistributionMetric
   | RawPayoutMetric
+  | RawRtpMetric
 
 export interface RawMetricScope {
   metrics: Record<string, RawScopedMetric>
@@ -101,7 +107,12 @@ export interface FinalPayoutMetric {
   average: number
   min: number | null
   max: number | null
-  denominatorTotal: number
+}
+
+export interface FinalRtpMetric {
+  kind: 'rtp'
+  count: number
+  total: number
   ratio: number | null
 }
 
@@ -110,6 +121,7 @@ export type FinalScopedMetric =
   | FinalValueMetric
   | FinalDistributionMetric
   | FinalPayoutMetric
+  | FinalRtpMetric
 
 export interface FinalMetricScope {
   path: string[]
@@ -160,7 +172,20 @@ export interface ScopedMetrics {
 
   distribution(name: string, bucket: string, amount?: number): void
 
-  payout(name: string, amount: number, denominator?: number): void
+  /**
+   * Aggregate-style payout metric: tracks count, total, average, min, max of a
+   * payout-bearing event. Use for "average win when X fires" stats. No
+   * denominator — never an RTP. For wager-normalized RTP, use `rtp(...)`.
+   */
+  payout(name: string, amount: number): void
+
+  /**
+   * Wager-normalized return contribution: at finalize time the total is divided
+   * by the simulation's cumulative `totalBet`. Recording cadence does not matter
+   * — each call only contributes to the numerator. The sum of partitioning rtp
+   * metrics equals `summary.rtp`.
+   */
+  rtp(name: string, amount: number): void
 }
 
 export interface DataCollector extends ScopedMetrics {
@@ -259,9 +284,16 @@ function mergeScopedMetric(a: RawScopedMetric, b: RawScopedMetric): RawScopedMet
         kind: 'payout',
         count: a.count + right.count,
         total: a.total + right.total,
-        denominatorTotal: a.denominatorTotal + right.denominatorTotal,
         min: a.min === null ? right.min : right.min === null ? a.min : Math.min(a.min, right.min),
         max: a.max === null ? right.max : right.max === null ? a.max : Math.max(a.max, right.max),
+      }
+    }
+    case 'rtp': {
+      const right = b as RawRtpMetric
+      return {
+        kind: 'rtp',
+        count: a.count + right.count,
+        total: a.total + right.total,
       }
     }
   }
@@ -311,7 +343,11 @@ function mergeScopes(a: RawMetricScope, b: RawMetricScope): RawMetricScope {
   return { metrics, scopes }
 }
 
-function finalizeMetric(metric: RawScopedMetric, rounds: number): FinalScopedMetric {
+function finalizeMetric(
+  metric: RawScopedMetric,
+  rounds: number,
+  totalBet: number,
+): FinalScopedMetric {
   switch (metric.kind) {
     case 'count':
       return {
@@ -351,22 +387,35 @@ function finalizeMetric(metric: RawScopedMetric, rounds: number): FinalScopedMet
         average: metric.count > 0 ? metric.total / metric.count : 0,
         min: metric.min,
         max: metric.max,
-        denominatorTotal: metric.denominatorTotal,
-        ratio: metric.denominatorTotal > 0 ? metric.total / metric.denominatorTotal : null,
+      }
+    case 'rtp':
+      return {
+        kind: 'rtp',
+        count: metric.count,
+        total: metric.total,
+        ratio: totalBet > 0 ? metric.total / totalBet : null,
       }
   }
 }
 
-function finalizeScope(scope: RawMetricScope, path: string[], rounds: number): FinalMetricScope {
+function finalizeScope(
+  scope: RawMetricScope,
+  path: string[],
+  rounds: number,
+  totalBet: number,
+): FinalMetricScope {
   return {
     path,
     metrics: Object.fromEntries(
-      Object.entries(scope.metrics).map(([name, metric]) => [name, finalizeMetric(metric, rounds)]),
+      Object.entries(scope.metrics).map(([name, metric]) => [
+        name,
+        finalizeMetric(metric, rounds, totalBet),
+      ]),
     ),
     scopes: Object.fromEntries(
       Object.entries(scope.scopes).map(([name, child]) => [
         name,
-        finalizeScope(child, [...path, name], rounds),
+        finalizeScope(child, [...path, name], rounds, totalBet),
       ]),
     ),
   }
@@ -394,8 +443,12 @@ class ScopeHandle implements ScopedMetrics {
     this.collector.recordDistribution(this.path, name, bucket, amount)
   }
 
-  payout(name: string, amount: number, denominator = 0): void {
-    this.collector.recordPayout(this.path, name, amount, denominator)
+  payout(name: string, amount: number): void {
+    this.collector.recordPayout(this.path, name, amount)
+  }
+
+  rtp(name: string, amount: number): void {
+    this.collector.recordRtp(this.path, name, amount)
   }
 }
 
@@ -428,8 +481,12 @@ export class ModernDataCollector implements DataCollector {
     this.rootRecorder.distribution(name, bucket, amount)
   }
 
-  payout(name: string, amount: number, denominator = 0): void {
-    this.rootRecorder.payout(name, amount, denominator)
+  payout(name: string, amount: number): void {
+    this.rootRecorder.payout(name, amount)
+  }
+
+  rtp(name: string, amount: number): void {
+    this.rootRecorder.rtp(name, amount)
   }
 
   beginRound(bet: number): void {
@@ -480,7 +537,7 @@ export class ModernDataCollector implements DataCollector {
     this.raw.sumSquaresRoundWinMultiplier += roundMultiplier * roundMultiplier
 
     this.count('rounds')
-    this.payout('round-payout', this.currentRoundWin, this.betAmount)
+    this.rtp('round-payout', this.currentRoundWin)
     this.value('round-win', this.currentRoundWin)
     this.value('result-count', this.currentRoundResultCount)
     this.distribution('round-win-multiplier', bucketRoundWin(roundMultiplier))
@@ -574,7 +631,7 @@ export class ModernDataCollector implements DataCollector {
     current.buckets[bucket] = (current.buckets[bucket] ?? 0) + amount
   }
 
-  recordPayout(path: string[], name: string, amount: number, denominator: number): void {
+  recordPayout(path: string[], name: string, amount: number): void {
     const scope = this.resolveScope(path)
     const current = scope.metrics[name]
     if (!current) {
@@ -582,7 +639,6 @@ export class ModernDataCollector implements DataCollector {
         kind: 'payout',
         count: 1,
         total: amount,
-        denominatorTotal: denominator,
         min: amount,
         max: amount,
       }
@@ -593,9 +649,26 @@ export class ModernDataCollector implements DataCollector {
     }
     current.count++
     current.total += amount
-    current.denominatorTotal += denominator
     current.min = current.min === null ? amount : Math.min(current.min, amount)
     current.max = current.max === null ? amount : Math.max(current.max, amount)
+  }
+
+  recordRtp(path: string[], name: string, amount: number): void {
+    const scope = this.resolveScope(path)
+    const current = scope.metrics[name]
+    if (!current) {
+      scope.metrics[name] = {
+        kind: 'rtp',
+        count: 1,
+        total: amount,
+      }
+      return
+    }
+    if (current.kind !== 'rtp') {
+      throw new Error(`Metric "${name}" in scope "${path.join('/')}" is not an rtp`)
+    }
+    current.count++
+    current.total += amount
   }
 
   private resolveScope(path: string[]): RawMetricScope {
@@ -659,7 +732,7 @@ export const Metrics = {
     const mean = raw.rounds > 0 ? raw.sumRoundWinMultiplier / raw.rounds : 0
     const eX2 = raw.rounds > 0 ? raw.sumSquaresRoundWinMultiplier / raw.rounds : 0
     const variance = Math.max(0, eX2 - mean * mean)
-    const scopes = finalizeScope(raw.rootScope, [], raw.rounds)
+    const scopes = finalizeScope(raw.rootScope, [], raw.rounds, raw.totalBet)
 
     const roundWinDistributionMetric = scopes.metrics['round-win-multiplier']
     const roundWinDistribution: FinalDistributionMetric =
