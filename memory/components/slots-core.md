@@ -21,7 +21,7 @@ component: "slots-core"
 
 ## Responsibility
 
-Shared slot engine primitives: symbol registry, payline and scatter evaluation, flat paytable lookups, projected grids, and integer-credit betting primitives. Used by all game packages and the simulation runner.
+Shared slot engine primitives: symbol registry, payline and scatter evaluation, cluster-pays evaluation, cascade/tumble orchestration, flat paytable lookups, projected grids, and integer-credit betting primitives. Supports both payline-based and cluster-pays evaluation models. Used by all game packages and the simulation runner.
 
 ## Public API
 
@@ -59,6 +59,59 @@ class MultiFrameBetConfiguration { static build(...): MultiFrameBetConfiguration
 class Wager { constructor(multiplier: number, config: BetConfiguration) }
 ```
 
+### Cluster Pays evaluation
+
+```typescript
+interface GameWithClustersConfig extends BasicSlotGameConfig, GameWithPayTableConfig {
+  readonly wildSymbol?: string
+  readonly scatterDefinition?: ScatterDefinition
+}
+interface ClusterSlotEngine {
+  readonly symbols: SymbolRegistry
+  readonly paytable: FlatPaytable    // sized for cluster sizes (gridArea + 1)
+  readonly reelCount: number
+  readonly rowCount: number
+  readonly gridArea: number
+  readonly scatterId: SymbolId | null
+}
+function createClusterSlotEngine(config: GameWithClustersConfig): ClusterSlotEngine
+function evaluateClusters(grid: EvalGrid, engine: ClusterSlotEngine): ClusterEvaluationResult
+function buildClusterPaytable(config: PaytableConfig, registry: SymbolRegistry, gridArea: number): FlatPaytable
+
+interface ClusterHit {
+  readonly symbolId: SymbolId; readonly symbolName: string; readonly size: number
+  readonly basePayout: number; readonly totalPayout: number
+  readonly positions: readonly number[]  // reel * rowCount + row
+}
+interface ClusterEvaluationResult { readonly totalWin: number; readonly hits: readonly ClusterHit[] }
+```
+
+### Cascade / tumble
+
+```typescript
+interface RefillSource { drawNext(reel: number): SymbolId }
+
+class MutableCascadeGrid implements EvalGrid {
+  static fromProjection(grid: EvalGrid): MutableCascadeGrid
+  clearAt(positions: readonly number[]): void
+  applyGravity(refill: (reel: number) => SymbolId): void
+}
+
+function collectVanishPositions(hits: readonly ClusterHit[], grid: EvalGrid, engine: ClusterSlotEngine): readonly number[]
+
+class CascadeEngine {
+  constructor(slot: ClusterSlotEngine, options?: CascadeOptions)
+  run(initialGrid: EvalGrid, refill: RefillSource): CascadeResult
+}
+
+function createCascadeSampler(
+  engine: ClusterSlotEngine,
+  initialGridSampler: Sampler<EvalGrid>,
+  refillSamplers: readonly Sampler<SymbolId>[],
+  options?: CascadeOptions,
+): Sampler<CascadeResult>
+```
+
 ## Dependencies
 
-- `[[math]]` (Rng-related types used by higher layers)
+- `[[math]]` (`Sampler<T>`, `Rng` types used by cascade sampler and higher layers)

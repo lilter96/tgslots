@@ -80,10 +80,21 @@ src/
     evaluator.ts       Grid-based scatter evaluator
     precomputed-engine.ts Precomputed O(R) positional scatter evaluator
   paytable/
-    flat-paytable.ts   Flat O(1) lookup
-    paytable-config.ts Config validation
+    flat-paytable.ts        Flat O(1) lookup
+    paytable-config.ts      Config validation
+    cluster-paytable.ts     Cluster-sized paytable builder (gridArea + 1 entries)
   spin-grid/
     spin-grid.ts       EvalGrid interface
+  cluster/
+    types.ts           ClusterHit, ClusterEvaluationResult
+    cluster-engine.ts  ClusterSlotEngine, createClusterSlotEngine
+    evaluator.ts       evaluateClusters — 4-connected BFS cluster evaluator
+  cascade/
+    types.ts           CascadeStep, CascadeResult, RefillSource, CascadeOptions
+    cascade-grid.ts    MutableCascadeGrid implementing EvalGrid
+    vanishing.ts       collectVanishPositions — union hits + same-type grid scan
+    cascade-engine.ts  CascadeEngine.run — synchronous tumble orchestrator
+    sampler.ts         createCascadeSampler — Sampler-monad cascade
   betting/
     config.ts          BetConfiguration and MultiFrameBetConfiguration
     wager.ts           integer-credit Wager model
