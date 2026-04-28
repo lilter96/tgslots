@@ -17,7 +17,8 @@
   },
   "dependencies": {
     "@tgslots/math": "workspace:*",
-    "@tgslots/slots-core": "workspace:*"
+    "@tgslots/slots-core": "workspace:*",
+    "apexcharts": "^3.54.0"
   },
   "devDependencies": {
     "typescript": "~5.9.2"

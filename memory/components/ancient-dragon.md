@@ -73,6 +73,26 @@ function ANCIENT_DRAGON_SAMPLER(wager: Wager): Sampler<{ win: number; sc: number
 - `[[slots-core]]` (engine via `buildEngineFromArrays`, payline evaluation, `PrecomputedScatterEngine`, betting)
 - `[[slots-simulation-engine]]` (StateMachine and SpinResult types)
 
+## Recorded metrics (canonical names)
+
+| Scope | Metric | Kind | Description |
+| --- | --- | --- | --- |
+| `base-game` | `scatter-count` | distribution | Scatters per base spin. |
+| `base-game` | `spin-win` | payout | Per-base-spin win aggregate. |
+| `base-game` | `hits` | count | Base spins with `win > 0`. |
+| `base-game` | `win` | rtp | Base game RTP contribution. |
+| `features/free-spins` | `triggers` | count | Base spins that triggered the feature. |
+| `features/free-spins` | `spins-awarded` | value | Free spins granted on trigger / retrigger (always 10). |
+| `features/free-spins` | `spins-played` | count | Free spins played. |
+| `features/free-spins` | `spin-win` | payout | Per-free-spin win aggregate. |
+| `features/free-spins` | `scatter-count` | distribution | Scatters per free spin. |
+| `features/free-spins` | `hits` | count | Free spins with `win > 0`. |
+| `features/free-spins` | `retriggers` | count | Free spins that retriggered. |
+| `features/free-spins` | `feature-rtp` | rtp | Free-spin wager-normalized RTP contribution. |
+| `features/free-spins` | `session-win` | payout | Per-trigger session total win. |
+| `features/free-spins` | `triggered-round-win` | payout | Round total win on triggered rounds. |
+| `features/free-spins` | `total-spins-per-trigger` | value | Total free spins per trigger session, including retriggers. |
+
 ## Files
 
 - `config/config.json` — game mechanics: metadata (25 lines), symbols, paytable, scatter paytable, reel strips, inner reel strip, feature config

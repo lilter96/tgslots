@@ -239,7 +239,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     if (result.type === 'BASE') {
       baseScope.distribution('scatter-count', String(result.sc ?? 0))
 
-      if (result.win > 0) baseScope.count('winning-spins')
+      if (result.win > 0) baseScope.count('hits')
 
       if (result.triggeredPickBonus) {
         freeSpinScope.count('triggers')
@@ -263,7 +263,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       freeSpinScope.payout('scatter-win', result.scatterWin)
       this._currentRoundFreeScatterWin += result.scatterWin
 
-      if (result.win > 0) freeSpinScope.count('winning-spins')
+      if (result.win > 0) freeSpinScope.count('hits')
 
       if (result.retriggeredPickBonus) {
         freeSpinScope.count('retriggers')
@@ -301,8 +301,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     const hasFreeSpins = freeCount > 0 || pickCount > 0
     if (!hasFreeSpins) return
 
-    freeSpinScope.payout('feature-win', freeTotalWin)
-    freeSpinScope.payout('round-win', round.totalWin)
+    freeSpinScope.payout('session-win', freeTotalWin)
+    freeSpinScope.payout('triggered-round-win', round.totalWin)
 
     freeSpinScope.value('total-spins-per-trigger', freeCount)
   }

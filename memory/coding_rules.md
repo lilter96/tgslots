@@ -45,6 +45,26 @@ up:
 - Record game-specific telemetry through `recordResultMetrics()` and `recordRoundMetrics()` collector hooks
 - Prefer scoped generic metrics (`count`, `value`, `distribution`, `payout`, `rtp`) over slot-specific ad hoc report fields
 - **Metric kind discipline:** use `scope.rtp(name, amount)` for wager-normalized contributions (ratio = `total / cumulative-totalBet`); use `scope.payout(name, amount)` for aggregates (count/avg/total/min/max). Never re-introduce a per-call denominator on either. See [[decision_003_split_payout_and_rtp_metric_kinds]].
+- **Canonical metric vocabulary:** all games use the shared metric names below. Do not introduce game-specific synonyms. See [[decision_004_canonical_metric_vocabulary_and_modern_visualizer]].
+
+| Concept | Canonical name | Kind |
+| --- | --- | --- |
+| Spins with win > 0 | `hits` | count |
+| Free spins played | `spins-played` | count |
+| Free spins granted at trigger | `spins-awarded` | value |
+| Per-spin win amount | `spin-win` | payout |
+| Trigger events | `triggers` | count |
+| Retrigger events | `retriggers` | count |
+| Total free spins per trigger session | `total-spins-per-trigger` | value |
+| Base game RTP contribution | `win` | rtp |
+| Base game scatter RTP | `scatter-win` | rtp (payout in free scope) |
+| Free-spin RTP contribution | `feature-rtp` | rtp |
+| Free-spin scatter RTP | `scatter-rtp` | rtp |
+| Per-trigger session total win | `session-win` | payout |
+| Triggered-round total win | `triggered-round-win` | payout |
+| Scatter count per spin | `scatter-count` | distribution |
+
+Engine auto-emits at root: `rounds` (count), `round-rtp` (rtp; equals `summary.rtp`), `round-win-amount` (value), `spins-per-round` (value), `round-win-multiplier` (distribution).
 
 ## RNG Discipline (CRITICAL)
 

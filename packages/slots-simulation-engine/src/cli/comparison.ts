@@ -43,6 +43,8 @@ export interface ComparisonSourceScope {
 
 export type ComparisonSource = ComparisonSourceSummary | ComparisonSourceScope
 
+export type ComparisonCategory = 'rtp' | 'cycle' | 'average' | 'distribution' | 'count'
+
 export interface ComparisonTarget {
   id: string
   label: string
@@ -50,6 +52,8 @@ export interface ComparisonTarget {
   source: ComparisonSource
   tolerance?: ComparisonTolerance
   format?: 'number' | 'percent' | 'multiplier'
+  category?: ComparisonCategory
+  description?: string
 }
 
 export interface NormalizedParsheetConfig {
@@ -75,6 +79,8 @@ export interface ComparisonResult {
   tolerance?: ComparisonTolerance
   format: 'number' | 'percent' | 'multiplier'
   source: ComparisonSource
+  category: ComparisonCategory
+  description?: string
 }
 
 function isLegacyParsheetConfig(config: ParsheetConfig): config is LegacyParsheetConfig {
@@ -251,6 +257,19 @@ export function evaluateComparisons(
       tolerance: comparison.tolerance,
       format: comparison.format ?? 'number',
       source: comparison.source,
+      category: comparison.category ?? inferCategory(comparison),
+      description: comparison.description,
     }
   })
+}
+
+function inferCategory(comparison: ComparisonTarget): ComparisonCategory {
+  const id = comparison.id.toLowerCase()
+  if (comparison.format === 'percent' || id.includes('rtp')) return 'rtp'
+  if (id.includes('cycle')) return 'cycle'
+  if (id.includes('avg') || id.includes('average')) return 'average'
+  if (comparison.source.kind === 'scope' && comparison.source.field === 'total') {
+    return 'distribution'
+  }
+  return 'count'
 }
