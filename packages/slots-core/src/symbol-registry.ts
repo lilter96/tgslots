@@ -4,6 +4,9 @@ export type SymbolId = number
 /** Sentinel: no base symbol resolved yet (all wilds so far). */
 export const UNRESOLVED_SYMBOL: SymbolId = -1
 
+/** Sentinel: cell holds no symbol (vacated mid-cascade, awaiting refill). */
+export const EMPTY_SYMBOL: SymbolId = -2
+
 export interface SymbolRegistry {
   readonly toId: ReadonlyMap<string, SymbolId>
   readonly toName: readonly string[]

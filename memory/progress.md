@@ -38,6 +38,8 @@ up:
 - [[task_029_split_payout_rtp_metric_kinds]] — 2026-04-27 — Split metrics into `payout` (aggregate) and `rtp` (wager-normalized) kinds; eliminated per-call denominator footgun; dashboard no longer shows `rtp N/A` or `rtp > 1`; ADR 003.
 - [[task_030_modern_visualizer_and_canonical_metrics]] — 2026-04-27 — Canonical metric vocabulary across engine + games + parsheets; modern offline-capable visualizer with inlined ApexCharts (KPI count-ups, RTP donut, tolerance-band comparisons, per-metric-kind charts, sticky TOC, dark/light toggle); ADR 004.
 
+- [[task_031_super_cascades_engine]] — 2026-04-28 — Added Cluster-Pays cluster evaluator and Super Cascades tumble engine to slots-core (mutable cascade grid, vanishing rules, Sampler-driven refill flow, 22 new tests).
+
 ## In Progress
 
 _(none)_

@@ -41,7 +41,7 @@ export function renderRtpDonut(report: SimulationJsonReport): string {
     slices.push({ label: 'Other', value: remainder, path: 'other' })
   }
 
-  const slicesPercent = slices.map((s) => ({ label: s.label, value: s.value * 100 }))
+  const slicesPercent = slices.map((s) => ({ label: s.label, value: s.value }))
 
   const legend = slices
     .map(

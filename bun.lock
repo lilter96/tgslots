@@ -66,6 +66,9 @@
     "packages/slots-core": {
       "name": "@tgslots/slots-core",
       "version": "1.0.0",
+      "dependencies": {
+        "@tgslots/math": "workspace:*",
+      },
       "devDependencies": {
         "typescript": "~5.9.2",
       },
