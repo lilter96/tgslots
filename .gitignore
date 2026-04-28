@@ -35,3 +35,13 @@ apps/simulations/results/
 apps/simulations/*.html
 apps/simulations/*.json
 apps/simulations/*.pdf
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Generated simulation reports
+*.html
+*.json
+!package.json
+!tsconfig*.json
+!**/config/*.json
