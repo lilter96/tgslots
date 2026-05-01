@@ -6,11 +6,7 @@ import { runSimulation } from '../runner/index.js'
 import { formatJson, formatPretty } from './formatter.js'
 import type { SimulationMetrics } from '../core/state-machine.js'
 import { visualizeMetrics } from '../visualizer/index.js'
-import {
-  evaluateComparisons,
-  type ParsheetConfig,
-  type ComparisonResult,
-} from './comparison.js'
+import { evaluateComparisons, type ParsheetConfig, type ComparisonResult } from './comparison.js'
 
 export type { ParsheetConfig } from './comparison.js'
 
@@ -131,8 +127,7 @@ function printVerification(comparisons: ComparisonResult[]): void {
 
   for (const comparison of comparisons) {
     if (comparison.tolerance === undefined) continue
-    const status =
-      comparison.passed === true ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m'
+    const status = comparison.passed === true ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m'
     const deltaText =
       comparison.relativeDelta !== null && comparison.tolerance.type === 'relative'
         ? `${(comparison.relativeDelta * 100).toFixed(2)}%`

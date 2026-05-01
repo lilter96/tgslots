@@ -28,7 +28,10 @@ export function formatMultiplier(value: number | null): string {
   return `${value.toFixed(2)}x`
 }
 
-export function formatSigned(value: number | null, format: 'number' | 'percent' | 'multiplier'): string {
+export function formatSigned(
+  value: number | null,
+  format: 'number' | 'percent' | 'multiplier',
+): string {
   if (value === null || !Number.isFinite(value)) return 'N/A'
   const sign = value > 0 ? '+' : ''
   if (format === 'percent') return `${sign}${(value * 100).toFixed(4)}%`
@@ -36,10 +39,7 @@ export function formatSigned(value: number | null, format: 'number' | 'percent' 
   return `${sign}${formatNumber(value)}`
 }
 
-export function formatByDisplay(
-  value: number | null,
-  display?: MetricDisplay['format'],
-): string {
+export function formatByDisplay(value: number | null, display?: MetricDisplay['format']): string {
   if (value === null || !Number.isFinite(value)) return 'N/A'
   switch (display) {
     case 'percent':

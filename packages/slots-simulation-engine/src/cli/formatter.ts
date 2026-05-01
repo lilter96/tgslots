@@ -133,9 +133,17 @@ export function formatPretty(
     console.log('  ' + '─'.repeat(22))
     for (const comparison of comparisons) {
       const status =
-        comparison.passed === null ? 'INFO' : comparison.passed ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m'
+        comparison.passed === null
+          ? 'INFO'
+          : comparison.passed
+            ? '\x1b[32mPASS\x1b[0m'
+            : '\x1b[31mFAIL\x1b[0m'
       const deltaFormat =
-        comparison.format === 'percent' ? 'percent' : comparison.format === 'multiplier' ? 'multiplier' : 'number'
+        comparison.format === 'percent'
+          ? 'percent'
+          : comparison.format === 'multiplier'
+            ? 'multiplier'
+            : 'number'
       console.log(
         `  ${comparison.label.padEnd(24)} ${status}  actual=${formatMetricNumber(
           comparison.actual,

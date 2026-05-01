@@ -1,7 +1,4 @@
-import type {
-  FinalMetricScope,
-  FinalScopedMetric,
-} from '../../core/state-machine.js'
+import type { FinalMetricScope, FinalScopedMetric } from '../../core/state-machine.js'
 import { escapeHtml, escapeJson, formatNumber, formatPercent } from '../format.js'
 import { metricDisplay, scopeLabel } from '../labels.js'
 

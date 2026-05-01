@@ -96,12 +96,19 @@ function getScope(scope: FinalMetricScope, path: string[]): FinalMetricScope | n
   return current
 }
 
-function getScopeMetric(metrics: SimulationMetrics, path: string[], metric: string): FinalScopedMetric | null {
+function getScopeMetric(
+  metrics: SimulationMetrics,
+  path: string[],
+  metric: string,
+): FinalScopedMetric | null {
   const scope = getScope(metrics.scopes, path)
   return scope?.metrics[metric] ?? null
 }
 
-function resolveSummaryValue(metrics: SimulationMetrics, key: ComparisonSourceSummary['key']): number {
+function resolveSummaryValue(
+  metrics: SimulationMetrics,
+  key: ComparisonSourceSummary['key'],
+): number {
   switch (key) {
     case 'rtp':
       return metrics.summary.rtp
@@ -196,7 +203,12 @@ export function normalizeParsheetConfig(config: ParsheetConfig): NormalizedParsh
       id: 'feature-trigger-cycle',
       label: 'Feature Trigger Cycle',
       expected: config.scatterCycle,
-      source: { kind: 'scope', scope: ['features', 'free-spins'], metric: 'triggers', field: 'cycle' },
+      source: {
+        kind: 'scope',
+        scope: ['features', 'free-spins'],
+        metric: 'triggers',
+        field: 'cycle',
+      },
       tolerance: { type: 'relative', value: config.scatterTolerance ?? 0.05 },
       format: 'number',
     })

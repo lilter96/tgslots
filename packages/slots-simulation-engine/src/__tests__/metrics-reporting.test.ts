@@ -30,7 +30,7 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
       win: 20,
       isTrigger: true,
       scatters: 3,
-      components: { total: 20 }
+      components: { total: 20 },
     }
   }
 
@@ -43,7 +43,7 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
       isTrigger: false,
       isRetrigger: false,
       scatters: 1,
-      components: { total: 30 }
+      components: { total: 30 },
     }
   }
 
@@ -65,11 +65,7 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
     }
   }
 
-  recordRoundMetrics(
-    collector: DataCollector,
-    round: RoundMetricsSnapshot,
-    _wager: Wager,
-  ): void {
+  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
     const featureScope = collector.scope(['features', 'free-spins'])
     const freeWin = round.winsByType.FREE?.total ?? 0
     featureScope.payout('bonus-payout', freeWin)

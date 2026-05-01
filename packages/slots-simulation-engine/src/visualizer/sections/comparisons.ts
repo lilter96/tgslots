@@ -33,8 +33,12 @@ function bandPositions(c: ComparisonResult): { lo: number; hi: number; actualLef
     const max = c.expected + span
     const range = max - min || 1
     const ratio = (v: number) => ((v - min) / range) * 100
-    const lo = ratio(c.expected - (c.tolerance.type === 'absolute' ? tol : Math.abs(c.expected) * tol))
-    const hi = ratio(c.expected + (c.tolerance.type === 'absolute' ? tol : Math.abs(c.expected) * tol))
+    const lo = ratio(
+      c.expected - (c.tolerance.type === 'absolute' ? tol : Math.abs(c.expected) * tol),
+    )
+    const hi = ratio(
+      c.expected + (c.tolerance.type === 'absolute' ? tol : Math.abs(c.expected) * tol),
+    )
     const actualLeft = c.actual === null ? 50 : Math.max(0, Math.min(100, ratio(c.actual)))
     return { lo, hi, actualLeft }
   }
