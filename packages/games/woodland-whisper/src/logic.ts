@@ -2,6 +2,7 @@ import { Array1 } from '@tgslots/math/functional/array1'
 import { Sampler, SamplingPlan } from '@tgslots/math/probability'
 import type { Rng } from '@tgslots/math/rng/types'
 import { evaluateSpin } from '@tgslots/slots-core/paylines/evaluator'
+import type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precomputed-engine'
 import { Wager } from '@tgslots/slots-core/betting'
 import { ProjectedGrid } from '@tgslots/slots-core/spin-grid/spin-grid'
@@ -36,6 +37,7 @@ export interface SpinEvaluationResult {
   readonly scatterWin: number
   readonly sc: number
   readonly grid: number[][]
+  readonly hits: PaylineHit[]
   readonly pickedBonus: number
   readonly pickData?: {
     board: number[]
@@ -48,7 +50,7 @@ function evaluateWithWager(
   positions: readonly number[],
   wager: Wager,
   isFreeSpin: boolean,
-): { win: number; scatterWin: number; sc: number; grid: number[][] } {
+): { win: number; scatterWin: number; sc: number; grid: number[][]; hits: PaylineHit[] } {
   const grid = new ProjectedGrid(strips, positions, 3)
 
   const lineResult = evaluateSpin(grid, engine)
@@ -68,7 +70,13 @@ function evaluateWithWager(
     symbols.push(row)
   }
 
-  return { win: lineWin + scatterWin, scatterWin, sc: scatterResult.count, grid: symbols }
+  return {
+    win: lineWin + scatterWin,
+    scatterWin,
+    sc: scatterResult.count,
+    grid: symbols,
+    hits: lineResult.hits,
+  }
 }
 
 // ─── Encoding ──────────────────────────────────────────────────────────────
@@ -217,7 +225,13 @@ export function generatePickBonus(winValue: number): Sampler<{
 }
 
 function withPickBonus(
-  base: Sampler<{ win: number; scatterWin: number; sc: number; grid: number[][] }>,
+  base: Sampler<{
+    win: number
+    scatterWin: number
+    sc: number
+    grid: number[][]
+    hits: PaylineHit[]
+  }>,
 ): Sampler<SpinEvaluationResult> {
   return base.flatMap((result) =>
     result.sc >= 3

@@ -5,6 +5,7 @@ import type {
   SpinResult,
   StateMachine,
 } from '@tgslots/slots-simulation-engine'
+import type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 import { Wager } from '@tgslots/slots-core/betting'
 import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
 
@@ -33,6 +34,7 @@ export interface WoodlandWhisperBaseResult extends SpinResult {
   sc: number
   scatterWin: number
   grid: number[][]
+  hits: PaylineHit[]
   pickedBonus: number
   triggeredPickBonus: boolean
   state: {
@@ -46,6 +48,7 @@ export interface WoodlandWhisperFreeResult extends SpinResult {
   sc: number
   scatterWin: number
   grid: number[][]
+  hits: PaylineHit[]
   pickedBonus: number
   retriggeredPickBonus: boolean
   state: {
@@ -112,6 +115,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       scatterWin: result.scatterWin,
       sc: result.sc,
       grid: result.grid,
+      hits: result.hits,
       pickedBonus: result.pickedBonus,
       triggeredPickBonus: isTrigger,
       state: {
@@ -197,6 +201,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       scatterWin: result.scatterWin,
       sc: result.sc,
       grid: result.grid,
+      hits: result.hits,
       pickedBonus: result.pickedBonus,
       retriggeredPickBonus: isTrigger,
       state: {

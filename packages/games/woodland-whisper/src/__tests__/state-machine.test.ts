@@ -196,6 +196,7 @@ describe('WoodlandWhisperStateMachine', () => {
       triggeredPickBonus: true,
       pickedBonus: 10,
       grid: [],
+      hits: [],
       state: { freeSpinsLeft: 0, totalFreeSpinWin: 0 },
     }
 
@@ -213,6 +214,7 @@ describe('WoodlandWhisperStateMachine', () => {
       pickedBonus: 0,
       retriggeredPickBonus: false,
       grid: [],
+      hits: [],
       state: { freeSpinsLeft: 0, totalFreeSpinWin: 0 },
     }
 

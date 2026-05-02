@@ -1,0 +1,25 @@
+{
+  "name": "@tgslots/web-client",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "pixi.js": "^8.1.0",
+    "gsap": "^3.12.5",
+    "@tgslots/math": "workspace:*",
+    "@tgslots/slots-core": "workspace:*",
+    "@tgslots/woodland-whisper": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "typescript": "~5.9.2",
+    "@types/bun": "latest"
+  }
+}

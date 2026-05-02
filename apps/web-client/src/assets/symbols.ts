@@ -1,0 +1,15 @@
+export const SYMBOL_SVG: Record<string, string> = {
+  WOMAN: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="40" r="20" fill="#ffccbc"/><path d="M50 60 Q20 100 80 100 L20 100 Q80 100 50 60" fill="#4e342e"/><path d="M30 30 Q50 10 70 30" fill="#2e7d32" stroke="#1b5e20" stroke-width="2"/></svg>`,
+  CHEST: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="40" width="60" height="40" fill="#5d4037"/><path d="M20 40 Q50 10 80 40" fill="#795548"/><rect x="45" y="45" width="10" height="10" fill="#ffd700"/></svg>`,
+  TIARA: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M20 80 Q50 20 80 80" fill="none" stroke="#ffd700" stroke-width="5"/><circle cx="50" cy="30" r="8" fill="#ff5252"/><circle cx="35" cy="50" r="5" fill="#448aff"/><circle cx="65" cy="50" r="5" fill="#448aff"/></svg>`,
+  MUSHROOMS: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M40 80 L60 80 L55 60 L45 60 Z" fill="#efebe9"/><path d="M30 60 Q50 20 70 60 Z" fill="#e53935"/><circle cx="45" cy="45" r="3" fill="white"/><circle cx="55" cy="50" r="4" fill="white"/></svg>`,
+  PINECONE: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M50 20 Q70 50 50 80 Q30 50 50 20" fill="#6d4c41"/><path d="M50 30 L60 40 M50 50 L65 60 M50 70 L60 80 M50 30 L40 40 M50 50 L35 60 M50 70 L40 80" stroke="#3e2723" stroke-width="2"/></svg>`,
+  A: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="70" font-family="serif" font-size="60" text-anchor="middle" fill="#f44336" font-weight="bold">A</text></svg>`,
+  K: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="70" font-family="serif" font-size="60" text-anchor="middle" fill="#ff9800" font-weight="bold">K</text></svg>`,
+  Q: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="70" font-family="serif" font-size="60" text-anchor="middle" fill="#9c27b0" font-weight="bold">Q</text></svg>`,
+  J: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="70" font-family="serif" font-size="60" text-anchor="middle" fill="#2196f3" font-weight="bold">J</text></svg>`,
+  '10': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="70" font-family="serif" font-size="50" text-anchor="middle" fill="#4caf50" font-weight="bold">10</text></svg>`,
+  '9': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><text x="50" y="70" font-family="serif" font-size="60" text-anchor="middle" fill="#8bc34a" font-weight="bold">9</text></svg>`,
+  COIN: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" fill="#ffd700" stroke="#ffb300" stroke-width="4"/><text x="50" y="65" font-family="serif" font-size="40" text-anchor="middle" fill="#ffb300" font-weight="bold">$</text></svg>`,
+  REPLACEMENT: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="20" fill="#aaa"/></svg>`,
+}
