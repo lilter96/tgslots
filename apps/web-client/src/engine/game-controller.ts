@@ -216,13 +216,12 @@ export class GameController {
     this._pickUI.show()
 
     await new Promise<void>((resolve) => {
-      const onPick = () => {
+      const onPick = (index: number) => {
         if (!this._game.state.pickBonus) return
 
-        const pickResult = this._game.next(this._rng) as WoodlandWhisperPickResult
-        if (!pickResult || pickResult.type !== 'PICK') return
+        const pickResult = this._game.pickBall(index)
 
-        // Reveal the game's pre-determined card, not the user's clicked card
+        // Reveal the card selected by the user
         this._pickUI!.revealCard(pickResult.pick.index, pickResult.pick.value)
 
         if (pickResult.pick.isMatch) {

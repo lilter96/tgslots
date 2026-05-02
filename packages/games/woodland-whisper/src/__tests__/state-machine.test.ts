@@ -75,7 +75,9 @@ describe('WoodlandWhisperStateMachine', () => {
       // 2. Picking
       let lastPickResult: WoodlandWhisperPickResult | undefined
       while (sm.state.pickBonus) {
-        const pickResult = sm.pickBall()
+        // Pick indices sequentially until a match is found
+        const indexToPick = sm.state.pickBonus.selectedIndices.length
+        const pickResult = sm.pickBall(indexToPick)
         expect(pickResult.type).toBe('PICK')
         expect(pickResult.pick).toBeDefined()
         lastPickResult = pickResult
@@ -98,7 +100,8 @@ describe('WoodlandWhisperStateMachine', () => {
 
     // Setup a partial state
     const board = [10, 8, 10, 8, 15, 15, 20, 20, 30, 30, 50, 50, 75, 75, 100, 100, 13, 13, 9, 9]
-    const pickSequence = [0, 1, 2] // 10, 8, 10 (match 10)
+    // Sequence that results in match (e.g. index 0 (10) and 2 (10))
+    // We already picked index 0 (10)
 
     const state: WoodlandWhisperState = {
       lastGrid: null,
@@ -109,28 +112,22 @@ describe('WoodlandWhisperStateMachine', () => {
       },
       pickBonus: {
         board,
-        pickSequence,
-        currentIndex: 1, // Already picked board[0] = 10
+        selectedIndices: [0],
+        revealedValues: [10],
         winValue: 10,
         triggeringWager: wager,
       },
     }
 
-    // Inject state (since _state is private, we'll use a cast or setter if available)
-    // Actually, in our implementation _state is private and has no setter.
-    // We should probably add a way to set state or just test that it works if we could.
-    // For now, let's verify that the logic handles the state fields.
-
     // @ts-ignore
     sm._state = state
 
-    const rng = mt19937(42)
-    const pickResult = sm.pickBall()
+    const pickResult = sm.pickBall(1) // Pick index 1 (value 8)
     expect(pickResult.pick?.value).toBe(8)
     expect(pickResult.pick?.isMatch).toBe(false)
-    expect(sm.state.pickBonus?.currentIndex).toBe(2)
+    expect(sm.state.pickBonus?.selectedIndices).toEqual([0, 1])
 
-    const matchResult = sm.pickBall()
+    const matchResult = sm.pickBall(2) // Pick index 2 (value 10)
     expect(matchResult.pick?.value).toBe(10)
     expect(matchResult.pick?.isMatch).toBe(true)
     expect(sm.state.pickBonus).toBeNull()
