@@ -1,6 +1,12 @@
 import { WoodlandWhisperStateMachine } from './game-state-machine.js'
 import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
-import { BET_CONFIG, SYM_NAMES, PAYLINE_DATA, Symbols } from './constants.js'
+import {
+  BET_CONFIG,
+  SYM_NAMES,
+  PAYLINE_DATA,
+  Symbols,
+  BUY_BONUS_COST_MULTIPLIER,
+} from './constants.js'
 import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli'
 import parsheetData from '../config/parsheet.json' with { type: 'json' }
 
@@ -11,6 +17,7 @@ export {
   SYM_NAMES,
   PAYLINE_DATA,
   Symbols,
+  BUY_BONUS_COST_MULTIPLIER,
 }
 
 export type {
@@ -18,6 +25,7 @@ export type {
   WoodlandWhisperBaseResult,
   WoodlandWhisperFreeResult,
   WoodlandWhisperPickResult,
+  WoodlandWhisperBuyResult,
   WoodlandWhisperResult,
 } from './game-state-machine.js'
 

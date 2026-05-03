@@ -268,3 +268,13 @@ export const WOODLAND_WHISPER_SAMPLER = (
   wager: Wager,
   isFreeSpin: boolean = false,
 ): Sampler<SpinEvaluationResult> => createSpinSampler(wager, isFreeSpin)
+
+function createBuyBonusSampler(wager: Wager): Sampler<SpinEvaluationResult> {
+  return WOODLAND_WHISPER_SAMPLER(wager, false).flatMap((result) => {
+    if (result.sc >= 3) return Sampler.pure(result)
+    return createBuyBonusSampler(wager)
+  })
+}
+
+export const BUY_BONUS_SAMPLER = (wager: Wager): Sampler<SpinEvaluationResult> =>
+  createBuyBonusSampler(wager)

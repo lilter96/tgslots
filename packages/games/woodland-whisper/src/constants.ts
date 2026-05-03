@@ -81,6 +81,7 @@ export const PICK_BONUS_TABLE = config.feature.pick_bonus as unknown as readonly
   number,
 ])[]
 export const FREE_SPIN_MULTIPLIER: number = config.feature.free_spin_multiplier
+export const BUY_BONUS_COST_MULTIPLIER: number = config.feature.buy_bonus_cost_multiplier
 
 // ─── Mystery / Replacement Symbol Weights ──────────────────────────────────
 

@@ -1,7 +1,7 @@
 import type { Rng } from '@tgslots/math/rng/types'
 import { Wager } from '@tgslots/slots-core/betting'
 
-export type SpinType = 'BASE' | 'FREE' | 'RESPIN' | 'PICK'
+export type SpinType = 'BASE' | 'FREE' | 'RESPIN' | 'PICK' | 'BUY'
 export type MetricScopePath = readonly string[]
 
 export interface WinComponents {

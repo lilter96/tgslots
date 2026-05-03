@@ -1,10 +1,12 @@
 import type {
   PaylineHit,
   WoodlandWhisperBaseResult,
+  WoodlandWhisperBuyResult,
   WoodlandWhisperFreeResult,
 } from '@tgslots/woodland-whisper'
 import {
   BET_CONFIG,
+  BUY_BONUS_COST_MULTIPLIER,
   PAYLINE_DATA,
   Symbols,
   WoodlandWhisperStateMachine,
@@ -241,6 +243,69 @@ export class GameController {
         await this.wait(500)
         this.spin().catch(console.error)
       }
+    }
+  }
+
+  public async buyBonus(): Promise<void> {
+    if (this._fsm.state !== GameUIState.IDLE) return
+
+    const wager = new Wager(this._session.betMultiplier, BET_CONFIG)
+    const buyCost = wager.totalWager * BUY_BONUS_COST_MULTIPLIER
+    if (!this._session.deductWager(buyCost)) {
+      console.error('Insufficient balance for buy bonus')
+      return
+    }
+
+    // ── Guaranteed-scatter spin ────────────────────────────────────────────
+    this._fsm.transitionTo(GameUIState.SPINNING)
+    await this._reels.spin()
+
+    const buyResult = this._game.buyBonus(this._rng, wager) as WoodlandWhisperBuyResult
+    await this.wait(this._config.spinDelay)
+
+    this._fsm.transitionTo(GameUIState.STOPPING)
+    const transposedBuy = transposeGrid(buyResult.grid)
+    await this._reels.stop(transposedBuy)
+
+    if (buyResult.win > 0) {
+      this._session.addWin(buyResult.win)
+      this._fsm.transitionTo(GameUIState.WIN_SHOW)
+    }
+
+    if (buyResult.win > 0 || buyResult.sc >= 2) {
+      await this.showWinAnimation(buyResult.hits, transposedBuy, buyResult.win)
+    }
+
+    // ── Pick bonus (always triggered) ─────────────────────────────────────
+    this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+    await this._overlay?.announce('BONUS!', 1500)
+    await this.runPickBonus()
+
+    // ── Free spin loop ─────────────────────────────────────────────────────
+    if (this._game.state.freeSpins) {
+      this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+      await this._overlay?.announce('FREE SPINS!', 1500)
+    }
+
+    while (this._game.state.freeSpins && this._game.state.freeSpins.spinsRemaining > 0) {
+      this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+      const freeResult = this._game.next(this._rng) as WoodlandWhisperFreeResult
+      await this.runFreeSpin(freeResult)
+
+      if (freeResult.retriggeredPickBonus) {
+        this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+        await this._overlay?.announce('BONUS!', 1500)
+        await this.runPickBonus()
+      }
+    }
+
+    const s = this._fsm.state as GameUIState
+    if (
+      s === GameUIState.WIN_SHOW ||
+      s === GameUIState.STOPPING ||
+      s === GameUIState.FEATURE_TRANSITION
+    ) {
+      this._fsm.transitionTo(GameUIState.IDLE)
     }
   }
 

@@ -7,7 +7,7 @@ import type {
 } from '@tgslots/slots-simulation-engine'
 import type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 import { Wager } from '@tgslots/slots-core/betting'
-import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
+import { WOODLAND_WHISPER_SAMPLER, BUY_BONUS_SAMPLER } from './logic.js'
 
 export interface FreeSpinState {
   triggeringWager: Wager
@@ -75,10 +75,25 @@ export interface WoodlandWhisperPickResult extends SpinResult {
   }
 }
 
+export interface WoodlandWhisperBuyResult extends SpinResult {
+  type: 'BUY'
+  sc: number
+  scatterWin: number
+  grid: number[][]
+  hits: PaylineHit[]
+  pickedBonus: number
+  triggeredPickBonus: true
+  state: {
+    freeSpinsLeft: number
+    totalFreeSpinWin: number
+  }
+}
+
 export type WoodlandWhisperResult =
   | WoodlandWhisperBaseResult
   | WoodlandWhisperFreeResult
   | WoodlandWhisperPickResult
+  | WoodlandWhisperBuyResult
 
 export class WoodlandWhisperStateMachine implements StateMachine<
   WoodlandWhisperResult,
@@ -234,6 +249,41 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     return this.baseGameSpin(rng, wager)
   }
 
+  buyBonus(rng: Rng, wager: Wager): WoodlandWhisperBuyResult {
+    this._state.freeSpins = null
+    this._state.pickBonus = null
+    this._currentRoundFreeScatterWin = 0
+
+    const result = BUY_BONUS_SAMPLER(wager).sample(rng)
+
+    this._state.lastGrid = result.grid
+    this._state.pickBonus = {
+      board: result.pickData!.board,
+      pickSequence: result.pickData!.pickSequence,
+      currentPickIndex: 0,
+      userPicks: [],
+      revealedValues: [],
+      winValue: result.pickedBonus,
+      triggeringWager: wager,
+    }
+
+    return {
+      type: 'BUY',
+      win: result.win,
+      components: { total: result.win, scatter: result.scatterWin },
+      scatterWin: result.scatterWin,
+      sc: result.sc,
+      grid: result.grid,
+      hits: result.hits,
+      pickedBonus: result.pickedBonus,
+      triggeredPickBonus: true,
+      state: {
+        freeSpinsLeft: 0,
+        totalFreeSpinWin: 0,
+      },
+    }
+  }
+
   next(_rng: Rng): WoodlandWhisperResult | null {
     if (this._state.freeSpins && this._state.freeSpins.spinsRemaining > 0) {
       return this.freeGameSpin(_rng)
@@ -267,8 +317,13 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     }
 
     if (result.type === 'PICK') {
-      // Pick results themselves don't typically have individual payouts,
-      // but we could record the progression here if needed.
+      return
+    }
+
+    if (result.type === 'BUY') {
+      const buyBonusScope = collector.scope(['features', 'buy-bonus'])
+      buyBonusScope.count('purchases')
+      buyBonusScope.value('spins-awarded', result.pickedBonus)
       return
     }
 

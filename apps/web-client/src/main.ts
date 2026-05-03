@@ -73,6 +73,7 @@ async function init() {
   // ── Event wiring ──────────────────────────────────────────────────────────
 
   hud.on('spin', () => controller.spin().catch(console.error))
+  hud.on('buyBonus', () => controller.buyBonus().catch(console.error))
 
   // Open the configuration panel (only fires when auto-spin is not active)
   hud.on('autoSpin', () => autoSpinPanel.show())

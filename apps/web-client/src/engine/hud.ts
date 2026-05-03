@@ -15,6 +15,9 @@ export class HUD extends Container {
   private _spinButton: Container
   private _spinLabel: Text
 
+  private _buyBonusBtn: Container
+  private _buyBonusBtnBg: Graphics
+
   private _autoBtn: Container
   private _autoBtnBg: Graphics
   private _autoBtnCount: Text  // large — shows count or "AUTO"
@@ -54,6 +57,9 @@ export class HUD extends Container {
       style: { fill: '#ffcc80', fontSize: 11 },
     })
 
+    this._buyBonusBtn = new Container()
+    this._buyBonusBtnBg = new Graphics()
+
     this._build()
     this.updateTexts()
     this._fsm.addListener(() => this._onStateChange())
@@ -92,6 +98,37 @@ export class HUD extends Container {
     this._spinButton.cursor = 'pointer'
     this._spinButton.on('pointerdown', () => this.emit('spin'))
     this.addChild(this._spinButton)
+
+    // ── Buy Bonus button ──────────────────────────────────────────────────
+    this._buyBonusBtnBg.roundRect(0, 0, 160, 60, 10)
+    this._buyBonusBtnBg.fill(0xb8860b)
+    this._buyBonusBtnBg.stroke({ width: 2, color: 0xffd700 })
+    this._buyBonusBtn.addChild(this._buyBonusBtnBg)
+
+    const buyBonusLabel = new Text({
+      text: 'BUY BONUS',
+      style: { fill: '#ffffff', fontSize: 22, fontWeight: 'bold' },
+    })
+    buyBonusLabel.anchor.set(0.5)
+    buyBonusLabel.x = 80
+    buyBonusLabel.y = 22
+    this._buyBonusBtn.addChild(buyBonusLabel)
+
+    const buyBonusCostLabel = new Text({
+      text: '100× BET',
+      style: { fill: '#ffd700', fontSize: 13 },
+    })
+    buyBonusCostLabel.anchor.set(0.5)
+    buyBonusCostLabel.x = 80
+    buyBonusCostLabel.y = 44
+    this._buyBonusBtn.addChild(buyBonusCostLabel)
+
+    this._buyBonusBtn.x = 876
+    this._buyBonusBtn.y = 20
+    this._buyBonusBtn.interactive = true
+    this._buyBonusBtn.cursor = 'pointer'
+    this._buyBonusBtn.on('pointerdown', () => this.emit('buyBonus'))
+    this.addChild(this._buyBonusBtn)
 
     // ── Auto button ───────────────────────────────────────────────────────
     this._drawAutoBtnBg(false)
@@ -175,6 +212,10 @@ export class HUD extends Container {
     const spinEnabled = idle && !this._autoSpinActive
     this._spinButton.alpha = spinEnabled ? 1 : 0.4
     this._spinButton.interactive = spinEnabled
+
+    // BUY BONUS: only usable when idle and no auto-spin running
+    this._buyBonusBtn.alpha = spinEnabled ? 1 : 0.4
+    this._buyBonusBtn.interactive = spinEnabled
 
     // AUTO button: always reachable when auto-spin is active (user can stop mid-spin);
     // otherwise only when idle

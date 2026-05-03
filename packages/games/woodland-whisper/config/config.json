@@ -362,6 +362,7 @@
       "symbol": "COIN",
       "min_count": 3
     },
+    "buy_bonus_cost_multiplier": 100,
     "pick_bonus": [
       [100, 1],
       [75, 4],
