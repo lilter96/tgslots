@@ -11,8 +11,16 @@ export class HUD extends Container {
   private _balanceText: Text
   private _betText: Text
   private _winText: Text
+
   private _spinButton: Container
   private _spinLabel: Text
+
+  private _autoBtn: Container
+  private _autoBtnBg: Graphics
+  private _autoBtnCount: Text  // large — shows count or "AUTO"
+  private _autoBtnHint: Text   // small — shows "TAP TO STOP" when active
+
+  private _autoSpinActive = false
 
   constructor(session: SessionManager, fsm: GameStateMachine) {
     super()
@@ -23,7 +31,7 @@ export class HUD extends Container {
       text: '',
       style: { fill: '#ffffff', fontSize: 24, fontWeight: 'bold' },
     })
-    this._betText = new Text({ text: '', style: { fill: '#ffffff', fontSize: 20 } })
+    this._betText = new Text({ text: '', style: { fill: '#aaaaaa', fontSize: 20 } })
     this._winText = new Text({
       text: '',
       style: { fill: '#ffd700', fontSize: 28, fontWeight: 'bold' },
@@ -35,20 +43,30 @@ export class HUD extends Container {
       style: { fill: '#ffffff', fontSize: 32, fontWeight: 'bold' },
     })
 
-    this.init()
-    this.updateTexts()
+    this._autoBtn = new Container()
+    this._autoBtnBg = new Graphics()
+    this._autoBtnCount = new Text({
+      text: 'AUTO',
+      style: { fill: '#ffffff', fontSize: 22, fontWeight: 'bold' },
+    })
+    this._autoBtnHint = new Text({
+      text: 'TAP TO STOP',
+      style: { fill: '#ffcc80', fontSize: 11 },
+    })
 
-    this._fsm.addListener(() => this.onStateChange())
+    this._build()
+    this.updateTexts()
+    this._fsm.addListener(() => this._onStateChange())
   }
 
-  private init() {
-    // Layout (simplified, fixed positions for now)
+  private _build() {
+    // ── Info texts (top-left) ─────────────────────────────────────────────
     this._balanceText.x = 20
     this._balanceText.y = 20
     this.addChild(this._balanceText)
 
     this._betText.x = 20
-    this._betText.y = 60
+    this._betText.y = 56
     this.addChild(this._betText)
 
     this._winText.x = 400
@@ -56,12 +74,12 @@ export class HUD extends Container {
     this._winText.anchor.set(0.5, 0)
     this.addChild(this._winText)
 
-    // Spin Button
-    const bg = new Graphics()
-    bg.rect(0, 0, 160, 60)
-    bg.fill(0xe53935)
-    bg.stroke({ width: 2, color: 0xffffff })
-    this._spinButton.addChild(bg)
+    // ── Spin button ───────────────────────────────────────────────────────
+    const spinBg = new Graphics()
+    spinBg.roundRect(0, 0, 160, 60, 10)
+    spinBg.fill(0xc62828)
+    spinBg.stroke({ width: 2, color: 0xff6666 })
+    this._spinButton.addChild(spinBg)
 
     this._spinLabel.anchor.set(0.5)
     this._spinLabel.x = 80
@@ -73,8 +91,64 @@ export class HUD extends Container {
     this._spinButton.interactive = true
     this._spinButton.cursor = 'pointer'
     this._spinButton.on('pointerdown', () => this.emit('spin'))
-
     this.addChild(this._spinButton)
+
+    // ── Auto button ───────────────────────────────────────────────────────
+    this._drawAutoBtnBg(false)
+
+    this._autoBtnCount.anchor.set(0.5)
+    this._autoBtnCount.x = 60
+    this._autoBtnCount.y = 24
+
+    this._autoBtnHint.anchor.set(0.5)
+    this._autoBtnHint.x = 60
+    this._autoBtnHint.y = 47
+    this._autoBtnHint.visible = false
+
+    this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
+    this._autoBtn.x = 544
+    this._autoBtn.y = 20
+    this._autoBtn.interactive = true
+    this._autoBtn.cursor = 'pointer'
+    this._autoBtn.on('pointerdown', () => {
+      if (this._autoSpinActive) {
+        this.emit('stopAutoSpin')
+      } else {
+        this.emit('autoSpin')
+      }
+    })
+    this.addChild(this._autoBtn)
+  }
+
+  private _drawAutoBtnBg(active: boolean) {
+    this._autoBtnBg.clear()
+    this._autoBtnBg.roundRect(0, 0, 120, 60, 10)
+    if (active) {
+      this._autoBtnBg.fill(0xe65100) // deep orange — "something is running"
+      this._autoBtnBg.stroke({ width: 2, color: 0xffab40 })
+    } else {
+      this._autoBtnBg.fill(0x1a2a3a) // dark neutral — opens a panel
+      this._autoBtnBg.stroke({ width: 1.5, color: 0x4466aa })
+    }
+  }
+
+  // Called by main.ts after every spin cycle (FSM → IDLE) and after user action
+  public syncAutoSpin(isActive: boolean, remaining: number) {
+    this._autoSpinActive = isActive
+    this._drawAutoBtnBg(isActive)
+
+    if (isActive) {
+      const countLabel = remaining === 0 ? '∞' : remaining.toString()
+      this._autoBtnCount.text = countLabel
+      this._autoBtnCount.y = 20
+      this._autoBtnHint.visible = true
+    } else {
+      this._autoBtnCount.text = 'AUTO'
+      this._autoBtnCount.y = 24
+      this._autoBtnHint.visible = false
+    }
+
+    this._refreshButtonStates()
   }
 
   public updateTexts() {
@@ -94,14 +168,26 @@ export class HUD extends Container {
     })
   }
 
-  private onStateChange() {
+  private _refreshButtonStates() {
+    const idle = this._fsm.state === GameUIState.IDLE
+
+    // SPIN: only usable when idle and no auto-spin running
+    const spinEnabled = idle && !this._autoSpinActive
+    this._spinButton.alpha = spinEnabled ? 1 : 0.4
+    this._spinButton.interactive = spinEnabled
+
+    // AUTO button: always reachable when auto-spin is active (user can stop mid-spin);
+    // otherwise only when idle
+    const autoEnabled = this._autoSpinActive || idle
+    this._autoBtn.alpha = autoEnabled ? 1 : 0.5
+    this._autoBtn.interactive = autoEnabled
+  }
+
+  private _onStateChange() {
     const state = this._fsm.state
-    this._spinButton.alpha = state === GameUIState.IDLE ? 1 : 0.5
-    this._spinButton.interactive = state === GameUIState.IDLE
 
     if (state === GameUIState.WIN_SHOW) {
       this.updateTexts()
-      // Pulse win text
       gsap.fromTo(
         this._winText.scale,
         { x: 1, y: 1 },
@@ -110,5 +196,7 @@ export class HUD extends Container {
     } else {
       this.updateTexts()
     }
+
+    this._refreshButtonStates()
   }
 }

@@ -1,4 +1,4 @@
-import { Application, Container, Graphics } from 'pixi.js'
+import { Application, Graphics } from 'pixi.js'
 import { AssetLoader } from './engine/asset-loader'
 import { GameStateMachine } from './engine/state-machine'
 import { ReelSet } from './engine/reel-set'
@@ -7,7 +7,9 @@ import { GameController } from './engine/game-controller'
 import { HUD } from './engine/hud'
 import { PickBonusUI } from './engine/pick-bonus-ui'
 import { WinOverlay } from './engine/win-overlay'
+import { AutoSpinPanel } from './engine/auto-spin-panel'
 import { GameUIState } from './types'
+import type { AutoSpinConfig } from './types'
 import { SYM_NAMES } from '@tgslots/woodland-whisper'
 
 async function init() {
@@ -63,13 +65,39 @@ async function init() {
   const hud = new HUD(session, fsm)
   app.stage.addChild(hud)
 
-  hud.on('spin', () => {
-    controller.spin().catch(console.error)
+  const autoSpinPanel = new AutoSpinPanel()
+  autoSpinPanel.x = app.screen.width / 2
+  autoSpinPanel.y = app.screen.height / 2
+  app.stage.addChild(autoSpinPanel)
+
+  // ── Event wiring ──────────────────────────────────────────────────────────
+
+  hud.on('spin', () => controller.spin().catch(console.error))
+
+  // Open the configuration panel (only fires when auto-spin is not active)
+  hud.on('autoSpin', () => autoSpinPanel.show())
+
+  // Cancel from the HUD button (fires when auto-spin is active)
+  hud.on('stopAutoSpin', () => {
+    controller.stopAutoSpin()
+    hud.syncAutoSpin(false, 0)
   })
 
+  // User confirmed config in the panel
+  autoSpinPanel.on('start', (config: AutoSpinConfig) => {
+    controller.startAutoSpin(config)
+    hud.syncAutoSpin(true, controller.autoSpinRemaining)
+  })
+
+  // Keep HUD button in sync whenever the FSM returns to IDLE.
+  // The controller decrements / clears _autoSpinState before transitioning to IDLE,
+  // so reading isAutoSpin / autoSpinRemaining here always reflects the new state.
   fsm.addListener((state) => {
     if (state === GameUIState.FEATURE_TRANSITION || state === GameUIState.SPINNING) {
       app.renderer.background.color = controller.isFreeSpins ? 0x2a0a0a : 0x0a2a0a
+    }
+    if (state === GameUIState.IDLE) {
+      hud.syncAutoSpin(controller.isAutoSpin, controller.autoSpinRemaining)
     }
   })
 

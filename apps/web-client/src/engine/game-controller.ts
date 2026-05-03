@@ -1,14 +1,13 @@
+import type {
+  PaylineHit,
+  WoodlandWhisperBaseResult,
+  WoodlandWhisperFreeResult,
+} from '@tgslots/woodland-whisper'
 import {
-  WoodlandWhisperStateMachine,
   BET_CONFIG,
   PAYLINE_DATA,
   Symbols,
-} from '@tgslots/woodland-whisper'
-import type {
-  WoodlandWhisperBaseResult,
-  WoodlandWhisperFreeResult,
-  WoodlandWhisperPickResult,
-  PaylineHit,
+  WoodlandWhisperStateMachine,
 } from '@tgslots/woodland-whisper'
 import { mt19937 } from '@tgslots/math'
 import { Wager } from '@tgslots/slots-core'
@@ -18,6 +17,7 @@ import { SessionManager } from './session-manager'
 import { PickBonusUI } from './pick-bonus-ui'
 import { WinOverlay } from './win-overlay'
 import { GameUIState } from '../types'
+import type { AutoSpinConfig } from '../types'
 
 // Game returns grid[row][col] (3 rows × 5 cols), ReelSet expects grid[col][row] (5 reels × 3 rows)
 function transposeGrid(grid: number[][]): number[][] {
@@ -29,8 +29,13 @@ function transposeGrid(grid: number[][]): number[][] {
 }
 
 const SCATTER_ID = Symbols.COIN!
-const PAYLINE_WIN_COLOR = 0xffd700 // gold
-const SCATTER_WIN_COLOR = 0xff44cc // pink-magenta
+const PAYLINE_WIN_COLOR = 0xffd700
+const SCATTER_WIN_COLOR = 0xff44cc
+
+interface AutoSpinState {
+  config: AutoSpinConfig
+  remaining: number // 0 means unlimited (config.spins === 0)
+}
 
 export class GameController {
   private _fsm: GameStateMachine
@@ -40,6 +45,7 @@ export class GameController {
   private _overlay?: WinOverlay
   private _game: WoodlandWhisperStateMachine
   private _rng = mt19937(Date.now())
+  private _autoSpinState: AutoSpinState | null = null
 
   constructor(
     fsm: GameStateMachine,
@@ -57,12 +63,32 @@ export class GameController {
     return !!this._game.state.freeSpins
   }
 
+  get isAutoSpin(): boolean {
+    return this._autoSpinState !== null
+  }
+
+  // Returns remaining spins, or 0 when unlimited
+  get autoSpinRemaining(): number {
+    return this._autoSpinState?.remaining ?? 0
+  }
+
   public setPickUI(ui: PickBonusUI) {
     this._pickUI = ui
   }
 
   public setOverlay(overlay: WinOverlay) {
     this._overlay = overlay
+  }
+
+  public startAutoSpin(config: AutoSpinConfig): void {
+    this._autoSpinState = { config, remaining: config.spins }
+    if (this._fsm.state === GameUIState.IDLE) {
+      this.spin().catch(console.error)
+    }
+  }
+
+  public stopAutoSpin(): void {
+    this._autoSpinState = null
   }
 
   private wait(ms: number): Promise<void> {
@@ -83,14 +109,12 @@ export class GameController {
     }
 
     if (hits.length === 0 && scatterCells.length >= 2) {
-      // Scatter-only win: show all scatter positions for the full delay
       highlightScatters()
       await this.wait(this._config.winDelay)
       this._reels.clearAllHighlights()
       return
     }
 
-    // Cycle through each winning payline one at a time
     const msPerLine = Math.max(
       700,
       Math.min(1500, this._config.winDelay / Math.max(hits.length, 1)),
@@ -131,12 +155,16 @@ export class GameController {
     const wager = new Wager(this._session.betMultiplier, BET_CONFIG)
     if (!this._session.deductWager(wager.totalWager)) {
       console.error('Insufficient balance')
+      this._autoSpinState = null
       return
     }
 
-    // ── Base spin ────────────────────────────────────────────────────────────
+    let cycleWin = 0
+    let bonusTriggered = false
+
+    // ── Base spin ─────────────────────────────────────────────────────────
     this._fsm.transitionTo(GameUIState.SPINNING)
-    this._reels.spin()
+    await this._reels.spin()
 
     const baseResult = this._game.spin(this._rng, wager) as WoodlandWhisperBaseResult
     await this.wait(this._config.spinDelay)
@@ -145,6 +173,7 @@ export class GameController {
     const transposedBase = transposeGrid(baseResult.grid)
     await this._reels.stop(transposedBase)
 
+    cycleWin += baseResult.win
     if (baseResult.win > 0) {
       this._session.addWin(baseResult.win)
       this._fsm.transitionTo(GameUIState.WIN_SHOW)
@@ -154,14 +183,15 @@ export class GameController {
       await this.showWinAnimation(baseResult.hits, transposedBase, baseResult.win)
     }
 
-    // ── Pick bonus (if triggered) ─────────────────────────────────────────
+    // ── Pick bonus ────────────────────────────────────────────────────────
     if (baseResult.triggeredPickBonus) {
+      bonusTriggered = true
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       await this._overlay?.announce('BONUS!', 1500)
       await this.runPickBonus()
     }
 
-    // ── Free spin loop ───────────────────────────────────────────────────
+    // ── Free spin loop ────────────────────────────────────────────────────
     if (this._game.state.freeSpins && !baseResult.triggeredPickBonus) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       await this._overlay?.announce('FREE SPINS!', 1500)
@@ -171,15 +201,17 @@ export class GameController {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       const freeResult = this._game.next(this._rng) as WoodlandWhisperFreeResult
       await this.runFreeSpin(freeResult)
+      cycleWin += freeResult.win
 
       if (freeResult.retriggeredPickBonus) {
+        bonusTriggered = true
         this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
         await this._overlay?.announce('BONUS!', 1500)
         await this.runPickBonus()
       }
     }
 
-    // ── Done ─────────────────────────────────────────────────────────────
+    // ── Done ──────────────────────────────────────────────────────────────
     const s = this._fsm.state as GameUIState
     if (
       s === GameUIState.WIN_SHOW ||
@@ -187,6 +219,28 @@ export class GameController {
       s === GameUIState.FEATURE_TRANSITION
     ) {
       this._fsm.transitionTo(GameUIState.IDLE)
+    }
+
+    // ── Auto-spin continuation ────────────────────────────────────────────
+    if (this._autoSpinState && this._fsm.state === GameUIState.IDLE) {
+      const { config } = this._autoSpinState
+
+      if (config.spins > 0) {
+        this._autoSpinState.remaining--
+      }
+
+      const shouldStop =
+        (config.stopOnWin && cycleWin > 0) ||
+        (config.stopOnBonus && bonusTriggered) ||
+        (config.spins > 0 && this._autoSpinState.remaining <= 0)
+
+      if (shouldStop) {
+        this._autoSpinState = null
+        // FSM is already IDLE — listeners will sync the HUD
+      } else {
+        await this.wait(500)
+        this.spin().catch(console.error)
+      }
     }
   }
 
@@ -221,7 +275,6 @@ export class GameController {
 
         const pickResult = this._game.pickBall(index)
 
-        // Reveal the card selected by the user
         this._pickUI!.revealCard(pickResult.pick.index, pickResult.pick.value)
 
         if (pickResult.pick.isMatch) {

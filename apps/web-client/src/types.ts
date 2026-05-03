@@ -1,3 +1,9 @@
+export interface AutoSpinConfig {
+  spins: number // 0 = unlimited
+  stopOnWin: boolean
+  stopOnBonus: boolean
+}
+
 export enum GameUIState {
   IDLE = 'IDLE',
   SPINNING = 'SPINNING',
