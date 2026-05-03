@@ -75,9 +75,8 @@ describe('WoodlandWhisperStateMachine', () => {
       // 2. Picking
       let lastPickResult: WoodlandWhisperPickResult | undefined
       while (sm.state.pickBonus) {
-        // Pick indices sequentially until a match is found
-        const indexToPick = sm.state.pickBonus.selectedIndices.length
-        const pickResult = sm.pickBall(indexToPick)
+        // User taps card 0 each time; the actual reveal is predetermined by pickSequence
+        const pickResult = sm.pickBall(0)
         expect(pickResult.type).toBe('PICK')
         expect(pickResult.pick).toBeDefined()
         lastPickResult = pickResult
@@ -103,6 +102,7 @@ describe('WoodlandWhisperStateMachine', () => {
     // Sequence that results in match (e.g. index 0 (10) and 2 (10))
     // We already picked index 0 (10)
 
+    // pickSequence[0]=0 already played (value 10); [1]=1 → 8; [2]=2 → 10 (match)
     const state: WoodlandWhisperState = {
       lastGrid: null,
       freeSpins: {
@@ -112,7 +112,9 @@ describe('WoodlandWhisperStateMachine', () => {
       },
       pickBonus: {
         board,
-        selectedIndices: [0],
+        pickSequence: [0, 1, 2],
+        currentPickIndex: 1,
+        userPicks: [0],
         revealedValues: [10],
         winValue: 10,
         triggeringWager: wager,
@@ -122,16 +124,70 @@ describe('WoodlandWhisperStateMachine', () => {
     // @ts-ignore
     sm._state = state
 
-    const pickResult = sm.pickBall(1) // Pick index 1 (value 8)
+    // User taps card 5 (cosmetic), but the reveal is predetermined: pickSequence[1]=1, board[1]=8
+    const pickResult = sm.pickBall(5)
+    expect(pickResult.pick?.revealedIndex).toBe(1)
     expect(pickResult.pick?.value).toBe(8)
     expect(pickResult.pick?.isMatch).toBe(false)
-    expect(sm.state.pickBonus?.selectedIndices).toEqual([0, 1])
+    expect(pickResult.pick?.userIndex).toBe(5)
+    expect(sm.state.pickBonus?.userPicks).toEqual([0, 5])
 
-    const matchResult = sm.pickBall(2) // Pick index 2 (value 10)
+    // User taps card 7 (cosmetic), predetermined: pickSequence[2]=2, board[2]=10 → match
+    const matchResult = sm.pickBall(7)
+    expect(matchResult.pick?.revealedIndex).toBe(2)
     expect(matchResult.pick?.value).toBe(10)
     expect(matchResult.pick?.isMatch).toBe(true)
     expect(sm.state.pickBonus).toBeNull()
     expect(sm.state.freeSpins?.spinsRemaining).toBe(15) // 5 + 10
+  })
+
+  it('pick value is predetermined by pickSequence regardless of user tap', () => {
+    const sm = new WoodlandWhisperStateMachine()
+    const wager = new Wager(1, BET_CONFIG)
+    const board = [10, 8, 10, 8, 15, 15, 20, 20, 30, 30, 50, 50, 75, 75, 100, 100, 13, 13, 9, 9]
+
+    // pickSequence: reveal positions [4,7,0] → values [15, 20, 10]
+    // winValue is 10, but match requires two 10s — here only one is in the sequence so
+    // we extend: [4,7,0,2] → values [15, 20, 10, 10] (match on last)
+    const pickSequence = [4, 7, 0, 2]
+    // @ts-ignore
+    sm._state = {
+      lastGrid: null,
+      freeSpins: null,
+      pickBonus: {
+        board,
+        pickSequence,
+        currentPickIndex: 0,
+        userPicks: [],
+        revealedValues: [],
+        winValue: 10,
+        triggeringWager: wager,
+      },
+    }
+
+    // No matter which card the user taps, reveals follow pickSequence
+    const r0 = sm.pickBall(19) // user taps card 19, but pickSequence[0]=4 → board[4]=15
+    expect(r0.pick.revealedIndex).toBe(4)
+    expect(r0.pick.value).toBe(15)
+    expect(r0.pick.userIndex).toBe(19)
+    expect(r0.pick.isMatch).toBe(false)
+
+    const r1 = sm.pickBall(0) // user taps card 0, but pickSequence[1]=7 → board[7]=20
+    expect(r1.pick.revealedIndex).toBe(7)
+    expect(r1.pick.value).toBe(20)
+    expect(r1.pick.isMatch).toBe(false)
+
+    const r2 = sm.pickBall(0) // pickSequence[2]=0 → board[0]=10
+    expect(r2.pick.revealedIndex).toBe(0)
+    expect(r2.pick.value).toBe(10)
+    expect(r2.pick.isMatch).toBe(false)
+
+    const r3 = sm.pickBall(0) // pickSequence[3]=2 → board[2]=10 → second 10 = match
+    expect(r3.pick.revealedIndex).toBe(2)
+    expect(r3.pick.value).toBe(10)
+    expect(r3.pick.isMatch).toBe(true)
+    expect(sm.state.pickBonus).toBeNull()
+    expect(sm.state.freeSpins?.spinsRemaining).toBe(10)
   })
 
   it('should record scatter-win in recordResultMetrics', () => {

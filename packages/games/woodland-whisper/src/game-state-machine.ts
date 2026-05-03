@@ -17,7 +17,9 @@ export interface FreeSpinState {
 
 export interface PickBonusState {
   board: number[]
-  selectedIndices: number[]
+  pickSequence: number[]
+  currentPickIndex: number
+  userPicks: number[]
   revealedValues: number[]
   winValue: number
   triggeringWager: Wager
@@ -60,7 +62,8 @@ export interface WoodlandWhisperFreeResult extends SpinResult {
 export interface WoodlandWhisperPickResult extends SpinResult {
   type: 'PICK'
   pick: {
-    index: number
+    userIndex: number
+    revealedIndex: number
     value: number
     isMatch: boolean
     board: number[]
@@ -102,7 +105,9 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     if (isTrigger && result.pickData) {
       this._state.pickBonus = {
         board: result.pickData.board,
-        selectedIndices: [],
+        pickSequence: result.pickData.pickSequence,
+        currentPickIndex: 0,
+        userPicks: [],
         revealedValues: [],
         winValue: result.pickedBonus,
         triggeringWager: wager,
@@ -126,23 +131,21 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     }
   }
 
-  pickBall(index: number): WoodlandWhisperPickResult {
+  pickBall(userIndex: number): WoodlandWhisperPickResult {
     if (!this._state.pickBonus) {
       throw new Error('No active pick bonus')
     }
 
-    if (this._state.pickBonus.selectedIndices.includes(index)) {
-      throw new Error(`Index ${index} already selected`)
-    }
+    const { board, pickSequence, currentPickIndex, userPicks, revealedValues, winValue, triggeringWager } =
+      this._state.pickBonus
 
-    const { board, selectedIndices, revealedValues, winValue, triggeringWager } = this._state.pickBonus
-    const value = board[index]!
-    const newSelectedIndices = [...selectedIndices, index]
+    // The value revealed is always the next card in the predetermined sequence,
+    // regardless of which card the user tapped.
+    const revealedIndex = pickSequence[currentPickIndex]!
+    const value = board[revealedIndex]!
+    const newUserPicks = [...userPicks, userIndex]
     const newRevealedValues = [...revealedValues, value]
 
-    // A match is found if we have enough picks matching the winValue count
-    // In our logic, board has 2 of each distinct value.
-    // The winValue is the value we are looking for.
     const matchCount = newRevealedValues.filter((v) => v === winValue).length
     const isMatch = matchCount === 2
 
@@ -157,7 +160,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       this._state.freeSpins.spinsRemaining += winValue
       this._state.pickBonus = null
     } else {
-      this._state.pickBonus.selectedIndices = newSelectedIndices
+      this._state.pickBonus.currentPickIndex = currentPickIndex + 1
+      this._state.pickBonus.userPicks = newUserPicks
       this._state.pickBonus.revealedValues = newRevealedValues
     }
 
@@ -165,11 +169,12 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       type: 'PICK',
       win: 0,
       pick: {
-        index,
+        userIndex,
+        revealedIndex,
         value,
         isMatch,
         board,
-        picks: newSelectedIndices,
+        picks: newUserPicks,
       },
       state: {
         freeSpinsLeft: this._state.freeSpins?.spinsRemaining ?? 0,
@@ -195,7 +200,9 @@ export class WoodlandWhisperStateMachine implements StateMachine<
     if (isTrigger && result.pickData) {
       this._state.pickBonus = {
         board: result.pickData.board,
-        selectedIndices: [],
+        pickSequence: result.pickData.pickSequence,
+        currentPickIndex: 0,
+        userPicks: [],
         revealedValues: [],
         winValue: result.pickedBonus,
         triggeringWager: wager,

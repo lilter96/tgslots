@@ -7,6 +7,7 @@ export class PickBonusUI extends Container {
   private _gridHeight = 4
   private _cardSize = 120
   private _spacing = 20
+  private _pendingReveal = false
 
   constructor() {
     super()
@@ -66,7 +67,11 @@ export class PickBonusUI extends Container {
 
     card.interactive = true
     card.cursor = 'pointer'
-    card.on('pointerdown', () => this.emit('pick', index))
+    card.on('pointerdown', () => {
+      if (this._pendingReveal) return
+      this._pendingReveal = true
+      this.emit('pick', index)
+    })
 
     return card
   }
@@ -83,7 +88,7 @@ export class PickBonusUI extends Container {
       duration: 0.5,
       onComplete: () => {
         this.visible = false
-        // Reset cards
+        this._pendingReveal = false
         this._cards.forEach((c) => {
           c.interactive = true
           const label = c.getChildAt(1) as Text
@@ -106,7 +111,13 @@ export class PickBonusUI extends Container {
       duration: 0.2,
       onComplete: () => {
         label.text = value.toString()
-        gsap.to(card.scale, { x: 1, duration: 0.2 })
+        gsap.to(card.scale, {
+          x: 1,
+          duration: 0.2,
+          onComplete: () => {
+            this._pendingReveal = false
+          },
+        })
       },
     })
   }

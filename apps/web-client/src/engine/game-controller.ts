@@ -275,7 +275,7 @@ export class GameController {
 
         const pickResult = this._game.pickBall(index)
 
-        this._pickUI!.revealCard(pickResult.pick.index, pickResult.pick.value)
+        this._pickUI!.revealCard(pickResult.pick.revealedIndex, pickResult.pick.value)
 
         if (pickResult.pick.isMatch) {
           this._pickUI!.off('pick', onPick)
