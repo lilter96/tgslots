@@ -1,0 +1,17 @@
+{
+  "name": "@tgslots/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Nothing to build for api'",
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@tgslots/math": "workspace:*",
+    "@tgslots/slots-core": "workspace:*",
+    "@tgslots/woodland-whisper": "workspace:*",
+    "elysia": "^1.2.25"
+  }
+}
