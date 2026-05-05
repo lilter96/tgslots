@@ -98,6 +98,8 @@ export class GameController {
 
     // Resume Pick Bonus if active
     if (state.pickBonus) {
+      this._pickUI!.show()
+      this._pickUI!.restoreState(state.pickBonus.userPicks, state.pickBonus.revealedValues)
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       this.runPickBonus().then(() => this.resumeAfterFeature())
       return
@@ -378,7 +380,7 @@ export class GameController {
         const pickResult = result
         this._gameState = state
 
-        this._pickUI!.revealCard(pickResult.pick.revealedIndex, pickResult.pick.value)
+        this._pickUI!.revealCard(index, pickResult.pick.value)
 
         if (pickResult.pick.isMatch) {
           this._pickUI!.off('pick', onPick)

@@ -136,6 +136,18 @@ export class PickBonusUI extends Container {
     })
   }
 
+  public restoreState(userPicks: number[], revealedValues: number[]) {
+    userPicks.forEach((index, i) => {
+      const card = this._cards[index]
+      const label = this._labels[index]
+      if (!card || !label) return
+
+      card.interactive = false
+      label.text = revealedValues[i]!.toString()
+      label.style.fontSize = 44
+    })
+  }
+
   public revealCard(index: number, value: number) {
     const card = this._cards[index]
     const label = this._labels[index]
