@@ -17,6 +17,14 @@ function woodPanel(w: number, h: number): Graphics {
   return g
 }
 
+// Button row: [Auto 104×68] [gap 12] [Spin 88×88] [gap 12] [Buy 140×68]
+const BTN_GAP = 12
+const AUTO_W = 104
+const SPIN_W = 88
+const BUY_W = 140
+const PANEL_H = 88 // tallest button (spin)
+const PANEL_W = AUTO_W + BTN_GAP + SPIN_W + BTN_GAP + BUY_W // 356
+
 export class HUD extends Container {
   private _session: SessionManager
   private _fsm: GameStateMachine
@@ -35,6 +43,8 @@ export class HUD extends Container {
   private _autoBtnBg: Graphics
   private _autoBtnCount: Text
   private _autoBtnHint: Text
+
+  private _buttonPanel: Container
 
   private _autoSpinActive = false
 
@@ -81,6 +91,7 @@ export class HUD extends Container {
 
     this._buyBonusBtn = new Container()
     this._buyBonusBtnBg = new Graphics()
+    this._buttonPanel = new Container()
 
     this._build()
     this.updateTexts()
@@ -94,119 +105,116 @@ export class HUD extends Container {
     balPanel.y = 16
     this.addChild(balPanel)
 
-    this._balanceText.x = 100
+    this._balanceText.x = 116
     this._balanceText.y = 18
     this._balanceText.anchor.set(0.5, 0)
     this.addChild(this._balanceText)
 
-    this._betText.x = 100
+    this._betText.x = 116
     this._betText.y = 44
     this._betText.anchor.set(0.5, 0)
     this.addChild(this._betText)
 
-    // ── Win panel (top-center) ────────────────────────────────────────────
+    // ── Win panel (top-left, below balance) ───────────────────────────────
     const winPanel = woodPanel(200, 68)
-    winPanel.x = 300
-    winPanel.y = 16
+    winPanel.x = 16
+    winPanel.y = 96
     this.addChild(winPanel)
 
-    this._winText.x = 400
-    this._winText.y = 30
+    this._winText.x = 116
+    this._winText.y = 110
     this._winText.anchor.set(0.5, 0)
     this.addChild(this._winText)
 
-    // ── Auto button ───────────────────────────────────────────────────────
+    // ── Button panel (bottom-right, positioned via resize()) ──────────────
+
+    // Auto button — local x=0, y centered in panel height
     this._drawAutoBtnBg(false)
-
     this._autoBtnCount.anchor.set(0.5)
-    this._autoBtnCount.x = 52
+    this._autoBtnCount.x = AUTO_W / 2
     this._autoBtnCount.y = 26
-
     this._autoBtnHint.anchor.set(0.5)
-    this._autoBtnHint.x = 52
+    this._autoBtnHint.x = AUTO_W / 2
     this._autoBtnHint.y = 46
     this._autoBtnHint.visible = false
-
     this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
-    this._autoBtn.x = 540
-    this._autoBtn.y = 16
+    this._autoBtn.x = 0
+    this._autoBtn.y = (PANEL_H - 68) / 2
     this._autoBtn.interactive = true
     this._autoBtn.cursor = 'pointer'
     this._autoBtn.on('pointerdown', () => {
       if (this._autoSpinActive) this.emit('stopAutoSpin')
       else this.emit('autoSpin')
     })
-    this.addChild(this._autoBtn)
+    this._buttonPanel.addChild(this._autoBtn)
 
-    // ── Spin button — circular gem ────────────────────────────────────────
+    // Spin button — local x after auto+gap, y=0 (88px tall, fills panel height)
     const spinBg = new Graphics()
-    // Gold outer ring
     spinBg.circle(44, 44, 44)
     spinBg.fill(0xd4a017)
-    // Dark gem base
     spinBg.circle(44, 44, 38)
     spinBg.fill(0x0d3a20)
-    // Mid gem layer
     spinBg.circle(44, 44, 30)
     spinBg.fill(0x1a5a38)
-    // Top highlight ellipse
     spinBg.ellipse(36, 32, 12, 7)
     spinBg.fill({ color: 0x40d090, alpha: 0.45 })
-    // Center glow
     spinBg.circle(44, 44, 6)
     spinBg.fill({ color: 0xffe066, alpha: 0.6 })
-
     this._spinButton.addChild(spinBg)
-
     this._spinLabel.anchor.set(0.5)
     this._spinLabel.x = 44
     this._spinLabel.y = 44
     this._spinButton.addChild(this._spinLabel)
-
-    this._spinButton.x = 680
-    this._spinButton.y = 8
+    this._spinButton.x = AUTO_W + BTN_GAP
+    this._spinButton.y = 0
     this._spinButton.interactive = true
     this._spinButton.cursor = 'pointer'
     this._spinButton.on('pointerdown', () => this.emit('spin'))
-    this.addChild(this._spinButton)
+    this._buttonPanel.addChild(this._spinButton)
 
-    // ── Buy Bonus button ──────────────────────────────────────────────────
-    this._buyBonusBtnBg.roundRect(0, 0, 140, 68, 8)
+    // Buy Bonus button — local x after spin+gap, y centered
+    this._buyBonusBtnBg.roundRect(0, 0, BUY_W, 68, 8)
     this._buyBonusBtnBg.fill(0x2a1608)
     this._buyBonusBtnBg.stroke({ width: 2, color: 0xd4a017 })
-    this._buyBonusBtnBg.roundRect(3, 3, 134, 62, 6)
+    this._buyBonusBtnBg.roundRect(3, 3, BUY_W - 6, 62, 6)
     this._buyBonusBtnBg.stroke({ width: 0.8, color: 0xffe066, alpha: 0.3 })
     this._buyBonusBtn.addChild(this._buyBonusBtnBg)
-
     const buyLabel = new Text({
       text: 'BUY',
       style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '900' },
     })
     buyLabel.anchor.set(0.5)
-    buyLabel.x = 70
+    buyLabel.x = BUY_W / 2
     buyLabel.y = 20
     this._buyBonusBtn.addChild(buyLabel)
-
     const buyCostLabel = new Text({
       text: '100× BET',
       style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 12 },
     })
     buyCostLabel.anchor.set(0.5)
-    buyCostLabel.x = 70
+    buyCostLabel.x = BUY_W / 2
     buyCostLabel.y = 46
     this._buyBonusBtn.addChild(buyCostLabel)
-
-    this._buyBonusBtn.x = 836
-    this._buyBonusBtn.y = 16
+    this._buyBonusBtn.x = AUTO_W + BTN_GAP + SPIN_W + BTN_GAP
+    this._buyBonusBtn.y = (PANEL_H - 68) / 2
     this._buyBonusBtn.interactive = true
     this._buyBonusBtn.cursor = 'pointer'
     this._buyBonusBtn.on('pointerdown', () => this.emit('buyBonus'))
-    this.addChild(this._buyBonusBtn)
+    this._buttonPanel.addChild(this._buyBonusBtn)
+
+    this.addChild(this._buttonPanel)
+  }
+
+  /** Call after init and on every window resize. */
+  public resize(screenW: number, screenH: number) {
+    const pad = 20
+    this._buttonPanel.x = screenW - PANEL_W - pad
+    this._buttonPanel.y = screenH - PANEL_H - pad
   }
 
   private _drawAutoBtnBg(active: boolean) {
     this._autoBtnBg.clear()
-    this._autoBtnBg.roundRect(0, 0, 104, 68, 8)
+    this._autoBtnBg.roundRect(0, 0, AUTO_W, 68, 8)
     if (active) {
       this._autoBtnBg.fill(0x5a1a00)
       this._autoBtnBg.stroke({ width: 2, color: 0xff8040 })
@@ -214,7 +222,7 @@ export class HUD extends Container {
       this._autoBtnBg.fill(0x0d1a2a)
       this._autoBtnBg.stroke({ width: 2, color: 0xd4a017 })
     }
-    this._autoBtnBg.roundRect(3, 3, 98, 62, 6)
+    this._autoBtnBg.roundRect(3, 3, AUTO_W - 6, 62, 6)
     this._autoBtnBg.stroke({ width: 0.8, color: active ? 0xffaa60 : 0xffe066, alpha: 0.3 })
   }
 

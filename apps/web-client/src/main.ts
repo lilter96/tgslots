@@ -99,6 +99,8 @@ async function init() {
 
   const hud = new HUD(session, fsm)
   app.stage.addChild(hud)
+  hud.resize(app.screen.width, app.screen.height)
+  app.renderer.on('resize', (w: number, h: number) => hud.resize(w, h))
 
   const autoSpinPanel = new AutoSpinPanel()
   autoSpinPanel.x = app.screen.width / 2
