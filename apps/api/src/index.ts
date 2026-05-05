@@ -1,8 +1,10 @@
 import { Elysia } from 'elysia'
 import { swagger } from '@elysiajs/swagger'
+import { cors } from '@elysiajs/cors'
 import { woodlandWhisperRouter } from './woodland-whisper.js'
 
 const app = new Elysia()
+  .use(cors())
   .use(
     swagger({
       documentation: {
