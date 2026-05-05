@@ -17,13 +17,15 @@ function woodPanel(w: number, h: number): Graphics {
   return g
 }
 
-// Button row: [Auto 104×68] [gap 12] [Spin 88×88] [gap 12] [Buy 140×68]
-const BTN_GAP = 12
+// Natural sizes of each button (drawn at scale 1)
 const AUTO_W = 104
-const SPIN_W = 88
-const BUY_W = 140
-const PANEL_H = 88 // tallest button (spin)
-const PANEL_W = AUTO_W + BTN_GAP + SPIN_W + BTN_GAP + BUY_W // 356
+const AUTO_H = 68
+const SPIN_D = 88   // diameter
+const BUY_W  = 140
+const BUY_H  = 68
+const BTN_GAP = 12
+const PANEL_H = SPIN_D
+const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W  // 356
 
 export class HUD extends Container {
   private _session: SessionManager
@@ -44,6 +46,7 @@ export class HUD extends Container {
   private _autoBtnCount: Text
   private _autoBtnHint: Text
 
+  private _infoContainer: Container
   private _buttonPanel: Container
 
   private _autoSpinActive = false
@@ -91,6 +94,7 @@ export class HUD extends Container {
 
     this._buyBonusBtn = new Container()
     this._buyBonusBtnBg = new Graphics()
+    this._infoContainer = new Container()
     this._buttonPanel = new Container()
 
     this._build()
@@ -99,36 +103,34 @@ export class HUD extends Container {
   }
 
   private _build() {
-    // ── Balance panel (top-left) ──────────────────────────────────────────
-    const balPanel = woodPanel(200, 68)
-    balPanel.x = 16
-    balPanel.y = 16
-    this.addChild(balPanel)
+    // ── Info container (top-left, scaled as a unit in resize()) ──────────
+    const balPanel = woodPanel(200, AUTO_H)
+    this._infoContainer.addChild(balPanel)
 
-    this._balanceText.x = 116
+    this._balanceText.x = 100
     this._balanceText.y = 18
     this._balanceText.anchor.set(0.5, 0)
-    this.addChild(this._balanceText)
+    this._infoContainer.addChild(this._balanceText)
 
-    this._betText.x = 116
+    this._betText.x = 100
     this._betText.y = 44
     this._betText.anchor.set(0.5, 0)
-    this.addChild(this._betText)
+    this._infoContainer.addChild(this._betText)
 
-    // ── Win panel (top-left, below balance) ───────────────────────────────
-    const winPanel = woodPanel(200, 68)
-    winPanel.x = 16
-    winPanel.y = 96
-    this.addChild(winPanel)
+    const winPanel = woodPanel(200, AUTO_H)
+    winPanel.y = AUTO_H + 8
+    this._infoContainer.addChild(winPanel)
 
-    this._winText.x = 116
-    this._winText.y = 110
+    this._winText.x = 100
+    this._winText.y = AUTO_H + 8 + 22
     this._winText.anchor.set(0.5, 0)
-    this.addChild(this._winText)
+    this._infoContainer.addChild(this._winText)
 
-    // ── Button panel (bottom-right, positioned via resize()) ──────────────
+    this.addChild(this._infoContainer)
 
-    // Auto button — local x=0, y centered in panel height
+    // ── Button panel (bottom-right, scaled and positioned in resize()) ────
+
+    // Auto button at x=0, vertically centered in PANEL_H
     this._drawAutoBtnBg(false)
     this._autoBtnCount.anchor.set(0.5)
     this._autoBtnCount.x = AUTO_W / 2
@@ -139,7 +141,7 @@ export class HUD extends Container {
     this._autoBtnHint.visible = false
     this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
     this._autoBtn.x = 0
-    this._autoBtn.y = (PANEL_H - 68) / 2
+    this._autoBtn.y = (PANEL_H - AUTO_H) / 2
     this._autoBtn.interactive = true
     this._autoBtn.cursor = 'pointer'
     this._autoBtn.on('pointerdown', () => {
@@ -148,22 +150,22 @@ export class HUD extends Container {
     })
     this._buttonPanel.addChild(this._autoBtn)
 
-    // Spin button — local x after auto+gap, y=0 (88px tall, fills panel height)
+    // Spin button at x=AUTO_W+BTN_GAP, y=0
     const spinBg = new Graphics()
-    spinBg.circle(44, 44, 44)
+    spinBg.circle(SPIN_D / 2, SPIN_D / 2, SPIN_D / 2)
     spinBg.fill(0xd4a017)
-    spinBg.circle(44, 44, 38)
+    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 38)
     spinBg.fill(0x0d3a20)
-    spinBg.circle(44, 44, 30)
+    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 30)
     spinBg.fill(0x1a5a38)
     spinBg.ellipse(36, 32, 12, 7)
     spinBg.fill({ color: 0x40d090, alpha: 0.45 })
-    spinBg.circle(44, 44, 6)
+    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 6)
     spinBg.fill({ color: 0xffe066, alpha: 0.6 })
     this._spinButton.addChild(spinBg)
     this._spinLabel.anchor.set(0.5)
-    this._spinLabel.x = 44
-    this._spinLabel.y = 44
+    this._spinLabel.x = SPIN_D / 2
+    this._spinLabel.y = SPIN_D / 2
     this._spinButton.addChild(this._spinLabel)
     this._spinButton.x = AUTO_W + BTN_GAP
     this._spinButton.y = 0
@@ -172,11 +174,11 @@ export class HUD extends Container {
     this._spinButton.on('pointerdown', () => this.emit('spin'))
     this._buttonPanel.addChild(this._spinButton)
 
-    // Buy Bonus button — local x after spin+gap, y centered
-    this._buyBonusBtnBg.roundRect(0, 0, BUY_W, 68, 8)
+    // Buy button at x=AUTO_W+BTN_GAP+SPIN_D+BTN_GAP, vertically centered
+    this._buyBonusBtnBg.roundRect(0, 0, BUY_W, BUY_H, 8)
     this._buyBonusBtnBg.fill(0x2a1608)
     this._buyBonusBtnBg.stroke({ width: 2, color: 0xd4a017 })
-    this._buyBonusBtnBg.roundRect(3, 3, BUY_W - 6, 62, 6)
+    this._buyBonusBtnBg.roundRect(3, 3, BUY_W - 6, BUY_H - 6, 6)
     this._buyBonusBtnBg.stroke({ width: 0.8, color: 0xffe066, alpha: 0.3 })
     this._buyBonusBtn.addChild(this._buyBonusBtnBg)
     const buyLabel = new Text({
@@ -195,8 +197,8 @@ export class HUD extends Container {
     buyCostLabel.x = BUY_W / 2
     buyCostLabel.y = 46
     this._buyBonusBtn.addChild(buyCostLabel)
-    this._buyBonusBtn.x = AUTO_W + BTN_GAP + SPIN_W + BTN_GAP
-    this._buyBonusBtn.y = (PANEL_H - 68) / 2
+    this._buyBonusBtn.x = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP
+    this._buyBonusBtn.y = (PANEL_H - BUY_H) / 2
     this._buyBonusBtn.interactive = true
     this._buyBonusBtn.cursor = 'pointer'
     this._buyBonusBtn.on('pointerdown', () => this.emit('buyBonus'))
@@ -205,16 +207,27 @@ export class HUD extends Container {
     this.addChild(this._buttonPanel)
   }
 
-  /** Call after init and on every window resize. */
   public resize(screenW: number, screenH: number) {
-    const pad = 20
-    this._buttonPanel.x = screenW - PANEL_W - pad
-    this._buttonPanel.y = screenH - PANEL_H - pad
+    const PAD = 16
+
+    // Info container — scale to at most 45% of screen width, keep at top-left
+    const maxInfoW = screenW * 0.45
+    const infoScale = Math.min(1, maxInfoW / 216)  // 216 = panel(200) + PAD(16)
+    this._infoContainer.scale.set(infoScale)
+    this._infoContainer.x = PAD
+    this._infoContainer.y = PAD
+
+    // Button panel — scale to fit available width, pin to bottom-right
+    const maxBtnW = screenW - PAD * 2
+    const btnScale = Math.min(1, maxBtnW / PANEL_W)
+    this._buttonPanel.scale.set(btnScale)
+    this._buttonPanel.x = screenW - PANEL_W * btnScale - PAD
+    this._buttonPanel.y = screenH - PANEL_H * btnScale - PAD
   }
 
   private _drawAutoBtnBg(active: boolean) {
     this._autoBtnBg.clear()
-    this._autoBtnBg.roundRect(0, 0, AUTO_W, 68, 8)
+    this._autoBtnBg.roundRect(0, 0, AUTO_W, AUTO_H, 8)
     if (active) {
       this._autoBtnBg.fill(0x5a1a00)
       this._autoBtnBg.stroke({ width: 2, color: 0xff8040 })
@@ -222,7 +235,7 @@ export class HUD extends Container {
       this._autoBtnBg.fill(0x0d1a2a)
       this._autoBtnBg.stroke({ width: 2, color: 0xd4a017 })
     }
-    this._autoBtnBg.roundRect(3, 3, AUTO_W - 6, 62, 6)
+    this._autoBtnBg.roundRect(3, 3, AUTO_W - 6, AUTO_H - 6, 6)
     this._autoBtnBg.stroke({ width: 0.8, color: active ? 0xffaa60 : 0xffe066, alpha: 0.3 })
   }
 

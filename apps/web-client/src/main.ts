@@ -12,6 +12,14 @@ import { GameUIState } from './types'
 import type { AutoSpinConfig } from './types'
 import { SYM_NAMES } from '@tgslots/woodland-whisper'
 
+// Natural reel-set dimensions (5 reels × 140 + 4 gaps × 20 = 780; 3 rows × 140 = 420)
+const REEL_W = 780
+const REEL_H = 420
+const FRAME_PAD = 4
+// Space reserved at the bottom for the HUD button panel (PANEL_H=88 + PAD=16)
+const BTN_ZONE = 104
+const PAD = 16
+
 async function init() {
   const app = new Application()
   await app.init({
@@ -26,11 +34,7 @@ async function init() {
   // ── Background sprite ───────────────────────────────────────────────────
   const bgTex = AssetLoader.getTexture('BG')
   const bgSprite = new Sprite(bgTex)
-  const bgScale = Math.max(app.screen.width / bgTex.width, app.screen.height / bgTex.height)
-  bgSprite.scale.set(bgScale)
   bgSprite.anchor.set(0.5)
-  bgSprite.x = app.screen.width / 2
-  bgSprite.y = app.screen.height / 2
   app.stage.addChild(bgSprite)
 
   const fsm = new GameStateMachine()
@@ -44,68 +48,97 @@ async function init() {
   )
 
   const reelSet = new ReelSet(gridConfig, reelConfig, initialGrid, [...SYM_NAMES])
-  const totalWidth =
-    gridConfig.reels * reelConfig.symbolWidth + (gridConfig.reels - 1) * gridConfig.reelSpacing
-  const totalHeight = reelConfig.visibleSymbols * reelConfig.symbolHeight
-  reelSet.x = (app.screen.width - totalWidth) / 2
-  reelSet.y = (app.screen.height - totalHeight) / 2
 
   const mask = new Graphics()
-  mask.rect(reelSet.x, reelSet.y, totalWidth, totalHeight)
-  mask.fill(0xffffff)
   app.stage.addChild(mask)
   reelSet.mask = mask
   app.stage.addChild(reelSet)
 
-  // ── Reel frame overlay ──────────────────────────────────────────────────
   const frame = new Graphics()
-  const framePad = 4
-
-  // Outer gold border
-  frame.rect(reelSet.x - framePad, reelSet.y - framePad, totalWidth + framePad * 2, totalHeight + framePad * 2)
-  frame.stroke({ color: 0xd4a017, width: 4, alpha: 1 })
-
-  // Column separators (center of each 20px gap between reels)
-  for (let col = 1; col < gridConfig.reels; col++) {
-    const sepX = reelSet.x + col * (reelConfig.symbolWidth + gridConfig.reelSpacing) - gridConfig.reelSpacing / 2
-    frame.moveTo(sepX, reelSet.y)
-    frame.lineTo(sepX, reelSet.y + totalHeight)
-  }
-  frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
-
-  // Row separators (at each symbolHeight boundary)
-  for (let row = 1; row < reelConfig.visibleSymbols; row++) {
-    const sepY = reelSet.y + row * reelConfig.symbolHeight
-    frame.moveTo(reelSet.x, sepY)
-    frame.lineTo(reelSet.x + totalWidth, sepY)
-  }
-  frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
-
   app.stage.addChild(frame)
 
   const controller = new GameController(fsm, reelSet, session)
 
   const pickUI = new PickBonusUI()
-  pickUI.x = app.screen.width / 2
-  pickUI.y = app.screen.height / 2
   app.stage.addChild(pickUI)
   controller.setPickUI(pickUI)
 
   const overlay = new WinOverlay()
-  overlay.x = app.screen.width / 2
-  overlay.y = app.screen.height / 2
   app.stage.addChild(overlay)
   controller.setOverlay(overlay)
 
   const hud = new HUD(session, fsm)
   app.stage.addChild(hud)
-  hud.resize(app.screen.width, app.screen.height)
-  app.renderer.on('resize', (w: number, h: number) => hud.resize(w, h))
 
   const autoSpinPanel = new AutoSpinPanel()
-  autoSpinPanel.x = app.screen.width / 2
-  autoSpinPanel.y = app.screen.height / 2
   app.stage.addChild(autoSpinPanel)
+
+  // ── Layout ──────────────────────────────────────────────────────────────
+
+  function doLayout(W: number, H: number) {
+    // Background — cover the canvas
+    const bgScale = Math.max(W / bgTex.width, H / bgTex.height)
+    bgSprite.scale.set(bgScale)
+    bgSprite.x = W / 2
+    bgSprite.y = H / 2
+
+    // Reel set — scale to fit the area above the button zone
+    const availW = W - PAD * 2
+    const availH = H - BTN_ZONE - PAD * 2
+    const reelScale = Math.min(1, availW / REEL_W, availH / REEL_H)
+    const scaledW = REEL_W * reelScale
+    const scaledH = REEL_H * reelScale
+
+    reelSet.scale.set(reelScale)
+    reelSet.x = (W - scaledW) / 2
+    reelSet.y = PAD + (availH - scaledH) / 2
+
+    // Mask — match the scaled reel-set footprint
+    mask.clear()
+    mask.rect(reelSet.x, reelSet.y, scaledW, scaledH)
+    mask.fill(0xffffff)
+
+    // Frame — outer border + column/row separators in screen coordinates
+    frame.clear()
+
+    frame.rect(
+      reelSet.x - FRAME_PAD,
+      reelSet.y - FRAME_PAD,
+      scaledW + FRAME_PAD * 2,
+      scaledH + FRAME_PAD * 2,
+    )
+    frame.stroke({ color: 0xd4a017, width: 4, alpha: 1 })
+
+    for (let col = 1; col < gridConfig.reels; col++) {
+      const sepX =
+        reelSet.x +
+        (col * (reelConfig.symbolWidth + gridConfig.reelSpacing) - gridConfig.reelSpacing / 2) *
+          reelScale
+      frame.moveTo(sepX, reelSet.y)
+      frame.lineTo(sepX, reelSet.y + scaledH)
+    }
+    frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
+
+    for (let row = 1; row < reelConfig.visibleSymbols; row++) {
+      const sepY = reelSet.y + row * reelConfig.symbolHeight * reelScale
+      frame.moveTo(reelSet.x, sepY)
+      frame.lineTo(reelSet.x + scaledW, sepY)
+    }
+    frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
+
+    // Overlays — always centred on screen
+    pickUI.x = W / 2
+    pickUI.y = H / 2
+    overlay.x = W / 2
+    overlay.y = H / 2
+    autoSpinPanel.x = W / 2
+    autoSpinPanel.y = H / 2
+
+    hud.resize(W, H)
+  }
+
+  doLayout(app.screen.width, app.screen.height)
+  app.renderer.on('resize', (W: number, H: number) => doLayout(W, H))
 
   // ── Event wiring ──────────────────────────────────────────────────────────
 
