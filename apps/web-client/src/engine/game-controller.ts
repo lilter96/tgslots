@@ -247,16 +247,10 @@ export class GameController {
     }
 
     // ── Free spin loop ────────────────────────────────────────────────────
-    if (this._gameState.freeSpins && !baseResult.triggeredPickBonus) {
-      this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
-      await this._overlay?.announce('FREE SPINS!', 1500)
-    }
-
     if (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+      await this._overlay?.announce('FREE SPINS!', 1500)
       await this.resumeFreeSpins()
-      // cycleWin update from resumeFreeSpins would require returning win from it,
-      // but session win is already updated inside runFreeSpin.
     }
 
     // ── Done ──────────────────────────────────────────────────────────────
