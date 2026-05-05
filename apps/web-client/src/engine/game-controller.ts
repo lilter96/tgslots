@@ -3,6 +3,7 @@ import type {
   WoodlandWhisperBaseResult,
   WoodlandWhisperBuyResult,
   WoodlandWhisperFreeResult,
+  WoodlandWhisperPickResult,
   WoodlandWhisperState,
 } from '@tgslots/woodland-whisper'
 import {
@@ -117,7 +118,7 @@ export class GameController {
     while (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
       const { result, state } = await this._api.freeSpin()
       this._gameState = state
-      await this.runFreeSpin(result as WoodlandWhisperFreeResult)
+      await this.runFreeSpin(result)
 
       if (result.retriggeredPickBonus) {
         this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
@@ -221,7 +222,7 @@ export class GameController {
     this._reels.spin()
 
     const { result, state } = await this._api.spin(this._session.betMultiplier)
-    const baseResult = result as WoodlandWhisperBaseResult
+    const baseResult = result
     this._gameState = state
 
     await this.wait(this._config.spinDelay)
@@ -309,7 +310,7 @@ export class GameController {
     this._reels.spin()
 
     const { result, state } = await this._api.buyBonus(this._session.betMultiplier)
-    const buyResult = result as WoodlandWhisperBuyResult
+    const buyResult = result
     this._gameState = state
 
     await this.wait(this._config.spinDelay)
@@ -383,7 +384,7 @@ export class GameController {
         if (!this._gameState.pickBonus) return
 
         const { result, state } = await this._api.pick(index)
-        const pickResult = result as any // PickResult
+        const pickResult = result
         this._gameState = state
 
         this._pickUI!.revealCard(pickResult.pick.revealedIndex, pickResult.pick.value)

@@ -1,16 +1,20 @@
 import type {
+  WoodlandWhisperBaseResult,
+  WoodlandWhisperBuyResult,
+  WoodlandWhisperFreeResult,
+  WoodlandWhisperPickResult,
   WoodlandWhisperResult,
   WoodlandWhisperState,
 } from '@tgslots/woodland-whisper/game-state-machine'
 
-export interface SpinResponse {
+export interface SpinResponse<T = WoodlandWhisperResult> {
   sessionId: string
-  result: WoodlandWhisperResult
+  result: T
   state: WoodlandWhisperState
 }
 
-export interface ActionResponse {
-  result: WoodlandWhisperResult
+export interface ActionResponse<T = WoodlandWhisperResult> {
+  result: T
   state: WoodlandWhisperState
 }
 
@@ -57,11 +61,11 @@ export class APIClient {
     return res.json()
   }
 
-  public async spin(multiplier: number): Promise<SpinResponse> {
+  public async spin(multiplier: number): Promise<SpinResponse<WoodlandWhisperBaseResult>> {
     const body: any = { multiplier }
     if (this._sessionId) body.sessionId = this._sessionId
 
-    const data = await this.request<SpinResponse>('/spin', {
+    const data = await this.request<SpinResponse<WoodlandWhisperBaseResult>>('/spin', {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -70,11 +74,11 @@ export class APIClient {
     return data
   }
 
-  public async buyBonus(multiplier: number): Promise<SpinResponse> {
+  public async buyBonus(multiplier: number): Promise<SpinResponse<WoodlandWhisperBuyResult>> {
     const body: any = { multiplier }
     if (this._sessionId) body.sessionId = this._sessionId
 
-    const data = await this.request<SpinResponse>('/buybonus', {
+    const data = await this.request<SpinResponse<WoodlandWhisperBuyResult>>('/buybonus', {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -83,19 +87,19 @@ export class APIClient {
     return data
   }
 
-  public async freeSpin(): Promise<ActionResponse> {
+  public async freeSpin(): Promise<ActionResponse<WoodlandWhisperFreeResult>> {
     if (!this._sessionId) throw new Error('No active session')
 
-    return this.request<ActionResponse>('/freespin', {
+    return this.request<ActionResponse<WoodlandWhisperFreeResult>>('/freespin', {
       method: 'POST',
       body: JSON.stringify({ sessionId: this._sessionId }),
     })
   }
 
-  public async pick(userIndex: number): Promise<ActionResponse> {
+  public async pick(userIndex: number): Promise<ActionResponse<WoodlandWhisperPickResult>> {
     if (!this._sessionId) throw new Error('No active session')
 
-    return this.request<ActionResponse>('/pick', {
+    return this.request<ActionResponse<WoodlandWhisperPickResult>>('/pick', {
       method: 'POST',
       body: JSON.stringify({ sessionId: this._sessionId, userIndex }),
     })
