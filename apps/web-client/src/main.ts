@@ -10,15 +10,13 @@ import { WinOverlay } from './engine/win-overlay'
 import { AutoSpinPanel } from './engine/auto-spin-panel'
 import { GameUIState } from './types'
 import type { AutoSpinConfig } from './types'
+import {
+  getResponsiveLayout,
+  REEL_NATURAL_HEIGHT,
+  REEL_NATURAL_WIDTH,
+} from './engine/layout'
 import { SYM_NAMES } from '@tgslots/woodland-whisper'
-
-// Natural reel-set dimensions (5 reels × 140 + 4 gaps × 20 = 780; 3 rows × 140 = 420)
-const REEL_W = 780
-const REEL_H = 420
 const FRAME_PAD = 4
-// Space reserved at the bottom for the HUD button panel (PANEL_H=88 + PAD=16)
-const BTN_ZONE = 104
-const PAD = 16
 
 async function init() {
   const app = new Application()
@@ -83,30 +81,24 @@ async function init() {
   // ── Layout ──────────────────────────────────────────────────────────────
 
   function doLayout(W: number, H: number) {
+    const layout = getResponsiveLayout(W, H)
+
     // Background — cover the canvas
     const bgScale = Math.max(W / bgTex.width, H / bgTex.height)
     bgSprite.scale.set(bgScale)
     bgSprite.x = W / 2
     bgSprite.y = H / 2
 
-    // Reel set — scale to fit the area above the button zone
-    const availW = W - PAD * 2
-    const availH = H - BTN_ZONE - PAD * 2
-    const reelScale = Math.min(1, availW / REEL_W, availH / REEL_H)
-    const scaledW = REEL_W * reelScale
-    const scaledH = REEL_H * reelScale
+    // Reel set — fit into the shared gameplay area
+    const reelScale = layout.reelBounds.width / REEL_NATURAL_WIDTH
 
     reelSet.scale.set(reelScale)
-
-    // Keep reel centred, but shift right if the info panel would overlap it
-    const infoPanelRight = PAD + 200 * Math.min(1, (W * 0.45) / 216) + PAD
-    const centeredX = (W - scaledW) / 2
-    reelSet.x = centeredX < infoPanelRight ? Math.min(infoPanelRight, W - scaledW - PAD) : centeredX
-    reelSet.y = PAD + (availH - scaledH) / 2
+    reelSet.x = layout.reelBounds.x
+    reelSet.y = layout.reelBounds.y
 
     // Mask — match the scaled reel-set footprint
     mask.clear()
-    mask.rect(reelSet.x, reelSet.y, scaledW, scaledH)
+    mask.rect(reelSet.x, reelSet.y, layout.reelBounds.width, layout.reelBounds.height)
     mask.fill(0xffffff)
 
     // Frame — outer border + column/row separators in screen coordinates
@@ -115,8 +107,8 @@ async function init() {
     frame.rect(
       reelSet.x - FRAME_PAD,
       reelSet.y - FRAME_PAD,
-      scaledW + FRAME_PAD * 2,
-      scaledH + FRAME_PAD * 2,
+      layout.reelBounds.width + FRAME_PAD * 2,
+      layout.reelBounds.height + FRAME_PAD * 2,
     )
     frame.stroke({ color: 0xd4a017, width: 4, alpha: 1 })
 
@@ -126,26 +118,21 @@ async function init() {
         (col * (reelConfig.symbolWidth + gridConfig.reelSpacing) - gridConfig.reelSpacing / 2) *
           reelScale
       frame.moveTo(sepX, reelSet.y)
-      frame.lineTo(sepX, reelSet.y + scaledH)
+      frame.lineTo(sepX, reelSet.y + layout.reelBounds.height)
     }
     frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
 
     for (let row = 1; row < reelConfig.visibleSymbols; row++) {
       const sepY = reelSet.y + row * reelConfig.symbolHeight * reelScale
       frame.moveTo(reelSet.x, sepY)
-      frame.lineTo(reelSet.x + scaledW, sepY)
+      frame.lineTo(reelSet.x + layout.reelBounds.width, sepY)
     }
     frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
 
-    // Overlays — always centred on screen
-    pickUI.x = W / 2
-    pickUI.y = H / 2
-    overlay.x = W / 2
-    overlay.y = H / 2
-    autoSpinPanel.x = W / 2
-    autoSpinPanel.y = H / 2
-
-    hud.resize(W, H)
+    hud.resize(layout)
+    pickUI.resize(layout)
+    overlay.resize(layout)
+    autoSpinPanel.resize(layout)
   }
 
   doLayout(app.screen.width, app.screen.height)

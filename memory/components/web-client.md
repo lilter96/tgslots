@@ -21,14 +21,16 @@ component: "web-client"
 
 ## Responsibility
 
-Pixi-based Woodland Whisper frontend. Owns local session balance display, reel rendering, HUD, feature overlays, auto-spin controls, API-driven game flow, and restoration of active pick-bonus / free-spin sessions from backend state.
+Pixi-based Woodland Whisper frontend. Owns responsive scene layout, local session balance display, reel rendering, HUD, feature overlays, auto-spin controls, API-driven game flow, and restoration of active pick-bonus / free-spin sessions from backend state.
 
 ## UI Flow
 
 - `GameController` is the orchestration layer between API state, reel animations, feature overlays, and HUD synchronization.
-- `HUD` renders balance, bet, last win, the buy-bonus button, auto-spin controls, and the persistent free-spins status panel.
-- `WinOverlay` renders transient centered announcements such as `BONUS!`, win tiers, and dynamic free-spin award messages.
-- `PickBonusUI` renders the 20-card pick-bonus board and restores revealed picks from session state.
+- `layout.ts` computes a shared viewport snapshot for reels, a bottom-pinned HUD footer, modals, and overlay anchors across portrait, compact landscape, and wide desktop layouts.
+- `HUD` renders balance, bet, last win, the buy-bonus button, auto-spin controls, and the persistent free-spins status panel via adaptive info cards with capped desktop widths and a bottom-pinned responsive control dock.
+- `WinOverlay` renders transient feature announcements from layout-driven overlay anchors and scales copy/artwork by viewport size.
+- `PickBonusUI` renders the 20-card pick-bonus board inside responsive feature bounds and restores revealed picks from session state.
+- `AutoSpinPanel` renders a responsive modal with wrapped preset chips and stable left-aligned toggle rows on narrow and wide screens.
 
 ## Free Spins UX
 
@@ -40,9 +42,12 @@ Pixi-based Woodland Whisper frontend. Owns local session balance display, reel r
 
 ## Key Files
 
+- `src/engine/layout.ts` — shared responsive viewport model for reels, bottom HUD footer, modal, and overlay bounds
 - `src/engine/game-controller.ts` — API orchestration, feature loops, free-spin status broadcasting
-- `src/engine/hud.ts` — balance/bet/win controls and persistent free-spins HUD panel
+- `src/engine/hud.ts` — adaptive bottom-footer HUD, control dock, and persistent free-spins status panel
+- `src/engine/auto-spin-panel.ts` — responsive auto-spin modal
 - `src/engine/win-overlay.ts` — transient feature and win banners
+- `src/engine/pick-bonus-ui.ts` — responsive pick-bonus board
 - `src/engine/free-spins-status.ts` — pure status derivation and dynamic copy helpers
 - `src/main.ts` — Pixi bootstrap and controller/HUD wiring
 

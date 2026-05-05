@@ -1,42 +1,51 @@
 import { Container, Graphics, Text } from 'pixi.js'
-import { SessionManager } from './session-manager'
-import { GameStateMachine } from './state-machine'
+import { gsap } from 'gsap'
 import type { FreeSpinsStatus } from '../types'
 import { GameUIState } from '../types'
-import { gsap } from 'gsap'
+import { GameStateMachine } from './state-machine'
+import { SessionManager } from './session-manager'
+import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
 
 const FONT_DISPLAY = 'Cinzel, serif'
 
-function woodPanel(w: number, h: number): Graphics {
-  const g = new Graphics()
-  g.roundRect(0, 0, w, h, 8)
-  g.fill(0x2a1608)
-  g.roundRect(0, 0, w, h, 8)
-  g.stroke({ width: 2, color: 0xd4a017 })
-  g.roundRect(3, 3, w - 6, h - 6, 6)
-  g.stroke({ width: 0.8, color: 0xffe066, alpha: 0.3 })
-  return g
-}
-
-// Natural sizes of each button (drawn at scale 1)
-const AUTO_W = 104
-const AUTO_H = 68
-const SPIN_D = 88 // diameter
 const BUY_W = 140
 const BUY_H = 68
+const AUTO_W = BUY_W
+const AUTO_H = 68
+const SPIN_D = 88
 const BTN_GAP = 12
 const PANEL_H = SPIN_D
-const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W // 356
+const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W
+
+interface InfoCard {
+  key: 'balance' | 'bet' | 'win' | 'freeSpins'
+  container: Container
+  background: Graphics
+  title: Text
+  value: Text
+}
+
+function drawWoodPanel(g: Graphics, w: number, h: number, fill = 0x2a1608) {
+  g.clear()
+  g.roundRect(0, 0, w, h, 12)
+  g.fill(fill)
+  g.roundRect(0, 0, w, h, 12)
+  g.stroke({ width: 2, color: 0xd4a017 })
+  g.roundRect(3, 3, w - 6, h - 6, 9)
+  g.stroke({ width: 0.9, color: 0xffe066, alpha: 0.32 })
+}
+
+function woodPanel(w: number, h: number, fill = 0x2a1608): Graphics {
+  const g = new Graphics()
+  drawWoodPanel(g, w, h, fill)
+  return g
+}
 
 export class HUD extends Container {
   private _session: SessionManager
   private _fsm: GameStateMachine
 
-  private _balanceText: Text
-  private _betText: Text
-  private _winText: Text
-  private _freeSpinsPanel: Container
-  private _freeSpinsValue: Text
+  private _layout?: UILayoutSnapshot
 
   private _spinButton: Container
   private _spinLabel: Text
@@ -52,42 +61,17 @@ export class HUD extends Container {
   private _infoContainer: Container
   private _buttonPanel: Container
 
+  private _balanceCard: InfoCard
+  private _betCard: InfoCard
+  private _winCard: InfoCard
+  private _freeSpinsCard: InfoCard
+
   private _autoSpinActive = false
 
   constructor(session: SessionManager, fsm: GameStateMachine) {
     super()
     this._session = session
     this._fsm = fsm
-
-    this._balanceText = new Text({
-      text: '',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '700' },
-    })
-    this._betText = new Text({
-      text: '',
-      style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 16 },
-    })
-    this._winText = new Text({
-      text: '',
-      style: {
-        fontFamily: FONT_DISPLAY,
-        fill: '#ffe066',
-        fontSize: 22,
-        fontWeight: '700',
-        stroke: { color: '#5a3a00', width: 3 },
-      },
-    })
-    this._freeSpinsPanel = new Container()
-    this._freeSpinsValue = new Text({
-      text: '',
-      style: {
-        fontFamily: FONT_DISPLAY,
-        fill: '#ffe066',
-        fontSize: 20,
-        fontWeight: '700',
-        stroke: { color: '#5a3a00', width: 3 },
-      },
-    })
 
     this._spinButton = new Container()
     this._spinLabel = new Text({
@@ -111,71 +95,65 @@ export class HUD extends Container {
     this._infoContainer = new Container()
     this._buttonPanel = new Container()
 
+    this._balanceCard = this._makeInfoCard('balance', 'BALANCE', 0x2a1608)
+    this._betCard = this._makeInfoCard('bet', 'BET', 0x1d1308)
+    this._winCard = this._makeInfoCard('win', 'WIN', 0x15240d)
+    this._freeSpinsCard = this._makeInfoCard('freeSpins', 'FREE SPINS', 0x1d1030)
+    this._freeSpinsCard.container.visible = false
+
     this._build()
     this.updateTexts()
     this._fsm.addListener(() => this._onStateChange())
   }
 
-  private _build() {
-    // ── Info container (top-left, scaled as a unit in resize()) ──────────
-    const balPanel = woodPanel(200, AUTO_H)
-    this._infoContainer.addChild(balPanel)
-
-    this._balanceText.x = 100
-    this._balanceText.y = 18
-    this._balanceText.anchor.set(0.5, 0)
-    this._infoContainer.addChild(this._balanceText)
-
-    this._betText.x = 100
-    this._betText.y = 44
-    this._betText.anchor.set(0.5, 0)
-    this._infoContainer.addChild(this._betText)
-
-    const winPanel = woodPanel(200, AUTO_H)
-    winPanel.y = AUTO_H + 8
-    this._infoContainer.addChild(winPanel)
-
-    this._winText.x = 100
-    this._winText.y = AUTO_H + 8 + 22
-    this._winText.anchor.set(0.5, 0)
-    this._infoContainer.addChild(this._winText)
-
-    const freeSpinsPanel = woodPanel(200, AUTO_H)
-    this._freeSpinsPanel.addChild(freeSpinsPanel)
-
-    const freeSpinsTitle = new Text({
-      text: 'FREE SPINS',
-      style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 14, fontWeight: '700' },
+  private _makeInfoCard(
+    key: InfoCard['key'],
+    title: string,
+    fill: number,
+  ): InfoCard {
+    const container = new Container()
+    const background = woodPanel(160, 64, fill)
+    const titleText = new Text({
+      text: title,
+      style: {
+        fontFamily: FONT_DISPLAY,
+        fill: '#c8a060',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 1.2,
+      },
     })
-    freeSpinsTitle.x = 100
-    freeSpinsTitle.y = 14
-    freeSpinsTitle.anchor.set(0.5, 0)
-    this._freeSpinsPanel.addChild(freeSpinsTitle)
+    titleText.anchor.set(0.5, 0)
 
-    this._freeSpinsValue.x = 100
-    this._freeSpinsValue.y = 34
-    this._freeSpinsValue.anchor.set(0.5, 0)
-    this._freeSpinsPanel.addChild(this._freeSpinsValue)
+    const valueText = new Text({
+      text: '',
+      style: {
+        fontFamily: FONT_DISPLAY,
+        fill: '#ffe066',
+        fontSize: 24,
+        fontWeight: '700',
+        stroke: { color: '#5a3a00', width: 3 },
+      },
+    })
+    valueText.anchor.set(0.5)
 
-    this._freeSpinsPanel.y = AUTO_H * 2 + 16
-    this._freeSpinsPanel.visible = false
-    this._infoContainer.addChild(this._freeSpinsPanel)
+    container.addChild(background, titleText, valueText)
+    this._infoContainer.addChild(container)
 
+    return { key, container, background, title: titleText, value: valueText }
+  }
+
+  private _build() {
     this.addChild(this._infoContainer)
 
-    // ── Button panel (bottom-right, scaled and positioned in resize()) ────
-
-    // Auto button at x=0, vertically centered in PANEL_H
     this._drawAutoBtnBg(false)
     this._autoBtnCount.anchor.set(0.5)
     this._autoBtnCount.x = AUTO_W / 2
-    this._autoBtnCount.y = 26
+    this._autoBtnCount.y = AUTO_H / 2
     this._autoBtnHint.anchor.set(0.5)
     this._autoBtnHint.x = AUTO_W / 2
-    this._autoBtnHint.y = 46
     this._autoBtnHint.visible = false
     this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
-    this._autoBtn.x = 0
     this._autoBtn.y = (PANEL_H - AUTO_H) / 2
     this._autoBtn.interactive = true
     this._autoBtn.cursor = 'pointer'
@@ -185,7 +163,6 @@ export class HUD extends Container {
     })
     this._buttonPanel.addChild(this._autoBtn)
 
-    // Spin button at x=AUTO_W+BTN_GAP, y=0
     const spinBg = new Graphics()
     spinBg.circle(SPIN_D / 2, SPIN_D / 2, SPIN_D / 2)
     spinBg.fill(0xd4a017)
@@ -203,22 +180,20 @@ export class HUD extends Container {
     this._spinLabel.y = SPIN_D / 2
     this._spinButton.addChild(this._spinLabel)
     this._spinButton.x = AUTO_W + BTN_GAP
-    this._spinButton.y = 0
     this._spinButton.interactive = true
     this._spinButton.cursor = 'pointer'
     this._spinButton.on('pointerdown', () => this.emit('spin'))
     this._buttonPanel.addChild(this._spinButton)
 
-    // Buy button at x=AUTO_W+BTN_GAP+SPIN_D+BTN_GAP, vertically centered
-    this._buyBonusBtnBg.roundRect(0, 0, BUY_W, BUY_H, 8)
+    this._buyBonusBtnBg.roundRect(0, 0, BUY_W, BUY_H, 10)
     this._buyBonusBtnBg.fill(0x2a1608)
     this._buyBonusBtnBg.stroke({ width: 2, color: 0xd4a017 })
-    this._buyBonusBtnBg.roundRect(3, 3, BUY_W - 6, BUY_H - 6, 6)
+    this._buyBonusBtnBg.roundRect(3, 3, BUY_W - 6, BUY_H - 6, 7)
     this._buyBonusBtnBg.stroke({ width: 0.8, color: 0xffe066, alpha: 0.3 })
     this._buyBonusBtn.addChild(this._buyBonusBtnBg)
     const buyLabel = new Text({
-      text: 'BUY',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '900' },
+      text: 'BUY BONUS',
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 16, fontWeight: '900' },
     })
     buyLabel.anchor.set(0.5)
     buyLabel.x = BUY_W / 2
@@ -242,22 +217,82 @@ export class HUD extends Container {
     this.addChild(this._buttonPanel)
   }
 
-  public resize(screenW: number, screenH: number) {
-    const PAD = 16
+  public resize(layout: UILayoutSnapshot) {
+    this._layout = layout
+    this._layoutInfoCards(layout)
+    this._layoutControls(layout)
+  }
 
-    // Info container — scale to at most 45% of screen width, keep at top-left
-    const maxInfoW = screenW * 0.45
-    const infoScale = Math.min(1, maxInfoW / 216) // 216 = panel(200) + PAD(16)
-    this._infoContainer.scale.set(infoScale)
-    this._infoContainer.x = PAD
-    this._infoContainer.y = PAD
+  private _layoutInfoCards(layout: UILayoutSnapshot) {
+    const activeCards = [this._balanceCard, this._betCard, this._winCard]
+    if (this._freeSpinsCard.container.visible) activeCards.push(this._freeSpinsCard)
 
-    // Button panel — scale to fit available width, pin to bottom-right
-    const maxBtnW = screenW - PAD * 2
-    const btnScale = Math.min(1, maxBtnW / PANEL_W)
-    this._buttonPanel.scale.set(btnScale)
-    this._buttonPanel.x = screenW - PANEL_W * btnScale - PAD
-    this._buttonPanel.y = screenH - PANEL_H * btnScale - PAD
+    const { infoArea } = layout
+    const gap = layout.hudMode === 'portrait' ? 8 : 10
+
+    const minCardWidth =
+      layout.hudMode === 'wide' ? 132 : layout.hudMode === 'portrait' ? 92 : 104
+    const targetCardWidth =
+      layout.hudMode === 'wide' ? 156 : layout.hudMode === 'portrait' ? 108 : 118
+    const maxCardWidth =
+      layout.hudMode === 'wide' ? 168 : layout.hudMode === 'portrait' ? 136 : 128
+    const cols = Math.min(
+      activeCards.length,
+      Math.max(1, Math.floor((infoArea.width + gap) / (minCardWidth + gap))),
+    )
+    const rows = Math.ceil(activeCards.length / cols)
+
+    const availableCardWidth = (infoArea.width - gap * (cols - 1)) / cols
+    const cardWidth = rows === 1 ? Math.min(maxCardWidth, Math.max(minCardWidth, Math.min(targetCardWidth, availableCardWidth))) : availableCardWidth
+    const cardHeight = (infoArea.height - gap * (rows - 1)) / rows
+
+    const usedWidth = cols * cardWidth + gap * (cols - 1)
+    const usedHeight = rows * cardHeight + gap * (rows - 1)
+    const startX = infoArea.x + (infoArea.width - usedWidth) / 2
+    const startY = infoArea.y + (infoArea.height - usedHeight) / 2
+
+    for (const card of [this._balanceCard, this._betCard, this._winCard, this._freeSpinsCard]) {
+      card.container.visible =
+        card === this._freeSpinsCard ? this._freeSpinsCard.container.visible : true
+    }
+
+    activeCards.forEach((card, index) => {
+      const col = index % cols
+      const row = Math.floor(index / cols)
+      card.container.x = startX + col * (cardWidth + gap)
+      card.container.y = startY + row * (cardHeight + gap)
+      this._sizeInfoCard(card, cardWidth, cardHeight, layout.hudMode)
+    })
+  }
+
+  private _sizeInfoCard(card: InfoCard, width: number, height: number, hudMode: HUDLayoutMode) {
+    const fill =
+      card.key === 'win' ? 0x15240d : card.key === 'freeSpins' ? 0x1d1030 : card.key === 'bet' ? 0x1d1308 : 0x2a1608
+    drawWoodPanel(card.background, width, height, fill)
+
+    const titleSize = height < 54 ? 10 : hudMode === 'wide' ? 12 : 11
+    const valueSize = Math.max(16, Math.min(28, height * 0.34))
+    card.title.style.fontSize = titleSize
+    card.value.style.fontSize = valueSize
+    card.value.style.stroke = { color: '#5a3a00', width: height < 50 ? 2 : 3 }
+
+    card.title.x = width / 2
+    card.title.y = Math.max(6, height * 0.12)
+    card.value.x = width / 2
+    card.value.y = height * 0.64
+  }
+
+  private _layoutControls(layout: UILayoutSnapshot) {
+    const scale = Math.min(
+      1,
+      layout.controlsArea.width / PANEL_W,
+      layout.controlsArea.height / PANEL_H,
+    )
+    this._buttonPanel.scale.set(scale)
+    this._buttonPanel.x =
+      layout.controlsArea.x + (layout.controlsArea.width - PANEL_W * scale) / 2
+    this._buttonPanel.y =
+      layout.controlsArea.y + (layout.controlsArea.height - PANEL_H * scale) / 2
   }
 
   private _drawAutoBtnBg(active: boolean) {
@@ -281,10 +316,11 @@ export class HUD extends Container {
     if (isActive) {
       this._autoBtnCount.text = remaining === 0 ? '∞' : remaining.toString()
       this._autoBtnCount.y = 22
+      this._autoBtnHint.y = 46
       this._autoBtnHint.visible = true
     } else {
       this._autoBtnCount.text = 'AUTO'
-      this._autoBtnCount.y = 26
+      this._autoBtnCount.y = AUTO_H / 2
       this._autoBtnHint.visible = false
     }
 
@@ -292,14 +328,15 @@ export class HUD extends Container {
   }
 
   public updateTexts() {
-    this._balanceText.text = `${this._session.balance}`
-    this._betText.text = `BET  ${this._session.betMultiplier}`
-    this._winText.text = this._session.lastWin > 0 ? `WIN  ${this._session.lastWin}` : ''
+    this._balanceCard.value.text = `${this._session.balance}`
+    this._betCard.value.text = `${this._session.betMultiplier}`
+    this._winCard.value.text = this._session.lastWin > 0 ? `${this._session.lastWin}` : '—'
   }
 
   public syncFreeSpinsStatus(status: FreeSpinsStatus) {
-    this._freeSpinsPanel.visible = status.active
-    this._freeSpinsValue.text = status.active ? `${status.remaining} LEFT` : ''
+    this._freeSpinsCard.container.visible = status.active
+    this._freeSpinsCard.value.text = status.active ? `${status.remaining} LEFT` : ''
+    if (this._layout) this._layoutInfoCards(this._layout)
   }
 
   public animateBalance(target: number) {
@@ -308,7 +345,7 @@ export class HUD extends Container {
       val: target,
       duration: 1.5,
       onUpdate: () => {
-        this._balanceText.text = `${Math.floor(obj.val)}`
+        this._balanceCard.value.text = `${Math.floor(obj.val)}`
       },
     })
   }
@@ -331,9 +368,9 @@ export class HUD extends Container {
     if (state === GameUIState.WIN_SHOW) {
       this.updateTexts()
       gsap.fromTo(
-        this._winText.scale,
+        this._winCard.value.scale,
         { x: 1, y: 1 },
-        { x: 1.3, y: 1.3, duration: 0.4, yoyo: true, repeat: 3 },
+        { x: 1.18, y: 1.18, duration: 0.4, yoyo: true, repeat: 3 },
       )
     } else {
       this.updateTexts()
