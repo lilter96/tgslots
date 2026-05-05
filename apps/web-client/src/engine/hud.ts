@@ -8,11 +8,11 @@ import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
 
 const FONT_DISPLAY = 'Cinzel, serif'
 
-const AUTO_W = 104
-const AUTO_H = 68
-const SPIN_D = 88
 const BUY_W = 140
 const BUY_H = 68
+const AUTO_W = BUY_W
+const AUTO_H = 68
+const SPIN_D = 88
 const BTN_GAP = 12
 const PANEL_H = SPIN_D
 const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W
@@ -149,10 +149,12 @@ export class HUD extends Container {
     this._drawAutoBtnBg(false)
     this._autoBtnCount.anchor.set(0.5)
     this._autoBtnCount.x = AUTO_W / 2
+    this._autoBtnCount.y = AUTO_H / 2
     this._autoBtnHint.anchor.set(0.5)
     this._autoBtnHint.x = AUTO_W / 2
     this._autoBtnHint.visible = false
     this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
+    this._autoBtn.y = (PANEL_H - AUTO_H) / 2
     this._autoBtn.interactive = true
     this._autoBtn.cursor = 'pointer'
     this._autoBtn.on('pointerdown', () => {
@@ -318,7 +320,7 @@ export class HUD extends Container {
       this._autoBtnHint.visible = true
     } else {
       this._autoBtnCount.text = 'AUTO'
-      this._autoBtnCount.y = 26
+      this._autoBtnCount.y = AUTO_H / 2
       this._autoBtnHint.visible = false
     }
 
