@@ -31,17 +31,22 @@ export class GameStateMachine {
   private isValidTransition(from: GameUIState, to: GameUIState): boolean {
     switch (from) {
       case GameUIState.IDLE:
-        return to === GameUIState.SPINNING
+        return to === GameUIState.SPINNING || to === GameUIState.FEATURE_TRANSITION
       case GameUIState.SPINNING:
         return to === GameUIState.STOPPING
       case GameUIState.STOPPING:
         return (
           to === GameUIState.WIN_SHOW ||
           to === GameUIState.IDLE ||
-          to === GameUIState.FEATURE_TRANSITION
+          to === GameUIState.FEATURE_TRANSITION ||
+          to === GameUIState.SPINNING
         )
       case GameUIState.WIN_SHOW:
-        return to === GameUIState.IDLE || to === GameUIState.FEATURE_TRANSITION
+        return (
+          to === GameUIState.IDLE ||
+          to === GameUIState.FEATURE_TRANSITION ||
+          to === GameUIState.SPINNING
+        )
       case GameUIState.FEATURE_TRANSITION:
         return to === GameUIState.SPINNING || to === GameUIState.IDLE
       default:
