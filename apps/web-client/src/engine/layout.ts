@@ -105,12 +105,7 @@ export function getResponsiveLayout(screenWidth: number, screenHeight: number): 
   const footerHeight = infoHeight + gutter + controlsHeight
   const footerTop = screenHeight - safePadding - footerHeight
 
-  const infoArea = makeRect(
-    safePadding,
-    footerTop,
-    screenWidth - safePadding * 2,
-    infoHeight,
-  )
+  const infoArea = makeRect(safePadding, footerTop, screenWidth - safePadding * 2, infoHeight)
   const controlsArea = makeRect(
     safePadding,
     infoArea.y + infoArea.height + gutter,
@@ -126,12 +121,7 @@ export function getResponsiveLayout(screenWidth: number, screenHeight: number): 
 
   const reelScale = Math.min(
     1,
-    fitScale(
-      gameplayArea.width,
-      gameplayArea.height,
-      REEL_NATURAL_WIDTH,
-      REEL_NATURAL_HEIGHT,
-    ),
+    fitScale(gameplayArea.width, gameplayArea.height, REEL_NATURAL_WIDTH, REEL_NATURAL_HEIGHT),
   )
   const reelWidth = REEL_NATURAL_WIDTH * reelScale
   const reelHeight = REEL_NATURAL_HEIGHT * reelScale

@@ -120,7 +120,13 @@ export class PickBonusUI extends Container {
     this._background.fill({ color: 0x030e02, alpha: 0.88 })
 
     this._titlePlate.clear()
-    this._titlePlate.roundRect(-TITLE_PLATE_W / 2, -CONTENT_HEIGHT / 2, TITLE_PLATE_W, TITLE_PLATE_H, 10)
+    this._titlePlate.roundRect(
+      -TITLE_PLATE_W / 2,
+      -CONTENT_HEIGHT / 2,
+      TITLE_PLATE_W,
+      TITLE_PLATE_H,
+      10,
+    )
     this._titlePlate.fill(0x2a1608)
     this._titlePlate.stroke({ width: 2, color: 0xd4a017 })
 

@@ -8,14 +8,11 @@ import { HUD } from './engine/hud'
 import { PickBonusUI } from './engine/pick-bonus-ui'
 import { WinOverlay } from './engine/win-overlay'
 import { AutoSpinPanel } from './engine/auto-spin-panel'
-import { GameUIState } from './types'
 import type { AutoSpinConfig } from './types'
-import {
-  getResponsiveLayout,
-  REEL_NATURAL_HEIGHT,
-  REEL_NATURAL_WIDTH,
-} from './engine/layout'
+import { GameUIState } from './types'
+import { getResponsiveLayout, REEL_NATURAL_WIDTH } from './engine/layout'
 import { SYM_NAMES } from '@tgslots/woodland-whisper'
+
 const FRAME_PAD = 4
 
 async function init() {

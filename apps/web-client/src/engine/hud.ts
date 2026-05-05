@@ -106,11 +106,7 @@ export class HUD extends Container {
     this._fsm.addListener(() => this._onStateChange())
   }
 
-  private _makeInfoCard(
-    key: InfoCard['key'],
-    title: string,
-    fill: number,
-  ): InfoCard {
+  private _makeInfoCard(key: InfoCard['key'], title: string, fill: number): InfoCard {
     const container = new Container()
     const background = woodPanel(160, 64, fill)
     const titleText = new Text({
@@ -230,12 +226,10 @@ export class HUD extends Container {
     const { infoArea } = layout
     const gap = layout.hudMode === 'portrait' ? 8 : 10
 
-    const minCardWidth =
-      layout.hudMode === 'wide' ? 132 : layout.hudMode === 'portrait' ? 92 : 104
+    const minCardWidth = layout.hudMode === 'wide' ? 132 : layout.hudMode === 'portrait' ? 92 : 104
     const targetCardWidth =
       layout.hudMode === 'wide' ? 156 : layout.hudMode === 'portrait' ? 108 : 118
-    const maxCardWidth =
-      layout.hudMode === 'wide' ? 168 : layout.hudMode === 'portrait' ? 136 : 128
+    const maxCardWidth = layout.hudMode === 'wide' ? 168 : layout.hudMode === 'portrait' ? 136 : 128
     const cols = Math.min(
       activeCards.length,
       Math.max(1, Math.floor((infoArea.width + gap) / (minCardWidth + gap))),
@@ -243,7 +237,13 @@ export class HUD extends Container {
     const rows = Math.ceil(activeCards.length / cols)
 
     const availableCardWidth = (infoArea.width - gap * (cols - 1)) / cols
-    const cardWidth = rows === 1 ? Math.min(maxCardWidth, Math.max(minCardWidth, Math.min(targetCardWidth, availableCardWidth))) : availableCardWidth
+    const cardWidth =
+      rows === 1
+        ? Math.min(
+            maxCardWidth,
+            Math.max(minCardWidth, Math.min(targetCardWidth, availableCardWidth)),
+          )
+        : availableCardWidth
     const cardHeight = (infoArea.height - gap * (rows - 1)) / rows
 
     const usedWidth = cols * cardWidth + gap * (cols - 1)
@@ -267,7 +267,13 @@ export class HUD extends Container {
 
   private _sizeInfoCard(card: InfoCard, width: number, height: number, hudMode: HUDLayoutMode) {
     const fill =
-      card.key === 'win' ? 0x15240d : card.key === 'freeSpins' ? 0x1d1030 : card.key === 'bet' ? 0x1d1308 : 0x2a1608
+      card.key === 'win'
+        ? 0x15240d
+        : card.key === 'freeSpins'
+          ? 0x1d1030
+          : card.key === 'bet'
+            ? 0x1d1308
+            : 0x2a1608
     drawWoodPanel(card.background, width, height, fill)
 
     const titleSize = height < 54 ? 10 : hudMode === 'wide' ? 12 : 11
@@ -289,10 +295,8 @@ export class HUD extends Container {
       layout.controlsArea.height / PANEL_H,
     )
     this._buttonPanel.scale.set(scale)
-    this._buttonPanel.x =
-      layout.controlsArea.x + (layout.controlsArea.width - PANEL_W * scale) / 2
-    this._buttonPanel.y =
-      layout.controlsArea.y + (layout.controlsArea.height - PANEL_H * scale) / 2
+    this._buttonPanel.x = layout.controlsArea.x + (layout.controlsArea.width - PANEL_W * scale) / 2
+    this._buttonPanel.y = layout.controlsArea.y + (layout.controlsArea.height - PANEL_H * scale) / 2
   }
 
   private _drawAutoBtnBg(active: boolean) {

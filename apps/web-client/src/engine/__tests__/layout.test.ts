@@ -51,7 +51,9 @@ describe('responsive layout snapshot', () => {
       expect(intersects(layout.infoArea, layout.controlsArea)).toBe(false)
       expect(layout.controlsArea.y + layout.controlsArea.height).toBe(height - layout.safePadding)
       expect(layout.infoArea.y + layout.infoArea.height + layout.gutter).toBe(layout.controlsArea.y)
-      expect(layout.infoArea.y).toBeGreaterThanOrEqual(layout.gameplayArea.y + layout.gameplayArea.height)
+      expect(layout.infoArea.y).toBeGreaterThanOrEqual(
+        layout.gameplayArea.y + layout.gameplayArea.height,
+      )
 
       expect(layout.modalBounds.x).toBeGreaterThanOrEqual(0)
       expect(layout.modalBounds.y).toBeGreaterThanOrEqual(0)

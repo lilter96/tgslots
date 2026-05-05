@@ -17,7 +17,45 @@ import { createSession } from '../sessions.js'
 
 const app = new Elysia().use(woodlandWhisperRouter)
 
-async function post(path: string, body: unknown): Promise<{ status: number; body: unknown }> {
+interface TestResponseBody {
+  sessionId: string
+  error?: string
+  result: {
+    type: string
+    win: number
+    scatterWin: number
+    sc: number
+    grid: number[][]
+    hits: Array<{
+      lineIndex: number
+      symbolName: string
+      matchCount: number
+      basePayout: number
+      wildMultiplier: number
+      totalPayout: number
+    }>
+    triggeredPickBonus: boolean
+    retriggeredPickBonus: boolean
+    pick: {
+      userIndex: number
+      revealedIndex: number
+      value: number
+      isMatch: boolean
+      board: number[]
+      picks: number[]
+    }
+    state: {
+      freeSpinsLeft: number
+      totalFreeSpinWin: number
+    }
+  }
+  state: WoodlandWhisperState
+}
+
+async function post(
+  path: string,
+  body: object,
+): Promise<{ status: number; body: TestResponseBody }> {
   const res = await app.handle(
     new Request(`http://localhost${path}`, {
       method: 'POST',
@@ -25,12 +63,12 @@ async function post(path: string, body: unknown): Promise<{ status: number; body
       body: JSON.stringify(body),
     }),
   )
-  return { status: res.status, body: await res.json() }
+  return { status: res.status, body: (await res.json()) as TestResponseBody }
 }
 
-async function get(path: string): Promise<{ status: number; body: unknown }> {
+async function get(path: string): Promise<{ status: number; body: TestResponseBody }> {
   const res = await app.handle(new Request(`http://localhost${path}`))
-  return { status: res.status, body: await res.json() }
+  return { status: res.status, body: (await res.json()) as TestResponseBody }
 }
 
 // ─── Deterministic state builders ───────────────────────────────────────────
@@ -64,11 +102,8 @@ function makeFreeSpinState(overrides: Partial<FreeSpinState> = {}): FreeSpinStat
   }
 }
 
-function injectState(
-  machine: { _state: WoodlandWhisperState },
-  partial: Partial<WoodlandWhisperState>,
-): void {
-  machine._state = {
+function injectState(machine: object, partial: Partial<WoodlandWhisperState>): void {
+  ;(machine as { _state: WoodlandWhisperState })._state = {
     lastGrid: [
       [0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0],
@@ -77,7 +112,7 @@ function injectState(
     freeSpins: null,
     pickBonus: null,
     ...partial,
-  }
+  } as WoodlandWhisperState
 }
 
 // ─── Session management ──────────────────────────────────────────────────────
@@ -124,8 +159,8 @@ describe('Session management', () => {
     const { status, body } = await get('/woodlandwhisper/state')
     expect(status).toBe(200)
     expect(typeof body.sessionId).toBe('string')
-    expect(body.state.lastGrid).toHaveLength(3)
-    expect(body.state.lastGrid[0]).toHaveLength(5)
+    expect(body.state.lastGrid!).toHaveLength(3)
+    expect(body.state.lastGrid![0]).toHaveLength(5)
   })
 
   it('GET /state with unknown/expired sessionId creates a new session', async () => {
@@ -198,22 +233,17 @@ describe('POST /spin — base game response structure', () => {
   })
 
   it('when no features are triggered, top-level state has null freeSpins and pickBonus', async () => {
-    let cleanBody: unknown
+    let cleanBody: TestResponseBody | undefined
     for (let i = 0; i < 50; i++) {
       const { body } = await post('/woodlandwhisper/spin', { multiplier: 1 })
-      const b = body as {
-        result: { triggeredPickBonus: boolean }
-        state: { freeSpins: unknown; pickBonus: unknown }
-      }
-      if (!b.result.triggeredPickBonus) {
-        cleanBody = b
+      if (!body.result.triggeredPickBonus) {
+        cleanBody = body
         break
       }
     }
-    const c = cleanBody as { state: { freeSpins: unknown; pickBonus: unknown } }
-    expect(c).toBeDefined()
-    expect(c.state.freeSpins).toBeNull()
-    expect(c.state.pickBonus).toBeNull()
+    expect(cleanBody).toBeDefined()
+    expect(cleanBody!.state.freeSpins).toBeNull()
+    expect(cleanBody!.state.pickBonus).toBeNull()
   })
 })
 
@@ -227,8 +257,8 @@ describe('Pick bonus — state transitions', () => {
     const { status, body } = await get(`/woodlandwhisper/state?sessionId=${id}`)
     expect(status).toBe(200)
     expect(body.state.pickBonus).not.toBeNull()
-    expect(body.state.pickBonus.board).toHaveLength(20)
-    expect(body.state.pickBonus.currentPickIndex).toBe(0)
+    expect(body.state.pickBonus!.board).toHaveLength(20)
+    expect(body.state.pickBonus!.currentPickIndex).toBe(0)
   })
 
   it('first pick reveals predetermined index from pickSequence, ignoring userIndex', async () => {
@@ -257,9 +287,9 @@ describe('Pick bonus — state transitions', () => {
     expect(r1.body.result.pick.revealedIndex).toBe(7)
     expect(r1.body.result.pick.value).toBe(20)
 
-    expect(r1.body.state.pickBonus.currentPickIndex).toBe(2)
-    expect(r1.body.state.pickBonus.userPicks).toEqual([3, 7])
-    expect(r1.body.state.pickBonus.revealedValues).toEqual([15, 20])
+    expect(r1.body.state.pickBonus!.currentPickIndex).toBe(2)
+    expect(r1.body.state.pickBonus!.userPicks).toEqual([3, 7])
+    expect(r1.body.state.pickBonus!.revealedValues).toEqual([15, 20])
   })
 
   it('non-matching pick keeps pickBonus active and freeSpins null', async () => {
@@ -285,8 +315,8 @@ describe('Pick bonus — state transitions', () => {
     expect(body.result.pick.value).toBe(10)
     expect(body.state.pickBonus).toBeNull()
     expect(body.state.freeSpins).not.toBeNull()
-    expect(body.state.freeSpins.spinsRemaining).toBe(10)
-    expect(body.state.freeSpins.totalWin).toBe(0)
+    expect(body.state.freeSpins!.spinsRemaining).toBe(10)
+    expect(body.state.freeSpins!.totalWin).toBe(0)
   })
 
   it('match on second pick clears bonus after minimum reveals', async () => {
@@ -302,7 +332,7 @@ describe('Pick bonus — state transitions', () => {
     const r1 = await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
     expect(r1.body.result.pick.isMatch).toBe(true)
     expect(r1.body.state.pickBonus).toBeNull()
-    expect(r1.body.state.freeSpins.spinsRemaining).toBe(10)
+    expect(r1.body.state.freeSpins!.spinsRemaining).toBe(10)
   })
 
   it('retrigger during free spins adds winValue on top of existing spinsRemaining', async () => {
@@ -316,8 +346,8 @@ describe('Pick bonus — state transitions', () => {
     const { body } = await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
 
     expect(body.result.pick.isMatch).toBe(true)
-    expect(body.state.freeSpins.spinsRemaining).toBe(13)
-    expect(body.state.freeSpins.totalWin).toBe(500)
+    expect(body.state.freeSpins!.spinsRemaining).toBe(13)
+    expect(body.state.freeSpins!.totalWin).toBe(500)
     expect(body.state.pickBonus).toBeNull()
   })
 
@@ -372,7 +402,7 @@ describe('Free spins — state transitions', () => {
     const { status, body } = await post('/woodlandwhisper/freespin', { sessionId: id })
     expect(status).toBe(200)
     expect(body.result.type).toBe('FREE')
-    expect(body.state.freeSpins.spinsRemaining).toBe(4)
+    expect(body.state.freeSpins!.spinsRemaining).toBe(4)
   })
 
   it('free spin result contains grid, hits, sc, win, scatterWin', async () => {
@@ -395,11 +425,11 @@ describe('Free spins — state transitions', () => {
     const r0 = await post('/woodlandwhisper/freespin', { sessionId: id })
     const r1 = await post('/woodlandwhisper/freespin', { sessionId: id })
 
-    const win0 = r0.body.result.win as number
-    const win1 = r1.body.result.win as number
+    const win0 = r0.body.result.win
+    const win1 = r1.body.result.win
 
-    expect(r1.body.state.freeSpins.totalWin).toBe(win0 + win1)
-    expect(r1.body.state.freeSpins.spinsRemaining).toBe(1)
+    expect(r1.body.state.freeSpins!.totalWin).toBe(win0 + win1)
+    expect(r1.body.state.freeSpins!.spinsRemaining).toBe(1)
   })
 
   it('last free spin reaches spinsRemaining 0; freeSpins object stays until next spin', async () => {
@@ -410,9 +440,9 @@ describe('Free spins — state transitions', () => {
     expect(body.result.type).toBe('FREE')
 
     if (!body.result.retriggeredPickBonus) {
-      expect(body.state.freeSpins.spinsRemaining).toBe(0)
+      expect(body.state.freeSpins!.spinsRemaining).toBe(0)
     } else {
-      expect(body.state.freeSpins.spinsRemaining).toBeGreaterThan(0)
+      expect(body.state.freeSpins!.spinsRemaining).toBeGreaterThan(0)
       expect(body.state.pickBonus).not.toBeNull()
     }
   })
@@ -476,7 +506,7 @@ describe('POST /spin — resets in-progress state', () => {
       expect(body.state.freeSpins).toBeNull()
     }
     if (body.state.freeSpins) {
-      expect(body.state.freeSpins.totalWin).not.toBe(9999)
+      expect(body.state.freeSpins!.totalWin).not.toBe(9999)
     }
   })
 

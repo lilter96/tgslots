@@ -223,7 +223,12 @@ export class AutoSpinPanel extends Container {
     this._closeBtn.y = -panelHeight / 2 + titleY + closeSize / 2 - 2
 
     this._divider.clear()
-    this._divider.rect(-panelWidth / 2 + padding, -panelHeight / 2 + dividerY, panelWidth - padding * 2, 1)
+    this._divider.rect(
+      -panelWidth / 2 + padding,
+      -panelHeight / 2 + dividerY,
+      panelWidth - padding * 2,
+      1,
+    )
     this._divider.fill(0x38386a)
 
     this._sectionSpins.x = 0
@@ -235,7 +240,9 @@ export class AutoSpinPanel extends Container {
       const col = index % chipCols
       const row = Math.floor(index / chipCols)
       const rowCount =
-        row === chipRows - 1 && PRESETS.length % chipCols !== 0 ? PRESETS.length % chipCols : chipCols
+        row === chipRows - 1 && PRESETS.length % chipCols !== 0
+          ? PRESETS.length % chipCols
+          : chipCols
       const rowWidth = rowCount * chipWidth + (rowCount - 1) * chipGap
       const rowStart = -rowWidth / 2 + chipWidth / 2
 
@@ -259,7 +266,9 @@ export class AutoSpinPanel extends Container {
     )
     this._layoutToggle(
       this._bonusToggle,
-      toggleStacked ? -panelWidth / 2 + padding : -panelWidth / 2 + padding + toggleWidth + toggleGap,
+      toggleStacked
+        ? -panelWidth / 2 + padding
+        : -panelWidth / 2 + padding + toggleWidth + toggleGap,
       -panelHeight / 2 + togglesTop + (toggleStacked ? toggleHeight + toggleGap : 0),
       toggleWidth,
     )

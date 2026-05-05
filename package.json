@@ -9,8 +9,8 @@
   "scripts": {
     "build": "bun run --workspaces build",
     "dev:all": "concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\"",
-    "lint": "eslint .",
-    "format": "prettier --write .",
+    "eslint:lint": "eslint .",
+    "eslint:fix": "eslint --fix .",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
