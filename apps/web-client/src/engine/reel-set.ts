@@ -34,7 +34,6 @@ export class ReelSet extends Container {
   public async spin(): Promise<void> {
     const promises = this._reels.map((reel, i) => {
       return new Promise<void>((resolve) => {
-        // Staggered start
         setTimeout(async () => {
           await reel.spin()
           resolve()
@@ -48,7 +47,6 @@ export class ReelSet extends Container {
     const promises = this._reels.map((reel, i) => {
       const finalSymbols = finalGrid[i] || []
       return new Promise<void>((resolve) => {
-        // Staggered stop
         setTimeout(async () => {
           await reel.stop(finalSymbols)
           resolve()

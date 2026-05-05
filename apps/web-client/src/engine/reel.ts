@@ -1,4 +1,4 @@
-import { Container, Ticker, Graphics } from 'pixi.js'
+import { Container, Ticker } from 'pixi.js'
 import type { UIReelConfig } from '../types'
 import { gsap } from 'gsap'
 import { SymbolView } from './symbol-view'
@@ -22,17 +22,7 @@ export class Reel extends Container {
   }
 
   private init() {
-    const { visibleSymbols, totalSymbols, symbolHeight, symbolWidth } = this._config
-
-    // Permanent slot panel behind the visible rows
-    const panel = new Graphics()
-    for (let row = 0; row < visibleSymbols; row++) {
-      panel.rect(2, row * symbolHeight + 2, symbolWidth - 4, symbolHeight - 4)
-      panel.fill({ color: 0x0d3d0d, alpha: 1 })
-      panel.rect(1, row * symbolHeight + 1, symbolWidth - 2, symbolHeight - 2)
-      panel.stroke({ color: 0x1a5c1a, width: 2, alpha: 0.8 })
-    }
-    this.addChild(panel)
+    const { totalSymbols, symbolHeight, symbolWidth } = this._config
 
     for (let i = 0; i < totalSymbols; i++) {
       const symbolView = new SymbolView()

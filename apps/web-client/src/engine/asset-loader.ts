@@ -1,16 +1,33 @@
 import { Texture } from 'pixi.js'
-import { SYMBOL_SVG } from '../assets/symbols'
+import { ENVIRONMENT_SVG, SYMBOL_SVG } from '../assets/symbols'
 
-const RASTER_SIZE = 256 // px — rasterize SVG at 2× symbol size for crisp display
+const SYMBOL_SIZE = 256
+
+const ENV_SIZES: Record<string, [number, number]> = {
+  BG: [780, 1384],
+  FRAME: [780, 680],
+  WIN_SMALL: [800, 200],
+  WIN_BIG: [800, 260],
+  WIN_MEGA: [800, 360],
+  ANNOUNCE_BONUS: [800, 200],
+  ANNOUNCE_FREE: [800, 200],
+}
 
 export class AssetLoader {
   private static _textures = new Map<string, Texture>()
 
   public static async loadAll(): Promise<void> {
-    await Promise.all(Object.entries(SYMBOL_SVG).map(([name, svg]) => this._rasterize(name, svg)))
+    const symbolJobs = Object.entries(SYMBOL_SVG).map(([name, svg]) =>
+      this._rasterize(name, svg, SYMBOL_SIZE, SYMBOL_SIZE),
+    )
+    const envJobs = Object.entries(ENVIRONMENT_SVG).map(([name, svg]) => {
+      const [w, h] = ENV_SIZES[name] ?? [512, 512]
+      return this._rasterize(name, svg, w, h)
+    })
+    await Promise.all([...symbolJobs, ...envJobs])
   }
 
-  private static async _rasterize(name: string, svg: string): Promise<void> {
+  private static async _rasterize(name: string, svg: string, w: number, h: number): Promise<void> {
     const blob = new Blob([svg], { type: 'image/svg+xml' })
     const url = URL.createObjectURL(blob)
 
@@ -23,11 +40,14 @@ export class AssetLoader {
     URL.revokeObjectURL(url)
 
     const canvas = document.createElement('canvas')
-    canvas.width = RASTER_SIZE
-    canvas.height = RASTER_SIZE
-    canvas.getContext('2d')!.drawImage(img, 0, 0, RASTER_SIZE, RASTER_SIZE)
+    canvas.width = w
+    canvas.height = h
+    canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
 
-    this._textures.set(name, Texture.from(canvas))
+    // createImageBitmap gives PixiJS v8 a GPU-ready resource, avoiding the
+    // deprecated alpha-premult/y-flip texImage2D path used for raw canvas uploads.
+    const bitmap = await createImageBitmap(canvas)
+    this._textures.set(name, Texture.from(bitmap))
   }
 
   public static getTexture(name: string): Texture {

@@ -4,6 +4,19 @@ import { GameStateMachine } from './state-machine'
 import { GameUIState } from '../types'
 import { gsap } from 'gsap'
 
+const FONT_DISPLAY = 'Cinzel, serif'
+
+function woodPanel(w: number, h: number): Graphics {
+  const g = new Graphics()
+  g.roundRect(0, 0, w, h, 8)
+  g.fill(0x2a1608)
+  g.roundRect(0, 0, w, h, 8)
+  g.stroke({ width: 2, color: 0xd4a017 })
+  g.roundRect(3, 3, w - 6, h - 6, 6)
+  g.stroke({ width: 0.8, color: 0xffe066, alpha: 0.3 })
+  return g
+}
+
 export class HUD extends Container {
   private _session: SessionManager
   private _fsm: GameStateMachine
@@ -20,8 +33,8 @@ export class HUD extends Container {
 
   private _autoBtn: Container
   private _autoBtnBg: Graphics
-  private _autoBtnCount: Text  // large — shows count or "AUTO"
-  private _autoBtnHint: Text   // small — shows "TAP TO STOP" when active
+  private _autoBtnCount: Text
+  private _autoBtnHint: Text
 
   private _autoSpinActive = false
 
@@ -32,29 +45,38 @@ export class HUD extends Container {
 
     this._balanceText = new Text({
       text: '',
-      style: { fill: '#ffffff', fontSize: 24, fontWeight: 'bold' },
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '700' },
     })
-    this._betText = new Text({ text: '', style: { fill: '#aaaaaa', fontSize: 20 } })
+    this._betText = new Text({
+      text: '',
+      style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 16 },
+    })
     this._winText = new Text({
       text: '',
-      style: { fill: '#ffd700', fontSize: 28, fontWeight: 'bold' },
+      style: {
+        fontFamily: FONT_DISPLAY,
+        fill: '#ffe066',
+        fontSize: 22,
+        fontWeight: '700',
+        stroke: { color: '#5a3a00', width: 3 },
+      },
     })
 
     this._spinButton = new Container()
     this._spinLabel = new Text({
       text: 'SPIN',
-      style: { fill: '#ffffff', fontSize: 32, fontWeight: 'bold' },
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '900' },
     })
 
     this._autoBtn = new Container()
     this._autoBtnBg = new Graphics()
     this._autoBtnCount = new Text({
       text: 'AUTO',
-      style: { fill: '#ffffff', fontSize: 22, fontWeight: 'bold' },
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 16, fontWeight: '700' },
     })
     this._autoBtnHint = new Text({
-      text: 'TAP TO STOP',
-      style: { fill: '#ffcc80', fontSize: 11 },
+      text: 'STOP',
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffcc80', fontSize: 10 },
     })
 
     this._buyBonusBtn = new Container()
@@ -66,122 +88,147 @@ export class HUD extends Container {
   }
 
   private _build() {
-    // ── Info texts (top-left) ─────────────────────────────────────────────
-    this._balanceText.x = 20
-    this._balanceText.y = 20
+    // ── Balance panel (top-left) ──────────────────────────────────────────
+    const balPanel = woodPanel(200, 68)
+    balPanel.x = 16
+    balPanel.y = 16
+    this.addChild(balPanel)
+
+    this._balanceText.x = 100
+    this._balanceText.y = 18
+    this._balanceText.anchor.set(0.5, 0)
     this.addChild(this._balanceText)
 
-    this._betText.x = 20
-    this._betText.y = 56
+    this._betText.x = 100
+    this._betText.y = 44
+    this._betText.anchor.set(0.5, 0)
     this.addChild(this._betText)
 
+    // ── Win panel (top-center) ────────────────────────────────────────────
+    const winPanel = woodPanel(200, 68)
+    winPanel.x = 300
+    winPanel.y = 16
+    this.addChild(winPanel)
+
     this._winText.x = 400
-    this._winText.y = 20
+    this._winText.y = 30
     this._winText.anchor.set(0.5, 0)
     this.addChild(this._winText)
 
-    // ── Spin button ───────────────────────────────────────────────────────
+    // ── Auto button ───────────────────────────────────────────────────────
+    this._drawAutoBtnBg(false)
+
+    this._autoBtnCount.anchor.set(0.5)
+    this._autoBtnCount.x = 52
+    this._autoBtnCount.y = 26
+
+    this._autoBtnHint.anchor.set(0.5)
+    this._autoBtnHint.x = 52
+    this._autoBtnHint.y = 46
+    this._autoBtnHint.visible = false
+
+    this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
+    this._autoBtn.x = 540
+    this._autoBtn.y = 16
+    this._autoBtn.interactive = true
+    this._autoBtn.cursor = 'pointer'
+    this._autoBtn.on('pointerdown', () => {
+      if (this._autoSpinActive) this.emit('stopAutoSpin')
+      else this.emit('autoSpin')
+    })
+    this.addChild(this._autoBtn)
+
+    // ── Spin button — circular gem ────────────────────────────────────────
     const spinBg = new Graphics()
-    spinBg.roundRect(0, 0, 160, 60, 10)
-    spinBg.fill(0xc62828)
-    spinBg.stroke({ width: 2, color: 0xff6666 })
+    // Gold outer ring
+    spinBg.circle(44, 44, 44)
+    spinBg.fill(0xd4a017)
+    // Dark gem base
+    spinBg.circle(44, 44, 38)
+    spinBg.fill(0x0d3a20)
+    // Mid gem layer
+    spinBg.circle(44, 44, 30)
+    spinBg.fill(0x1a5a38)
+    // Top highlight ellipse
+    spinBg.ellipse(36, 32, 12, 7)
+    spinBg.fill({ color: 0x40d090, alpha: 0.45 })
+    // Center glow
+    spinBg.circle(44, 44, 6)
+    spinBg.fill({ color: 0xffe066, alpha: 0.6 })
+
     this._spinButton.addChild(spinBg)
 
     this._spinLabel.anchor.set(0.5)
-    this._spinLabel.x = 80
-    this._spinLabel.y = 30
+    this._spinLabel.x = 44
+    this._spinLabel.y = 44
     this._spinButton.addChild(this._spinLabel)
 
-    this._spinButton.x = 700
-    this._spinButton.y = 20
+    this._spinButton.x = 680
+    this._spinButton.y = 8
     this._spinButton.interactive = true
     this._spinButton.cursor = 'pointer'
     this._spinButton.on('pointerdown', () => this.emit('spin'))
     this.addChild(this._spinButton)
 
     // ── Buy Bonus button ──────────────────────────────────────────────────
-    this._buyBonusBtnBg.roundRect(0, 0, 160, 60, 10)
-    this._buyBonusBtnBg.fill(0xb8860b)
-    this._buyBonusBtnBg.stroke({ width: 2, color: 0xffd700 })
+    this._buyBonusBtnBg.roundRect(0, 0, 140, 68, 8)
+    this._buyBonusBtnBg.fill(0x2a1608)
+    this._buyBonusBtnBg.stroke({ width: 2, color: 0xd4a017 })
+    this._buyBonusBtnBg.roundRect(3, 3, 134, 62, 6)
+    this._buyBonusBtnBg.stroke({ width: 0.8, color: 0xffe066, alpha: 0.3 })
     this._buyBonusBtn.addChild(this._buyBonusBtnBg)
 
-    const buyBonusLabel = new Text({
-      text: 'BUY BONUS',
-      style: { fill: '#ffffff', fontSize: 22, fontWeight: 'bold' },
+    const buyLabel = new Text({
+      text: 'BUY',
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '900' },
     })
-    buyBonusLabel.anchor.set(0.5)
-    buyBonusLabel.x = 80
-    buyBonusLabel.y = 22
-    this._buyBonusBtn.addChild(buyBonusLabel)
+    buyLabel.anchor.set(0.5)
+    buyLabel.x = 70
+    buyLabel.y = 20
+    this._buyBonusBtn.addChild(buyLabel)
 
-    const buyBonusCostLabel = new Text({
+    const buyCostLabel = new Text({
       text: '100× BET',
-      style: { fill: '#ffd700', fontSize: 13 },
+      style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 12 },
     })
-    buyBonusCostLabel.anchor.set(0.5)
-    buyBonusCostLabel.x = 80
-    buyBonusCostLabel.y = 44
-    this._buyBonusBtn.addChild(buyBonusCostLabel)
+    buyCostLabel.anchor.set(0.5)
+    buyCostLabel.x = 70
+    buyCostLabel.y = 46
+    this._buyBonusBtn.addChild(buyCostLabel)
 
-    this._buyBonusBtn.x = 876
-    this._buyBonusBtn.y = 20
+    this._buyBonusBtn.x = 836
+    this._buyBonusBtn.y = 16
     this._buyBonusBtn.interactive = true
     this._buyBonusBtn.cursor = 'pointer'
     this._buyBonusBtn.on('pointerdown', () => this.emit('buyBonus'))
     this.addChild(this._buyBonusBtn)
-
-    // ── Auto button ───────────────────────────────────────────────────────
-    this._drawAutoBtnBg(false)
-
-    this._autoBtnCount.anchor.set(0.5)
-    this._autoBtnCount.x = 60
-    this._autoBtnCount.y = 24
-
-    this._autoBtnHint.anchor.set(0.5)
-    this._autoBtnHint.x = 60
-    this._autoBtnHint.y = 47
-    this._autoBtnHint.visible = false
-
-    this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
-    this._autoBtn.x = 544
-    this._autoBtn.y = 20
-    this._autoBtn.interactive = true
-    this._autoBtn.cursor = 'pointer'
-    this._autoBtn.on('pointerdown', () => {
-      if (this._autoSpinActive) {
-        this.emit('stopAutoSpin')
-      } else {
-        this.emit('autoSpin')
-      }
-    })
-    this.addChild(this._autoBtn)
   }
 
   private _drawAutoBtnBg(active: boolean) {
     this._autoBtnBg.clear()
-    this._autoBtnBg.roundRect(0, 0, 120, 60, 10)
+    this._autoBtnBg.roundRect(0, 0, 104, 68, 8)
     if (active) {
-      this._autoBtnBg.fill(0xe65100) // deep orange — "something is running"
-      this._autoBtnBg.stroke({ width: 2, color: 0xffab40 })
+      this._autoBtnBg.fill(0x5a1a00)
+      this._autoBtnBg.stroke({ width: 2, color: 0xff8040 })
     } else {
-      this._autoBtnBg.fill(0x1a2a3a) // dark neutral — opens a panel
-      this._autoBtnBg.stroke({ width: 1.5, color: 0x4466aa })
+      this._autoBtnBg.fill(0x0d1a2a)
+      this._autoBtnBg.stroke({ width: 2, color: 0xd4a017 })
     }
+    this._autoBtnBg.roundRect(3, 3, 98, 62, 6)
+    this._autoBtnBg.stroke({ width: 0.8, color: active ? 0xffaa60 : 0xffe066, alpha: 0.3 })
   }
 
-  // Called by main.ts after every spin cycle (FSM → IDLE) and after user action
   public syncAutoSpin(isActive: boolean, remaining: number) {
     this._autoSpinActive = isActive
     this._drawAutoBtnBg(isActive)
 
     if (isActive) {
-      const countLabel = remaining === 0 ? '∞' : remaining.toString()
-      this._autoBtnCount.text = countLabel
-      this._autoBtnCount.y = 20
+      this._autoBtnCount.text = remaining === 0 ? '∞' : remaining.toString()
+      this._autoBtnCount.y = 22
       this._autoBtnHint.visible = true
     } else {
       this._autoBtnCount.text = 'AUTO'
-      this._autoBtnCount.y = 24
+      this._autoBtnCount.y = 26
       this._autoBtnHint.visible = false
     }
 
@@ -189,9 +236,9 @@ export class HUD extends Container {
   }
 
   public updateTexts() {
-    this._balanceText.text = `BALANCE: ${this._session.balance}`
-    this._betText.text = `BET: ${this._session.betMultiplier}`
-    this._winText.text = this._session.lastWin > 0 ? `WIN: ${this._session.lastWin}` : ''
+    this._balanceText.text = `${this._session.balance}`
+    this._betText.text = `BET  ${this._session.betMultiplier}`
+    this._winText.text = this._session.lastWin > 0 ? `WIN  ${this._session.lastWin}` : ''
   }
 
   public animateBalance(target: number) {
@@ -200,25 +247,18 @@ export class HUD extends Container {
       val: target,
       duration: 1.5,
       onUpdate: () => {
-        this._balanceText.text = `BALANCE: ${Math.floor(obj.val)}`
+        this._balanceText.text = `${Math.floor(obj.val)}`
       },
     })
   }
 
   private _refreshButtonStates() {
     const idle = this._fsm.state === GameUIState.IDLE
-
-    // SPIN: only usable when idle and no auto-spin running
     const spinEnabled = idle && !this._autoSpinActive
     this._spinButton.alpha = spinEnabled ? 1 : 0.4
     this._spinButton.interactive = spinEnabled
-
-    // BUY BONUS: only usable when idle and no auto-spin running
     this._buyBonusBtn.alpha = spinEnabled ? 1 : 0.4
     this._buyBonusBtn.interactive = spinEnabled
-
-    // AUTO button: always reachable when auto-spin is active (user can stop mid-spin);
-    // otherwise only when idle
     const autoEnabled = this._autoSpinActive || idle
     this._autoBtn.alpha = autoEnabled ? 1 : 0.5
     this._autoBtn.interactive = autoEnabled
@@ -232,7 +272,7 @@ export class HUD extends Container {
       gsap.fromTo(
         this._winText.scale,
         { x: 1, y: 1 },
-        { x: 1.5, y: 1.5, duration: 0.5, yoyo: true, repeat: 3 },
+        { x: 1.3, y: 1.3, duration: 0.4, yoyo: true, repeat: 3 },
       )
     } else {
       this.updateTexts()

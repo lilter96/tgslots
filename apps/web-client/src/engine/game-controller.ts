@@ -100,7 +100,7 @@ export class GameController {
   private async showWinAnimation(
     hits: PaylineHit[],
     transposedGrid: number[][],
-    totalWin: number,
+    _totalWin: number,
   ): Promise<void> {
     const scatterCells = this._findScatterCells(transposedGrid)
 
@@ -121,6 +121,7 @@ export class GameController {
       700,
       Math.min(1500, this._config.winDelay / Math.max(hits.length, 1)),
     )
+
     for (const hit of hits) {
       this._reels.clearAllHighlights()
       highlightScatters()

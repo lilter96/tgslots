@@ -1,4 +1,4 @@
-import { Application, Graphics } from 'pixi.js'
+import { Application, Graphics, Sprite } from 'pixi.js'
 import { AssetLoader } from './engine/asset-loader'
 import { GameStateMachine } from './engine/state-machine'
 import { ReelSet } from './engine/reel-set'
@@ -15,7 +15,7 @@ import { SYM_NAMES } from '@tgslots/woodland-whisper'
 async function init() {
   const app = new Application()
   await app.init({
-    background: '#0a2a0a',
+    background: '#060e04',
     resizeTo: window,
     antialias: true,
   })
@@ -23,13 +23,22 @@ async function init() {
 
   await AssetLoader.loadAll()
 
+  // ── Background sprite ───────────────────────────────────────────────────
+  const bgTex = AssetLoader.getTexture('BG')
+  const bgSprite = new Sprite(bgTex)
+  const bgScale = Math.max(app.screen.width / bgTex.width, app.screen.height / bgTex.height)
+  bgSprite.scale.set(bgScale)
+  bgSprite.anchor.set(0.5)
+  bgSprite.x = app.screen.width / 2
+  bgSprite.y = app.screen.height / 2
+  app.stage.addChild(bgSprite)
+
   const fsm = new GameStateMachine()
   const session = new SessionManager(10000)
 
   const gridConfig = { reels: 5, rows: 3, reelSpacing: 20 }
   const reelConfig = { symbolWidth: 140, symbolHeight: 140, visibleSymbols: 3, totalSymbols: 5 }
 
-  // Initial display: 5 reels × 5 pooled symbols, excluding REPLACEMENT (last index)
   const initialGrid = Array.from({ length: 5 }, () =>
     Array.from({ length: 5 }, () => Math.floor(Math.random() * (SYM_NAMES.length - 1))),
   )
@@ -47,6 +56,32 @@ async function init() {
   app.stage.addChild(mask)
   reelSet.mask = mask
   app.stage.addChild(reelSet)
+
+  // ── Reel frame overlay ──────────────────────────────────────────────────
+  const frame = new Graphics()
+  const framePad = 4
+
+  // Outer gold border
+  frame.rect(reelSet.x - framePad, reelSet.y - framePad, totalWidth + framePad * 2, totalHeight + framePad * 2)
+  frame.stroke({ color: 0xd4a017, width: 4, alpha: 1 })
+
+  // Column separators (center of each 20px gap between reels)
+  for (let col = 1; col < gridConfig.reels; col++) {
+    const sepX = reelSet.x + col * (reelConfig.symbolWidth + gridConfig.reelSpacing) - gridConfig.reelSpacing / 2
+    frame.moveTo(sepX, reelSet.y)
+    frame.lineTo(sepX, reelSet.y + totalHeight)
+  }
+  frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
+
+  // Row separators (at each symbolHeight boundary)
+  for (let row = 1; row < reelConfig.visibleSymbols; row++) {
+    const sepY = reelSet.y + row * reelConfig.symbolHeight
+    frame.moveTo(reelSet.x, sepY)
+    frame.lineTo(reelSet.x + totalWidth, sepY)
+  }
+  frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
+
+  app.stage.addChild(frame)
 
   const controller = new GameController(fsm, reelSet, session)
 
@@ -75,28 +110,19 @@ async function init() {
   hud.on('spin', () => controller.spin().catch(console.error))
   hud.on('buyBonus', () => controller.buyBonus().catch(console.error))
 
-  // Open the configuration panel (only fires when auto-spin is not active)
   hud.on('autoSpin', () => autoSpinPanel.show())
 
-  // Cancel from the HUD button (fires when auto-spin is active)
   hud.on('stopAutoSpin', () => {
     controller.stopAutoSpin()
     hud.syncAutoSpin(false, 0)
   })
 
-  // User confirmed config in the panel
   autoSpinPanel.on('start', (config: AutoSpinConfig) => {
     controller.startAutoSpin(config)
     hud.syncAutoSpin(true, controller.autoSpinRemaining)
   })
 
-  // Keep HUD button in sync whenever the FSM returns to IDLE.
-  // The controller decrements / clears _autoSpinState before transitioning to IDLE,
-  // so reading isAutoSpin / autoSpinRemaining here always reflects the new state.
   fsm.addListener((state) => {
-    if (state === GameUIState.FEATURE_TRANSITION || state === GameUIState.SPINNING) {
-      app.renderer.background.color = controller.isFreeSpins ? 0x2a0a0a : 0x0a2a0a
-    }
     if (state === GameUIState.IDLE) {
       hud.syncAutoSpin(controller.isAutoSpin, controller.autoSpinRemaining)
     }

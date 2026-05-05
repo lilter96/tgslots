@@ -1,79 +1,116 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
 
+const FONT = 'Cinzel, serif'
+const CARD_SIZE = 120
+const SPACING = 16
+const COLS = 5
+const ROWS = 4
+
+function makeParchmentCard(): { card: Container; label: Text } {
+  const card = new Container()
+  const half = CARD_SIZE / 2
+
+  const back = new Graphics()
+  // Parchment fill
+  back.roundRect(-half, -half, CARD_SIZE, CARD_SIZE, 8)
+  back.fill(0xf5e8c0)
+  // Gold border
+  back.roundRect(-half, -half, CARD_SIZE, CARD_SIZE, 8)
+  back.stroke({ width: 3, color: 0xd4a017 })
+  // Inner subtle border
+  back.roundRect(-half + 6, -half + 6, CARD_SIZE - 12, CARD_SIZE - 12, 4)
+  back.stroke({ width: 0.8, color: 0xa07010, alpha: 0.5 })
+  // Corner diamonds
+  const cr = 5
+  const inset = 14
+  const corners: [number, number][] = [
+    [-half + inset, -half + inset],
+    [half - inset, -half + inset],
+    [-half + inset, half - inset],
+    [half - inset, half - inset],
+  ]
+  for (const [cx, cy] of corners) {
+    back.circle(cx, cy, cr)
+    back.fill(0xd4a017)
+  }
+  card.addChild(back)
+
+  const label = new Text({
+    text: '?',
+    style: {
+      fontFamily: FONT,
+      fontSize: 52,
+      fontWeight: '700',
+      fill: '#5a3a08',
+      stroke: { color: '#d4a017', width: 2 },
+    },
+  })
+  label.anchor.set(0.5)
+  card.addChild(label)
+
+  return { card, label }
+}
+
 export class PickBonusUI extends Container {
   private _cards: Container[] = []
-  private _gridWidth = 5
-  private _gridHeight = 4
-  private _cardSize = 120
-  private _spacing = 20
+  private _labels: Text[] = []
   private _pendingReveal = false
 
   constructor() {
     super()
     this.visible = false
-    this.init()
+    this._init()
   }
 
-  private init() {
+  private _init() {
+    // Full-screen dark forest overlay
     const bg = new Graphics()
-    // Full screen semi-transparent background
     bg.rect(-2000, -2000, 4000, 4000)
-    bg.fill({ color: 0x000000, alpha: 0.8 })
+    bg.fill({ color: 0x030e02, alpha: 0.88 })
     this.addChild(bg)
 
+    // Parchment title plate
+    const titleBg = new Graphics()
+    titleBg.roundRect(-320, -310, 640, 60, 10)
+    titleBg.fill(0x2a1608)
+    titleBg.stroke({ width: 2, color: 0xd4a017 })
+    this.addChild(titleBg)
+
     const title = new Text({
-      text: 'PICK A CARD TO FIND A MATCH!',
-      style: { fill: '#ffd700', fontSize: 40, fontWeight: 'bold' },
+      text: 'PICK A CARD TO FIND A MATCH',
+      style: { fontFamily: FONT, fill: '#ffe066', fontSize: 22, fontWeight: '700' },
     })
     title.anchor.set(0.5)
-    title.y = -200
+    title.y = -283
     this.addChild(title)
 
     const gridContainer = new Container()
-    for (let i = 0; i < this._gridWidth * this._gridHeight; i++) {
-      const card = this.createCard(i)
-      const col = i % this._gridWidth
-      const row = Math.floor(i / this._gridWidth)
-      card.x =
-        col * (this._cardSize + this._spacing) -
-        (this._gridWidth * (this._cardSize + this._spacing)) / 2 +
-        this._cardSize / 2
-      card.y =
-        row * (this._cardSize + this._spacing) -
-        (this._gridHeight * (this._cardSize + this._spacing)) / 2 +
-        this._cardSize / 2
+    const gridW = COLS * (CARD_SIZE + SPACING) - SPACING
+    const gridH = ROWS * (CARD_SIZE + SPACING) - SPACING
+    const startX = -gridW / 2 + CARD_SIZE / 2
+    const startY = -gridH / 2 + CARD_SIZE / 2
+
+    for (let i = 0; i < COLS * ROWS; i++) {
+      const col = i % COLS
+      const row = Math.floor(i / COLS)
+      const { card, label } = makeParchmentCard()
+      card.x = startX + col * (CARD_SIZE + SPACING)
+      card.y = startY + row * (CARD_SIZE + SPACING)
+
+      card.interactive = true
+      card.cursor = 'pointer'
+      card.on('pointerdown', () => {
+        if (this._pendingReveal) return
+        this._pendingReveal = true
+        this.emit('pick', i)
+      })
+
       gridContainer.addChild(card)
       this._cards.push(card)
+      this._labels.push(label)
     }
     this.addChild(gridContainer)
-  }
-
-  private createCard(index: number): Container {
-    const card = new Container()
-
-    const back = new Graphics()
-    back.rect(-this._cardSize / 2, -this._cardSize / 2, this._cardSize, this._cardSize)
-    back.fill(0x2e7d32)
-    back.stroke({ width: 4, color: 0xffffff })
-    card.addChild(back)
-
-    const label = new Text({
-      text: '?',
-      style: { fill: '#ffffff', fontSize: 48, fontWeight: 'bold' },
-    })
-    label.anchor.set(0.5)
-    card.addChild(label)
-
-    card.interactive = true
-    card.cursor = 'pointer'
-    card.on('pointerdown', () => {
-      if (this._pendingReveal) return
-      this._pendingReveal = true
-      this.emit('pick', index)
-    })
-
-    return card
   }
 
   public show() {
@@ -89,10 +126,11 @@ export class PickBonusUI extends Container {
       onComplete: () => {
         this.visible = false
         this._pendingReveal = false
-        this._cards.forEach((c) => {
+        this._cards.forEach((c, i) => {
           c.interactive = true
-          const label = c.getChildAt(1) as Text
-          label.text = '?'
+          const lbl = this._labels[i]!
+          lbl.text = '?'
+          lbl.style.fill = '#5a3a08'
         })
       },
     })
@@ -100,17 +138,17 @@ export class PickBonusUI extends Container {
 
   public revealCard(index: number, value: number) {
     const card = this._cards[index]
-    if (!card) return
+    const label = this._labels[index]
+    if (!card || !label) return
 
     card.interactive = false
-    const label = card.getChildAt(1) as Text
 
-    // Flip animation
     gsap.to(card.scale, {
       x: 0,
       duration: 0.2,
       onComplete: () => {
         label.text = value.toString()
+        label.style.fontSize = 44
         gsap.to(card.scale, {
           x: 1,
           duration: 0.2,

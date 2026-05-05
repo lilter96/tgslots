@@ -28,12 +28,11 @@ export class SymbolView extends Container {
 
   public setBlur(amount: number) {
     this._blurFilter.strengthY = amount
-    // Optimization: disable filter if blur is 0
     this._sprite.filters = amount > 0 ? [this._blurFilter] : []
   }
 
   public override setSize(width: number, height: number) {
-    this._sprite.width = width * 0.8 // slightly smaller for padding
+    this._sprite.width = width * 0.8
     this._sprite.height = height * 0.8
     this._sprite.x = width / 2
     this._sprite.y = height / 2
@@ -43,7 +42,6 @@ export class SymbolView extends Container {
     if (this._isWinning) return
     this._isWinning = true
 
-    // Simple pulse animation for win
     import('gsap').then(({ gsap }) => {
       gsap.to(this._sprite.scale, {
         x: '+=0.2',
@@ -73,7 +71,6 @@ export class SymbolView extends Container {
     const y = this._sprite.y - h / 2
     this._highlightGfx.rect(x, y, w, h)
     this._highlightGfx.stroke({ color, width: 4, alpha: 1 })
-    // Inner glow fill
     this._highlightGfx.rect(x + 4, y + 4, w - 8, h - 8)
     this._highlightGfx.fill({ color, alpha: 0.15 })
 
