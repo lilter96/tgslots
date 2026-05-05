@@ -46,6 +46,11 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
         multiplier: t.Integer({ minimum: 1 }),
         sessionId: t.Optional(t.String()),
       }),
+      detail: {
+        tags: ['Woodland Whisper'],
+        summary: 'Start a new round (Base Spin)',
+        description: 'Starts a new game round. If sessionId is not provided, a new session is created.',
+      },
     },
   )
 
@@ -73,6 +78,11 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
     },
     {
       body: t.Object({ sessionId: t.String() }),
+      detail: {
+        tags: ['Woodland Whisper'],
+        summary: 'Play a Free Spin',
+        description: 'Executes one spin from the active Free Spins feature.',
+      },
     },
   )
 
@@ -105,6 +115,11 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
         sessionId: t.String(),
         userIndex: t.Integer({ minimum: 0 }),
       }),
+      detail: {
+        tags: ['Woodland Whisper'],
+        summary: 'Submit a Pick',
+        description: 'Submits a selection during the Pick Bonus mini-game.',
+      },
     },
   )
 
@@ -122,5 +137,10 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
     },
     {
       query: t.Object({ sessionId: t.String() }),
+      detail: {
+        tags: ['Woodland Whisper'],
+        summary: 'Get Current State',
+        description: 'Returns the current game state for session recovery or UI sync.',
+      },
     },
   )
