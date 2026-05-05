@@ -1,37 +1,39 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
+import type { UILayoutSnapshot } from './layout'
 
 const FONT = 'Cinzel, serif'
 const CARD_SIZE = 120
 const SPACING = 16
 const COLS = 5
 const ROWS = 4
+const TITLE_PLATE_W = 640
+const TITLE_PLATE_H = 60
+
+const GRID_WIDTH = COLS * (CARD_SIZE + SPACING) - SPACING
+const GRID_HEIGHT = ROWS * (CARD_SIZE + SPACING) - SPACING
+const CONTENT_HEIGHT = TITLE_PLATE_H + 44 + GRID_HEIGHT
 
 function makeParchmentCard(): { card: Container; label: Text } {
   const card = new Container()
   const half = CARD_SIZE / 2
 
   const back = new Graphics()
-  // Parchment fill
   back.roundRect(-half, -half, CARD_SIZE, CARD_SIZE, 8)
   back.fill(0xf5e8c0)
-  // Gold border
   back.roundRect(-half, -half, CARD_SIZE, CARD_SIZE, 8)
   back.stroke({ width: 3, color: 0xd4a017 })
-  // Inner subtle border
   back.roundRect(-half + 6, -half + 6, CARD_SIZE - 12, CARD_SIZE - 12, 4)
   back.stroke({ width: 0.8, color: 0xa07010, alpha: 0.5 })
-  // Corner diamonds
-  const cr = 5
-  const inset = 14
+
   const corners: [number, number][] = [
-    [-half + inset, -half + inset],
-    [half - inset, -half + inset],
-    [-half + inset, half - inset],
-    [half - inset, half - inset],
+    [-half + 14, -half + 14],
+    [half - 14, -half + 14],
+    [-half + 14, half - 14],
+    [half - 14, half - 14],
   ]
   for (const [cx, cy] of corners) {
-    back.circle(cx, cy, cr)
+    back.circle(cx, cy, 5)
     back.fill(0xd4a017)
   }
   card.addChild(back)
@@ -57,39 +59,36 @@ export class PickBonusUI extends Container {
   private _labels: Text[] = []
   private _pendingReveal = false
 
+  private _background: Graphics
+  private _content: Container
+  private _titlePlate: Graphics
+  private _title: Text
+  private _gridContainer: Container
+
   constructor() {
     super()
     this.visible = false
+    this._background = new Graphics()
+    this._content = new Container()
+    this._titlePlate = new Graphics()
+    this._title = new Text({
+      text: 'PICK A CARD TO FIND A MATCH',
+      style: { fontFamily: FONT, fill: '#ffe066', fontSize: 22, fontWeight: '700' },
+    })
+    this._gridContainer = new Container()
     this._init()
   }
 
   private _init() {
-    // Full-screen dark forest overlay
-    const bg = new Graphics()
-    bg.rect(-2000, -2000, 4000, 4000)
-    bg.fill({ color: 0x030e02, alpha: 0.88 })
-    this.addChild(bg)
+    this.addChild(this._background, this._content)
 
-    // Parchment title plate
-    const titleBg = new Graphics()
-    titleBg.roundRect(-320, -310, 640, 60, 10)
-    titleBg.fill(0x2a1608)
-    titleBg.stroke({ width: 2, color: 0xd4a017 })
-    this.addChild(titleBg)
+    this._content.addChild(this._titlePlate)
 
-    const title = new Text({
-      text: 'PICK A CARD TO FIND A MATCH',
-      style: { fontFamily: FONT, fill: '#ffe066', fontSize: 22, fontWeight: '700' },
-    })
-    title.anchor.set(0.5)
-    title.y = -283
-    this.addChild(title)
+    this._title.anchor.set(0.5)
+    this._content.addChild(this._title)
 
-    const gridContainer = new Container()
-    const gridW = COLS * (CARD_SIZE + SPACING) - SPACING
-    const gridH = ROWS * (CARD_SIZE + SPACING) - SPACING
-    const startX = -gridW / 2 + CARD_SIZE / 2
-    const startY = -gridH / 2 + CARD_SIZE / 2
+    const startX = -GRID_WIDTH / 2 + CARD_SIZE / 2
+    const startY = -GRID_HEIGHT / 2 + CARD_SIZE / 2
 
     for (let i = 0; i < COLS * ROWS; i++) {
       const col = i % COLS
@@ -106,11 +105,36 @@ export class PickBonusUI extends Container {
         this.emit('pick', i)
       })
 
-      gridContainer.addChild(card)
+      this._gridContainer.addChild(card)
       this._cards.push(card)
       this._labels.push(label)
     }
-    this.addChild(gridContainer)
+
+    this._gridContainer.y = 52
+    this._content.addChild(this._gridContainer)
+  }
+
+  public resize(layout: UILayoutSnapshot) {
+    this._background.clear()
+    this._background.rect(0, 0, layout.screenWidth, layout.screenHeight)
+    this._background.fill({ color: 0x030e02, alpha: 0.88 })
+
+    this._titlePlate.clear()
+    this._titlePlate.roundRect(-TITLE_PLATE_W / 2, -CONTENT_HEIGHT / 2, TITLE_PLATE_W, TITLE_PLATE_H, 10)
+    this._titlePlate.fill(0x2a1608)
+    this._titlePlate.stroke({ width: 2, color: 0xd4a017 })
+
+    this._title.style.fontSize = layout.viewportClass === 'phone' ? 18 : 22
+    this._title.y = -CONTENT_HEIGHT / 2 + TITLE_PLATE_H / 2
+
+    const scale = Math.min(
+      1,
+      layout.featureBounds.width / (GRID_WIDTH + 40),
+      layout.featureBounds.height / (CONTENT_HEIGHT + 40),
+    )
+    this._content.scale.set(scale)
+    this._content.x = layout.featureBounds.x + layout.featureBounds.width / 2
+    this._content.y = layout.featureBounds.y + layout.featureBounds.height / 2
   }
 
   public show() {
@@ -126,11 +150,12 @@ export class PickBonusUI extends Container {
       onComplete: () => {
         this.visible = false
         this._pendingReveal = false
-        this._cards.forEach((c, i) => {
-          c.interactive = true
-          const lbl = this._labels[i]!
-          lbl.text = '?'
-          lbl.style.fill = '#5a3a08'
+        this._cards.forEach((card, i) => {
+          card.interactive = true
+          const label = this._labels[i]!
+          label.text = '?'
+          label.style.fontSize = 52
+          label.style.fill = '#5a3a08'
         })
       },
     })

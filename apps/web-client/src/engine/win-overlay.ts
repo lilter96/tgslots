@@ -1,7 +1,8 @@
 import { Container, Sprite, Text, TextStyle } from 'pixi.js'
-import { AssetLoader } from './asset-loader'
 import { gsap } from 'gsap'
+import { AssetLoader } from './asset-loader'
 import { formatFreeSpinsAwardedMessage } from './free-spins-status'
+import type { UILayoutSnapshot } from './layout'
 
 const TEXTURE_MAP: Record<string, string> = {
   'BONUS!': 'ANNOUNCE_BONUS',
@@ -14,6 +15,8 @@ const TEXTURE_MAP: Record<string, string> = {
 export class WinOverlay extends Container {
   private _sprite: Sprite
   private _fallbackText: Text
+  private _baseScale = 1
+  private _baseFontSize = 72
 
   constructor() {
     super()
@@ -29,6 +32,7 @@ export class WinOverlay extends Container {
       fill: 0xffd700,
       dropShadow: { color: 0x000000, blur: 12, distance: 4, angle: Math.PI / 4 },
       stroke: { color: 0x000000, width: 6 },
+      align: 'center',
     })
     this._fallbackText = new Text({ text: '', style })
     this._fallbackText.anchor.set(0.5)
@@ -38,6 +42,13 @@ export class WinOverlay extends Container {
     this.visible = false
   }
 
+  public resize(layout: UILayoutSnapshot) {
+    this.x = layout.overlayCenter.x
+    this.y = layout.overlayCenter.y
+    this._baseScale = layout.winOverlayScale
+    this._baseFontSize = layout.viewportClass === 'phone' ? 48 : 72
+  }
+
   public async announce(text: string, duration = 2000): Promise<void> {
     const textureName = TEXTURE_MAP[text]
     if (textureName) {
@@ -45,20 +56,25 @@ export class WinOverlay extends Container {
       this._sprite.visible = true
       this._fallbackText.visible = false
     } else {
-      this._fallbackText.style.fontSize = text.length > 12 ? 52 : 72
+      this._fallbackText.style.fontSize =
+        (text.length > 12 ? this._baseFontSize * 0.72 : this._baseFontSize) / this._baseScale
       this._fallbackText.text = text
       this._fallbackText.visible = true
       this._sprite.visible = false
     }
 
     this.visible = true
-    this.scale.set(0.6)
+    this.scale.set(this._baseScale * 0.6)
 
     return new Promise((resolve) => {
       gsap
         .timeline({ onComplete: resolve })
         .to(this, { alpha: 1, duration: 0.25, ease: 'power2.out' })
-        .to(this.scale, { x: 1, y: 1, duration: 0.25, ease: 'back.out(2)' }, '<')
+        .to(
+          this.scale,
+          { x: this._baseScale, y: this._baseScale, duration: 0.25, ease: 'back.out(2)' },
+          '<',
+        )
         .to(this, { alpha: 1, duration: duration / 1000 })
         .to(this, {
           alpha: 0,
@@ -66,7 +82,7 @@ export class WinOverlay extends Container {
           ease: 'power1.in',
           onComplete: () => {
             this.visible = false
-            this.scale.set(1)
+            this.scale.set(this._baseScale)
           },
         })
     })
