@@ -28,6 +28,7 @@ tags:
 [[slots-simulation-engine]]
 [[ancient-dragon]]
 [[woodland-whisper]]
+[[web-client]]
 
 ## Development
 
@@ -52,6 +53,7 @@ tags:
 | Game       | `@tgslots/ancient-dragon`          | 5×3, 25 lines, 88.05% RTP target, mystery INNER + free spins |
 | Game       | `@tgslots/woodland-whisper`        | 5×3, 30 lines, 88.04% RTP, pick bonus             |
 | App        | `apps/simulations`                 | Unified simulation CLI and worker entrypoints     |
+| App        | `apps/web-client`                  | Pixi Woodland Whisper frontend with API-backed feature flow |
 
 ## Games Summary
 

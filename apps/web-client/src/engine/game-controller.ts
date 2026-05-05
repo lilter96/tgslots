@@ -15,8 +15,9 @@ import { ReelSet } from './reel-set'
 import { SessionManager } from './session-manager'
 import { PickBonusUI } from './pick-bonus-ui'
 import { WinOverlay } from './win-overlay'
+import { deriveAwardedFreeSpins, deriveFreeSpinsStatus } from './free-spins-status'
 import { GameUIState } from '../types'
-import type { AutoSpinConfig } from '../types'
+import type { AutoSpinConfig, FreeSpinsStatus } from '../types'
 import { APIClient } from './api-client'
 
 // Game returns grid[row][col] (3 rows × 5 cols), ReelSet expects grid[col][row] (5 reels × 3 rows)
@@ -37,6 +38,8 @@ interface AutoSpinState {
   remaining: number // 0 means unlimited (config.spins === 0)
 }
 
+type FreeSpinsStatusListener = (status: FreeSpinsStatus) => void
+
 export class GameController {
   private _fsm: GameStateMachine
   private _reels: ReelSet
@@ -49,6 +52,8 @@ export class GameController {
     freeSpins: null,
     pickBonus: null,
   }
+  private _freeSpinsStatus: FreeSpinsStatus = deriveFreeSpinsStatus(this._gameState)
+  private _freeSpinsStatusListeners: Set<FreeSpinsStatusListener> = new Set()
   private _autoSpinState: AutoSpinState | null = null
 
   constructor(
@@ -63,7 +68,7 @@ export class GameController {
   }
 
   get isFreeSpins(): boolean {
-    return !!this._gameState.freeSpins
+    return this._freeSpinsStatus.active
   }
 
   get isAutoSpin(): boolean {
@@ -75,6 +80,10 @@ export class GameController {
     return this._autoSpinState?.remaining ?? 0
   }
 
+  get freeSpinsStatus(): FreeSpinsStatus {
+    return this._freeSpinsStatus
+  }
+
   public setPickUI(ui: PickBonusUI) {
     this._pickUI = ui
   }
@@ -83,13 +92,19 @@ export class GameController {
     this._overlay = overlay
   }
 
+  public addFreeSpinsStatusListener(listener: FreeSpinsStatusListener): () => void {
+    this._freeSpinsStatusListeners.add(listener)
+    listener(this._freeSpinsStatus)
+    return () => this._freeSpinsStatusListeners.delete(listener)
+  }
+
   /**
    * Initializes the game by fetching state from the server.
    * Restores the grid and resumes any active features (Free Spins / Pick Bonus).
    */
   public async init(): Promise<void> {
     const { state } = await this._api.getState()
-    this._gameState = state
+    this._setGameState(state)
 
     // Initialize reels with the last known grid
     if (state.lastGrid) {
@@ -116,13 +131,14 @@ export class GameController {
   private async resumeFreeSpins(): Promise<void> {
     while (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
       const { result, state } = await this._api.freeSpin()
-      this._gameState = state
+      this._setGameState(state)
       await this.runFreeSpin(result)
 
       if (result.retriggeredPickBonus) {
         this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
         await this._overlay?.announce('BONUS!', 1500)
-        await this.runPickBonus()
+        const awardedFreeSpins = await this.runPickBonus()
+        await this._announceFreeSpinsAward(awardedFreeSpins)
       }
     }
   }
@@ -222,7 +238,7 @@ export class GameController {
 
     const { result, state } = await this._api.spin(this._session.betMultiplier)
     const baseResult = result
-    this._gameState = state
+    this._setGameState(state)
 
     await this.wait(this._config.spinDelay)
 
@@ -245,13 +261,13 @@ export class GameController {
       bonusTriggered = true
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       await this._overlay?.announce('BONUS!', 1500)
-      await this.runPickBonus()
+      const awardedFreeSpins = await this.runPickBonus()
+      await this._announceFreeSpinsAward(awardedFreeSpins)
     }
 
     // ── Free spin loop ────────────────────────────────────────────────────
     if (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
-      await this._overlay?.announce('FREE SPINS!', 1500)
       await this.resumeFreeSpins()
     }
 
@@ -304,7 +320,7 @@ export class GameController {
 
     const { result, state } = await this._api.buyBonus(this._session.betMultiplier)
     const buyResult = result
-    this._gameState = state
+    this._setGameState(state)
 
     await this.wait(this._config.spinDelay)
 
@@ -324,14 +340,10 @@ export class GameController {
     // ── Pick bonus (always triggered) ─────────────────────────────────────
     this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
     await this._overlay?.announce('BONUS!', 1500)
-    await this.runPickBonus()
+    const awardedFreeSpins = await this.runPickBonus()
+    await this._announceFreeSpinsAward(awardedFreeSpins)
 
     // ── Free spin loop ─────────────────────────────────────────────────────
-    if (this._gameState.freeSpins) {
-      this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
-      await this._overlay?.announce('FREE SPINS!', 1500)
-    }
-
     if (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       await this.resumeFreeSpins()
@@ -367,8 +379,9 @@ export class GameController {
     }
   }
 
-  private async runPickBonus(): Promise<void> {
-    if (!this._pickUI) return
+  private async runPickBonus(): Promise<number | null> {
+    if (!this._pickUI) return null
+    let awardedFreeSpins: number | null = null
 
     this._pickUI.show()
 
@@ -376,9 +389,13 @@ export class GameController {
       const onPick = async (index: number) => {
         if (!this._gameState.pickBonus) return
 
+        const previousState = this._gameState
         const { result, state } = await this._api.pick(index)
         const pickResult = result
-        this._gameState = state
+        awardedFreeSpins = pickResult.pick.isMatch
+          ? deriveAwardedFreeSpins(previousState, state)
+          : null
+        this._setGameState(state, awardedFreeSpins)
 
         this._pickUI!.revealCard(index, pickResult.pick.value)
 
@@ -393,5 +410,21 @@ export class GameController {
 
       this._pickUI!.on('pick', onPick)
     })
+
+    return awardedFreeSpins
+  }
+
+  private _setGameState(state: WoodlandWhisperState, awarded: number | null = null) {
+    this._gameState = state
+    this._freeSpinsStatus = deriveFreeSpinsStatus(state, awarded)
+    for (const listener of this._freeSpinsStatusListeners) {
+      listener(this._freeSpinsStatus)
+    }
+  }
+
+  private async _announceFreeSpinsAward(awarded: number | null): Promise<void> {
+    if (!awarded) return
+    this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+    await this._overlay?.announceFreeSpinsAwarded(awarded, 1500)
   }
 }

@@ -39,6 +39,7 @@ up:
 - [[task_030_modern_visualizer_and_canonical_metrics]] — 2026-04-27 — Canonical metric vocabulary across engine + games + parsheets; modern offline-capable visualizer with inlined ApexCharts (KPI count-ups, RTP donut, tolerance-band comparisons, per-metric-kind charts, sticky TOC, dark/light toggle); ADR 004.
 
 - [[task_031_super_cascades_engine]] — 2026-04-28 — Added Cluster-Pays cluster evaluator and Super Cascades tumble engine to slots-core (mutable cascade grid, vanishing rules, Sampler-driven refill flow, 22 new tests).
+- [[task_032_web_client_free_spins_status]] — 2026-05-06 — Added persistent free-spin remaining banner and dynamic awarded-spin announcements to the Woodland Whisper web client; added frontend status-derivation tests and a new [[web-client]] component note.
 
 ## In Progress
 

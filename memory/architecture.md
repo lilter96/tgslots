@@ -31,14 +31,15 @@ tgslots/                        ← Bun monorepo root
 │       ├── ancient-dragon/     ← @tgslots/ancient-dragon
 │       └── woodland-whisper/   ← @tgslots/woodland-whisper
 └── apps/
-    └── simulations/            ← CLI entry points (not a publishable package)
+    ├── simulations/            ← CLI entry points (not a publishable package)
+    └── web-client/             ← Pixi frontend for Woodland Whisper
 ```
 
 ## Layer Architecture
 
 ```
 ┌─────────────────────────────────┐
-│       apps/simulations          │  CLI, worker spawning
+│ apps/simulations / web-client   │  CLI, worker spawning, frontend
 ├─────────────────────────────────┤
 │  @tgslots/slots-simulation-engine│  Parallel runner, scoped metrics, reports
 ├──────────────┬──────────────────┤
