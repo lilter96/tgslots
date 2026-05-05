@@ -4,6 +4,12 @@ export interface AutoSpinConfig {
   stopOnBonus: boolean
 }
 
+export interface FreeSpinsStatus {
+  active: boolean
+  remaining: number
+  awarded: number | null
+}
+
 export enum GameUIState {
   IDLE = 'IDLE',
   SPINNING = 'SPINNING',

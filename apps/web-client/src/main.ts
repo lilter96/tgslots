@@ -69,6 +69,10 @@ async function init() {
   const hud = new HUD(session, fsm)
   app.stage.addChild(hud)
 
+  controller.addFreeSpinsStatusListener((status) => {
+    hud.syncFreeSpinsStatus(status)
+  })
+
   const autoSpinPanel = new AutoSpinPanel()
   app.stage.addChild(autoSpinPanel)
 

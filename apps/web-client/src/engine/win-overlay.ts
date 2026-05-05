@@ -1,6 +1,7 @@
 import { Container, Sprite, Text, TextStyle } from 'pixi.js'
 import { AssetLoader } from './asset-loader'
 import { gsap } from 'gsap'
+import { formatFreeSpinsAwardedMessage } from './free-spins-status'
 
 const TEXTURE_MAP: Record<string, string> = {
   'BONUS!': 'ANNOUNCE_BONUS',
@@ -44,6 +45,7 @@ export class WinOverlay extends Container {
       this._sprite.visible = true
       this._fallbackText.visible = false
     } else {
+      this._fallbackText.style.fontSize = text.length > 12 ? 52 : 72
       this._fallbackText.text = text
       this._fallbackText.visible = true
       this._sprite.visible = false
@@ -77,5 +79,9 @@ export class WinOverlay extends Container {
     else if (ratio >= 20) tier = 'BIG WIN!'
     else tier = 'WIN!'
     return this.announce(tier, 2500)
+  }
+
+  public async announceFreeSpinsAwarded(awarded: number, duration = 2000): Promise<void> {
+    return this.announce(formatFreeSpinsAwardedMessage(awarded), duration)
   }
 }

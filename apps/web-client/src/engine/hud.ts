@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { SessionManager } from './session-manager'
 import { GameStateMachine } from './state-machine'
+import type { FreeSpinsStatus } from '../types'
 import { GameUIState } from '../types'
 import { gsap } from 'gsap'
 
@@ -34,6 +35,8 @@ export class HUD extends Container {
   private _balanceText: Text
   private _betText: Text
   private _winText: Text
+  private _freeSpinsPanel: Container
+  private _freeSpinsValue: Text
 
   private _spinButton: Container
   private _spinLabel: Text
@@ -70,6 +73,17 @@ export class HUD extends Container {
         fontFamily: FONT_DISPLAY,
         fill: '#ffe066',
         fontSize: 22,
+        fontWeight: '700',
+        stroke: { color: '#5a3a00', width: 3 },
+      },
+    })
+    this._freeSpinsPanel = new Container()
+    this._freeSpinsValue = new Text({
+      text: '',
+      style: {
+        fontFamily: FONT_DISPLAY,
+        fill: '#ffe066',
+        fontSize: 20,
         fontWeight: '700',
         stroke: { color: '#5a3a00', width: 3 },
       },
@@ -125,6 +139,27 @@ export class HUD extends Container {
     this._winText.y = AUTO_H + 8 + 22
     this._winText.anchor.set(0.5, 0)
     this._infoContainer.addChild(this._winText)
+
+    const freeSpinsPanel = woodPanel(200, AUTO_H)
+    this._freeSpinsPanel.addChild(freeSpinsPanel)
+
+    const freeSpinsTitle = new Text({
+      text: 'FREE SPINS',
+      style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 14, fontWeight: '700' },
+    })
+    freeSpinsTitle.x = 100
+    freeSpinsTitle.y = 14
+    freeSpinsTitle.anchor.set(0.5, 0)
+    this._freeSpinsPanel.addChild(freeSpinsTitle)
+
+    this._freeSpinsValue.x = 100
+    this._freeSpinsValue.y = 34
+    this._freeSpinsValue.anchor.set(0.5, 0)
+    this._freeSpinsPanel.addChild(this._freeSpinsValue)
+
+    this._freeSpinsPanel.y = AUTO_H * 2 + 16
+    this._freeSpinsPanel.visible = false
+    this._infoContainer.addChild(this._freeSpinsPanel)
 
     this.addChild(this._infoContainer)
 
@@ -260,6 +295,11 @@ export class HUD extends Container {
     this._balanceText.text = `${this._session.balance}`
     this._betText.text = `BET  ${this._session.betMultiplier}`
     this._winText.text = this._session.lastWin > 0 ? `WIN  ${this._session.lastWin}` : ''
+  }
+
+  public syncFreeSpinsStatus(status: FreeSpinsStatus) {
+    this._freeSpinsPanel.visible = status.active
+    this._freeSpinsValue.text = status.active ? `${status.remaining} LEFT` : ''
   }
 
   public animateBalance(target: number) {
