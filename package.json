@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "bun run --workspaces build",
-    "dev": "bun run dev",
+    "dev:all": "concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\"",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
@@ -17,6 +17,7 @@
     "@eslint/js": "^10.0.1",
     "@types/bun": "latest",
     "bun-types": "latest",
+    "concurrently": "^9.1.2",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
