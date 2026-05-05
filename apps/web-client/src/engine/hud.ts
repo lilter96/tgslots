@@ -20,12 +20,12 @@ function woodPanel(w: number, h: number): Graphics {
 // Natural sizes of each button (drawn at scale 1)
 const AUTO_W = 104
 const AUTO_H = 68
-const SPIN_D = 88   // diameter
-const BUY_W  = 140
-const BUY_H  = 68
+const SPIN_D = 88 // diameter
+const BUY_W = 140
+const BUY_H = 68
 const BTN_GAP = 12
 const PANEL_H = SPIN_D
-const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W  // 356
+const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W // 356
 
 export class HUD extends Container {
   private _session: SessionManager
@@ -212,7 +212,7 @@ export class HUD extends Container {
 
     // Info container — scale to at most 45% of screen width, keep at top-left
     const maxInfoW = screenW * 0.45
-    const infoScale = Math.min(1, maxInfoW / 216)  // 216 = panel(200) + PAD(16)
+    const infoScale = Math.min(1, maxInfoW / 216) // 216 = panel(200) + PAD(16)
     this._infoContainer.scale.set(infoScale)
     this._infoContainer.x = PAD
     this._infoContainer.y = PAD

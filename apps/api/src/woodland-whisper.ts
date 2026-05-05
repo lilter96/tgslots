@@ -60,7 +60,8 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
       detail: {
         tags: ['Woodland Whisper'],
         summary: 'Start a new round (Base Spin)',
-        description: 'Starts a new game round. If sessionId is not provided, a new session is created.',
+        description:
+          'Starts a new game round. If sessionId is not provided, a new session is created.',
       },
     },
   )
@@ -111,7 +112,8 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
       detail: {
         tags: ['Woodland Whisper'],
         summary: 'Buy Bonus',
-        description: 'Purchases a guaranteed bonus trigger. If sessionId is not provided, a new session is created.',
+        description:
+          'Purchases a guaranteed bonus trigger. If sessionId is not provided, a new session is created.',
       },
     },
   )

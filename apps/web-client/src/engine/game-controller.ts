@@ -1,9 +1,6 @@
 import type {
   PaylineHit,
-  WoodlandWhisperBaseResult,
-  WoodlandWhisperBuyResult,
   WoodlandWhisperFreeResult,
-  WoodlandWhisperPickResult,
   WoodlandWhisperState,
 } from '@tgslots/woodland-whisper'
 import {

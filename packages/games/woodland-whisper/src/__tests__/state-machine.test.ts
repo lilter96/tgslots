@@ -121,7 +121,7 @@ describe('WoodlandWhisperStateMachine', () => {
       },
     }
 
-    // @ts-ignore
+    // @ts-expect-error: accessing private property for state injection in test
     sm._state = state
 
     // User taps card 5 (cosmetic), but the reveal is predetermined: pickSequence[1]=1, board[1]=8
@@ -150,7 +150,7 @@ describe('WoodlandWhisperStateMachine', () => {
     // winValue is 10, but match requires two 10s — here only one is in the sequence so
     // we extend: [4,7,0,2] → values [15, 20, 10, 10] (match on last)
     const pickSequence = [4, 7, 0, 2]
-    // @ts-ignore
+    // @ts-expect-error: accessing private property for state injection in test
     sm._state = {
       lastGrid: null,
       freeSpins: null,

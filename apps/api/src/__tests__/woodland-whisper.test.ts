@@ -17,7 +17,7 @@ import { createSession } from '../sessions.js'
 
 const app = new Elysia().use(woodlandWhisperRouter)
 
-async function post(path: string, body: unknown): Promise<{ status: number; body: any }> {
+async function post(path: string, body: unknown): Promise<{ status: number; body: unknown }> {
   const res = await app.handle(
     new Request(`http://localhost${path}`, {
       method: 'POST',
@@ -28,7 +28,7 @@ async function post(path: string, body: unknown): Promise<{ status: number; body
   return { status: res.status, body: await res.json() }
 }
 
-async function get(path: string): Promise<{ status: number; body: any }> {
+async function get(path: string): Promise<{ status: number; body: unknown }> {
   const res = await app.handle(new Request(`http://localhost${path}`))
   return { status: res.status, body: await res.json() }
 }
@@ -36,7 +36,9 @@ async function get(path: string): Promise<{ status: number; body: any }> {
 // ─── Deterministic state builders ───────────────────────────────────────────
 
 const WAGER = new Wager(1, BET_CONFIG)
-const BOARD: number[] = [10, 8, 10, 8, 15, 15, 20, 20, 30, 30, 50, 50, 75, 75, 100, 100, 13, 13, 9, 9]
+const BOARD: number[] = [
+  10, 8, 10, 8, 15, 15, 20, 20, 30, 30, 50, 50, 75, 75, 100, 100, 13, 13, 9, 9,
+]
 const PICK_SEQUENCE_TO_MATCH_AT_4 = [4, 7, 0, 2]
 const PICK_SEQUENCE_TO_MATCH_AT_2 = [0, 2]
 
@@ -62,9 +64,16 @@ function makeFreeSpinState(overrides: Partial<FreeSpinState> = {}): FreeSpinStat
   }
 }
 
-function injectState(machine: any, partial: Partial<WoodlandWhisperState>): void {
+function injectState(
+  machine: { _state: WoodlandWhisperState },
+  partial: Partial<WoodlandWhisperState>,
+): void {
   machine._state = {
-    lastGrid: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+    lastGrid: [
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+    ],
     freeSpins: null,
     pickBonus: null,
     ...partial,
@@ -189,17 +198,22 @@ describe('POST /spin — base game response structure', () => {
   })
 
   it('when no features are triggered, top-level state has null freeSpins and pickBonus', async () => {
-    let cleanBody: any
+    let cleanBody: unknown
     for (let i = 0; i < 50; i++) {
       const { body } = await post('/woodlandwhisper/spin', { multiplier: 1 })
-      if (!body.result.triggeredPickBonus) {
-        cleanBody = body
+      const b = body as {
+        result: { triggeredPickBonus: boolean }
+        state: { freeSpins: unknown; pickBonus: unknown }
+      }
+      if (!b.result.triggeredPickBonus) {
+        cleanBody = b
         break
       }
     }
-    expect(cleanBody).toBeDefined()
-    expect(cleanBody.state.freeSpins).toBeNull()
-    expect(cleanBody.state.pickBonus).toBeNull()
+    const c = cleanBody as { state: { freeSpins: unknown; pickBonus: unknown } }
+    expect(c).toBeDefined()
+    expect(c.state.freeSpins).toBeNull()
+    expect(c.state.pickBonus).toBeNull()
   })
 })
 

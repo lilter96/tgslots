@@ -31,7 +31,10 @@
       "WebFetch(domain:api.pixijs.io)",
       "WebFetch(domain:gsap.com)",
       "Bash(node -e \"const p = require\\('pixi.js'\\); console.log\\(Object.keys\\(p\\).filter\\(k => k.includes\\('Filter'\\)\\)\\)\")",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

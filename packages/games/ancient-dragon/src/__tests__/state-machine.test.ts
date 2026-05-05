@@ -41,7 +41,7 @@ describe('AncientDragonStateMachine', () => {
       },
     }
 
-    // @ts-ignore
+    // @ts-expect-error: accessing private property for state injection in test
     sm._state = state
 
     const rng = mt19937(42)

@@ -62,7 +62,7 @@ export class APIClient {
   }
 
   public async spin(multiplier: number): Promise<SpinResponse<WoodlandWhisperBaseResult>> {
-    const body: any = { multiplier }
+    const body: Record<string, unknown> = { multiplier }
     if (this._sessionId) body.sessionId = this._sessionId
 
     const data = await this.request<SpinResponse<WoodlandWhisperBaseResult>>('/spin', {
@@ -75,7 +75,7 @@ export class APIClient {
   }
 
   public async buyBonus(multiplier: number): Promise<SpinResponse<WoodlandWhisperBuyResult>> {
-    const body: any = { multiplier }
+    const body: Record<string, unknown> = { multiplier }
     if (this._sessionId) body.sessionId = this._sessionId
 
     const data = await this.request<SpinResponse<WoodlandWhisperBuyResult>>('/buybonus', {

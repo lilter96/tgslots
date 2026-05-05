@@ -160,8 +160,15 @@ export class WoodlandWhisperStateMachine implements StateMachine<
       throw new Error('No active pick bonus')
     }
 
-    const { board, pickSequence, currentPickIndex, userPicks, revealedValues, winValue, triggeringWager } =
-      this._state.pickBonus
+    const {
+      board,
+      pickSequence,
+      currentPickIndex,
+      userPicks,
+      revealedValues,
+      winValue,
+      triggeringWager,
+    } = this._state.pickBonus
 
     // The value revealed is always the next card in the predetermined sequence,
     // regardless of which card the user tapped.
@@ -304,7 +311,7 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   recordResultMetrics(
     collector: DataCollector,
     result: WoodlandWhisperResult,
-    context: { phase: 'spin' | 'next'; wager: Wager },
+    _context: { phase: 'spin' | 'next'; wager: Wager },
   ): void {
     const baseScope = collector.scope('base-game')
     const freeSpinScope = collector.scope(['features', 'free-spins'])

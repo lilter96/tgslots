@@ -24,16 +24,24 @@ g.URL = { createObjectURL: () => 'blob:mock', revokeObjectURL: () => {} }
 class MockImage {
   onload?: () => void
   private _src = ''
-  get src() { return this._src }
-  set src(_v: string) { this._src = _v; setTimeout(() => this.onload?.(), 0) }
+  get src() {
+    return this._src
+  }
+  set src(_v: string) {
+    this._src = _v
+    setTimeout(() => this.onload?.(), 0)
+  }
 }
 g.Image = MockImage
 
 class MockCanvas {
-  width = 0; height = 0
-  getContext() { return { drawImage: () => {} } }
+  width = 0
+  height = 0
+  getContext() {
+    return { drawImage: () => {} }
+  }
 }
-g.document = { createElement: (tag: string) => tag === 'canvas' ? new MockCanvas() : null }
+g.document = { createElement: (tag: string) => (tag === 'canvas' ? new MockCanvas() : null) }
 
 g.createImageBitmap = async (_canvas: unknown) => ({ width: 0, height: 0 })
 
@@ -54,7 +62,15 @@ describe('AssetLoader', () => {
 
   it('environment textures are retrievable after loadAll', async () => {
     await AssetLoader.loadAll()
-    for (const key of ['BG', 'FRAME', 'WIN_SMALL', 'WIN_BIG', 'WIN_MEGA', 'ANNOUNCE_BONUS', 'ANNOUNCE_FREE']) {
+    for (const key of [
+      'BG',
+      'FRAME',
+      'WIN_SMALL',
+      'WIN_BIG',
+      'WIN_MEGA',
+      'ANNOUNCE_BONUS',
+      'ANNOUNCE_FREE',
+    ]) {
       expect(AssetLoader.getTexture(key)).toBeDefined()
     }
   })

@@ -95,11 +95,9 @@ async function init() {
     reelSet.scale.set(reelScale)
 
     // Keep reel centred, but shift right if the info panel would overlap it
-    const infoPanelRight = PAD + 200 * Math.min(1, W * 0.45 / 216) + PAD
+    const infoPanelRight = PAD + 200 * Math.min(1, (W * 0.45) / 216) + PAD
     const centeredX = (W - scaledW) / 2
-    reelSet.x = centeredX < infoPanelRight
-      ? Math.min(infoPanelRight, W - scaledW - PAD)
-      : centeredX
+    reelSet.x = centeredX < infoPanelRight ? Math.min(infoPanelRight, W - scaledW - PAD) : centeredX
     reelSet.y = PAD + (availH - scaledH) / 2
 
     // Mask — match the scaled reel-set footprint

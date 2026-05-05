@@ -310,6 +310,7 @@ describe('TrackedDistribution', () => {
 describe('distributionDo', () => {
   test('returns a pure value when no yields', () => {
     const d = distributionDo(function* () {
+      yield Distribution.pure(1)
       return 42
     })
     expect(Distribution.expectedValue(d as Distribution<number>)).toBe(42)

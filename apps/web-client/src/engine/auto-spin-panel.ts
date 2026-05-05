@@ -84,7 +84,6 @@ export class AutoSpinPanel extends Container {
     this._inner.addChild(this._sectionLabel('NUMBER OF SPINS', 0, -PANEL_H / 2 + 76))
 
     const chipW = 72
-    const chipH = 50
     const chipGap = 10
     const totalChipsW = PRESETS.length * chipW + (PRESETS.length - 1) * chipGap
     PRESETS.forEach(({ label, value }, i) => {
@@ -154,8 +153,12 @@ export class AutoSpinPanel extends Container {
     startBtn.y = PANEL_H / 2 - 42
     startBtn.interactive = true
     startBtn.cursor = 'pointer'
-    startBtn.on('pointerover', () => { startBg.tint = 0xaaddaa })
-    startBtn.on('pointerout', () => { startBg.tint = 0xffffff })
+    startBtn.on('pointerover', () => {
+      startBg.tint = 0xaaddaa
+    })
+    startBtn.on('pointerout', () => {
+      startBg.tint = 0xffffff
+    })
     startBtn.on('pointerdown', (e) => {
       e.stopPropagation()
       const config: AutoSpinConfig = {
@@ -194,8 +197,12 @@ export class AutoSpinPanel extends Container {
     btn.addChild(bg, label)
     btn.interactive = true
     btn.cursor = 'pointer'
-    btn.on('pointerover', () => { bg.tint = 0xbbbbff })
-    btn.on('pointerout', () => { bg.tint = 0xffffff })
+    btn.on('pointerover', () => {
+      bg.tint = 0xbbbbff
+    })
+    btn.on('pointerout', () => {
+      bg.tint = 0xffffff
+    })
     return btn
   }
 
