@@ -40,8 +40,6 @@ apps/simulations/*.pdf
 .claude/settings.local.json
 
 # Generated simulation reports
-*.html
-*.json
 !package.json
 !tsconfig*.json
 !**/config/*.json

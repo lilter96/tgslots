@@ -8,7 +8,30 @@
       "Bash(bun run *)",
       "Bash(bun -e \"const cfg = require\\('./packages/games/woodland-whisper/config/config.json'\\); console.log\\('COIN in inner?', cfg.inner_reel_strip.reel1.includes\\('COIN'\\)\\)\")",
       "Bash(xargs grep *)",
-      "Bash(bun -e ' *)"
+      "Bash(bun -e ' *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('symbols:', d.get\\('symbols', {}\\)\\)\")",
+      "Bash(python3 *)",
+      "Bash(bun x *)",
+      "Bash(bun install *)",
+      "Bash(bun test *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(echo \"---CURL_EXIT:$?\")",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(node -e \"const pixi = require\\('/Users/terentiygatsukov/Work/tgslots/node_modules/pixi.js'\\); console.log\\(Object.keys\\(pixi\\).filter\\(k => k.includes\\('Texture'\\) || k.includes\\('Source'\\) || k.includes\\('Canvas'\\)\\)\\)\")",
+      "Bash(curl -s http://localhost:3000/src/assets/symbols.ts)",
+      "WebSearch",
+      "WebFetch(domain:www.zvky.com)",
+      "WebFetch(domain:www.planet7casino.com)",
+      "WebFetch(domain:webdesign.tutsplus.com)",
+      "WebFetch(domain:gamixlabs.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:filters.pixijs.download)",
+      "WebFetch(domain:api.pixijs.io)",
+      "WebFetch(domain:gsap.com)",
+      "Bash(node -e \"const p = require\\('pixi.js'\\); console.log\\(Object.keys\\(p\\).filter\\(k => k.includes\\('Filter'\\)\\)\\)\")",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }
