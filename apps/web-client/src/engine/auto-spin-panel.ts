@@ -248,17 +248,20 @@ export class AutoSpinPanel extends Container {
     this._chipWidth = chipWidth
     this._chipHeight = chipHeight
 
+    const toggleWidth = toggleStacked
+      ? panelWidth - padding * 2
+      : (panelWidth - padding * 2 - toggleGap) / 2
     this._layoutToggle(
       this._winToggle,
-      toggleStacked ? 0 : -panelWidth / 4,
+      -panelWidth / 2 + padding,
       -panelHeight / 2 + togglesTop,
-      toggleStacked,
+      toggleWidth,
     )
     this._layoutToggle(
       this._bonusToggle,
-      toggleStacked ? 0 : panelWidth / 4,
+      toggleStacked ? -panelWidth / 2 + padding : -panelWidth / 2 + padding + toggleWidth + toggleGap,
       -panelHeight / 2 + togglesTop + (toggleStacked ? toggleHeight + toggleGap : 0),
-      toggleStacked,
+      toggleWidth,
     )
 
     this._startBg.clear()
@@ -300,14 +303,14 @@ export class AutoSpinPanel extends Container {
     return { container, box, check, label: labelText }
   }
 
-  private _layoutToggle(toggle: ToggleControl, x: number, y: number, centered: boolean) {
+  private _layoutToggle(toggle: ToggleControl, x: number, y: number, width: number) {
     toggle.container.x = x
     toggle.container.y = y
     toggle.check.x = 11
     toggle.check.y = 0
-    toggle.label.style.fontSize = centered ? 14 : 15
-    toggle.label.anchor.set(centered ? 0.5 : 0, 0.5)
-    toggle.label.x = centered ? 40 : 30
+    toggle.label.style.fontSize = width < 170 ? 14 : 15
+    toggle.label.anchor.set(0, 0.5)
+    toggle.label.x = 32
     toggle.label.y = 0
   }
 

@@ -36,11 +36,13 @@ Make the Woodland Whisper web client fully adaptive across phone, tablet, and de
 - Rebuilt `HUD` as a reflowing bottom-footer layout instead of a fixed pair of scaled containers. The HUD now:
   - renders balance, bet, win, and free-spins status as responsive info cards,
   - pins both the info strip and the control dock to the bottom edge like a modern slot footer,
-  - adapts across portrait, compact landscape, and wide desktop layouts without moving HUD info to the top or side.
+  - adapts across portrait, compact landscape, and wide desktop layouts without moving HUD info to the top or side,
+  - keeps balance / bet / win / free-spins cards intentionally narrower on normal and large screens instead of stretching them across the full footer width.
 - Refactored `AutoSpinPanel` into a responsive modal that:
   - sizes itself from viewport bounds,
   - reflows preset chips into multiple rows on narrow screens,
-  - stacks stop-condition toggles when horizontal space is limited.
+  - stacks stop-condition toggles when horizontal space is limited,
+  - uses stable left-aligned toggle rows to avoid broken placement after the footer refactor.
 - Refactored `PickBonusUI` into a viewport-scaled feature board with responsive title sizing and centered feature bounds.
 - Refactored `WinOverlay` to resize from the responsive layout snapshot and keep announcement scale readable on smaller screens.
 - Added `apps/web-client/src/engine/__tests__/layout.test.ts` covering representative phone, tablet, laptop, and desktop viewports.

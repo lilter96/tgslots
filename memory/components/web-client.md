@@ -27,10 +27,10 @@ Pixi-based Woodland Whisper frontend. Owns responsive scene layout, local sessio
 
 - `GameController` is the orchestration layer between API state, reel animations, feature overlays, and HUD synchronization.
 - `layout.ts` computes a shared viewport snapshot for reels, a bottom-pinned HUD footer, modals, and overlay anchors across portrait, compact landscape, and wide desktop layouts.
-- `HUD` renders balance, bet, last win, the buy-bonus button, auto-spin controls, and the persistent free-spins status panel via adaptive info cards and a bottom-pinned responsive control dock.
+- `HUD` renders balance, bet, last win, the buy-bonus button, auto-spin controls, and the persistent free-spins status panel via adaptive info cards with capped desktop widths and a bottom-pinned responsive control dock.
 - `WinOverlay` renders transient feature announcements from layout-driven overlay anchors and scales copy/artwork by viewport size.
 - `PickBonusUI` renders the 20-card pick-bonus board inside responsive feature bounds and restores revealed picks from session state.
-- `AutoSpinPanel` renders a responsive modal with wrapped preset chips and stacked toggles on narrow screens.
+- `AutoSpinPanel` renders a responsive modal with wrapped preset chips and stable left-aligned toggle rows on narrow and wide screens.
 
 ## Free Spins UX
 

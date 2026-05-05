@@ -229,14 +229,19 @@ export class HUD extends Container {
     const gap = layout.hudMode === 'portrait' ? 8 : 10
 
     const minCardWidth =
-      layout.hudMode === 'wide' ? 140 : layout.hudMode === 'portrait' ? 92 : 110
+      layout.hudMode === 'wide' ? 132 : layout.hudMode === 'portrait' ? 92 : 104
+    const targetCardWidth =
+      layout.hudMode === 'wide' ? 156 : layout.hudMode === 'portrait' ? 108 : 118
+    const maxCardWidth =
+      layout.hudMode === 'wide' ? 168 : layout.hudMode === 'portrait' ? 136 : 128
     const cols = Math.min(
       activeCards.length,
       Math.max(1, Math.floor((infoArea.width + gap) / (minCardWidth + gap))),
     )
     const rows = Math.ceil(activeCards.length / cols)
 
-    const cardWidth = (infoArea.width - gap * (cols - 1)) / cols
+    const availableCardWidth = (infoArea.width - gap * (cols - 1)) / cols
+    const cardWidth = rows === 1 ? Math.min(maxCardWidth, Math.max(minCardWidth, Math.min(targetCardWidth, availableCardWidth))) : availableCardWidth
     const cardHeight = (infoArea.height - gap * (rows - 1)) / rows
 
     const usedWidth = cols * cardWidth + gap * (cols - 1)
