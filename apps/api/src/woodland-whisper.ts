@@ -3,6 +3,12 @@ import { jsRng } from '@tgslots/math/rng'
 import { Wager } from '@tgslots/slots-core/betting'
 import { BET_CONFIG } from '@tgslots/woodland-whisper/constants'
 import { createSession, getSession } from './sessions.js'
+import {
+  ActionResponseSchema,
+  ErrorResponseSchema,
+  SpinResponseSchema,
+  StateResponseSchema,
+} from './dtos.js'
 
 const rng = jsRng()
 
@@ -46,10 +52,66 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
         multiplier: t.Integer({ minimum: 1 }),
         sessionId: t.Optional(t.String()),
       }),
+      response: {
+        200: SpinResponseSchema,
+        400: ErrorResponseSchema,
+        404: ErrorResponseSchema,
+      },
       detail: {
         tags: ['Woodland Whisper'],
         summary: 'Start a new round (Base Spin)',
         description: 'Starts a new game round. If sessionId is not provided, a new session is created.',
+      },
+    },
+  )
+
+  // POST /woodlandwhisper/buybonus
+  // Purchases a bonus round (guaranteed scatter trigger).
+  .post(
+    '/buybonus',
+    ({ body, set }) => {
+      let sessionId: string
+      let machine
+
+      if (body.sessionId) {
+        const found = getSession(body.sessionId)
+        if (!found) {
+          set.status = 404
+          return { error: 'Session not found or expired' }
+        }
+        sessionId = body.sessionId
+        machine = found
+      } else {
+        const session = createSession()
+        sessionId = session.id
+        machine = session.machine
+      }
+
+      let wager: Wager
+      try {
+        wager = new Wager(body.multiplier, BET_CONFIG)
+      } catch (e) {
+        set.status = 400
+        return { error: (e as Error).message }
+      }
+
+      const result = machine.buyBonus(rng, wager)
+      return { sessionId, result, state: machine.state }
+    },
+    {
+      body: t.Object({
+        multiplier: t.Integer({ minimum: 1 }),
+        sessionId: t.Optional(t.String()),
+      }),
+      response: {
+        200: SpinResponseSchema,
+        400: ErrorResponseSchema,
+        404: ErrorResponseSchema,
+      },
+      detail: {
+        tags: ['Woodland Whisper'],
+        summary: 'Buy Bonus',
+        description: 'Purchases a guaranteed bonus trigger. If sessionId is not provided, a new session is created.',
       },
     },
   )
@@ -78,6 +140,11 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
     },
     {
       body: t.Object({ sessionId: t.String() }),
+      response: {
+        200: ActionResponseSchema,
+        400: ErrorResponseSchema,
+        404: ErrorResponseSchema,
+      },
       detail: {
         tags: ['Woodland Whisper'],
         summary: 'Play a Free Spin',
@@ -115,6 +182,11 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
         sessionId: t.String(),
         userIndex: t.Integer({ minimum: 0 }),
       }),
+      response: {
+        200: ActionResponseSchema,
+        400: ErrorResponseSchema,
+        404: ErrorResponseSchema,
+      },
       detail: {
         tags: ['Woodland Whisper'],
         summary: 'Submit a Pick',
@@ -127,20 +199,37 @@ export const woodlandWhisperRouter = new Elysia({ prefix: '/woodlandwhisper' })
   // Returns the current game state for session recovery.
   .get(
     '/state',
-    ({ query, set }) => {
-      const machine = getSession(query.sessionId)
-      if (!machine) {
-        set.status = 404
-        return { error: 'Session not found or expired' }
+    ({ query }) => {
+      let machine
+      let finalSessionId: string
+
+      if (query.sessionId) {
+        machine = getSession(query.sessionId)
       }
-      return { sessionId: query.sessionId, state: machine.state }
+
+      if (machine && query.sessionId) {
+        finalSessionId = query.sessionId
+      } else {
+        const session = createSession()
+        finalSessionId = session.id
+        machine = session.machine
+        // Bootstrap the new session with a neutral non-winning grid
+        machine.initInitialGrid(rng)
+      }
+
+      return { sessionId: finalSessionId, state: machine.state }
     },
     {
-      query: t.Object({ sessionId: t.String() }),
+      query: t.Object({ sessionId: t.Optional(t.String()) }),
+      response: {
+        200: StateResponseSchema,
+        404: ErrorResponseSchema,
+      },
       detail: {
         tags: ['Woodland Whisper'],
         summary: 'Get Current State',
-        description: 'Returns the current game state for session recovery or UI sync.',
+        description:
+          'Returns the current game state. If sessionId is missing or expired, a new session is initialized.',
       },
     },
   )

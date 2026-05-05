@@ -3,15 +3,14 @@ import type {
   WoodlandWhisperBaseResult,
   WoodlandWhisperBuyResult,
   WoodlandWhisperFreeResult,
+  WoodlandWhisperState,
 } from '@tgslots/woodland-whisper'
 import {
   BET_CONFIG,
   BUY_BONUS_COST_MULTIPLIER,
   PAYLINE_DATA,
   Symbols,
-  WoodlandWhisperStateMachine,
 } from '@tgslots/woodland-whisper'
-import { mt19937 } from '@tgslots/math'
 import { Wager } from '@tgslots/slots-core'
 import { GameStateMachine } from './state-machine'
 import { ReelSet } from './reel-set'
@@ -20,6 +19,7 @@ import { PickBonusUI } from './pick-bonus-ui'
 import { WinOverlay } from './win-overlay'
 import { GameUIState } from '../types'
 import type { AutoSpinConfig } from '../types'
+import { APIClient } from './api-client'
 
 // Game returns grid[row][col] (3 rows × 5 cols), ReelSet expects grid[col][row] (5 reels × 3 rows)
 function transposeGrid(grid: number[][]): number[][] {
@@ -45,8 +45,12 @@ export class GameController {
   private _session: SessionManager
   private _pickUI?: PickBonusUI
   private _overlay?: WinOverlay
-  private _game: WoodlandWhisperStateMachine
-  private _rng = mt19937(Date.now())
+  private _api = new APIClient()
+  private _gameState: WoodlandWhisperState = {
+    lastGrid: null,
+    freeSpins: null,
+    pickBonus: null,
+  }
   private _autoSpinState: AutoSpinState | null = null
 
   constructor(
@@ -58,11 +62,10 @@ export class GameController {
     this._fsm = fsm
     this._reels = reels
     this._session = session
-    this._game = new WoodlandWhisperStateMachine()
   }
 
   get isFreeSpins(): boolean {
-    return !!this._game.state.freeSpins
+    return !!this._gameState.freeSpins
   }
 
   get isAutoSpin(): boolean {
@@ -80,6 +83,54 @@ export class GameController {
 
   public setOverlay(overlay: WinOverlay) {
     this._overlay = overlay
+  }
+
+  /**
+   * Initializes the game by fetching state from the server.
+   * Restores the grid and resumes any active features (Free Spins / Pick Bonus).
+   */
+  public async init(): Promise<void> {
+    const { state } = await this._api.getState()
+    this._gameState = state
+
+    // Initialize reels with the last known grid
+    if (state.lastGrid) {
+      this._reels.setSymbols(transposeGrid(state.lastGrid))
+    }
+
+    // Resume Pick Bonus if active
+    if (state.pickBonus) {
+      this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+      this.runPickBonus().then(() => this.resumeAfterFeature())
+      return
+    }
+
+    // Resume Free Spins if active
+    if (state.freeSpins && state.freeSpins.spinsRemaining > 0) {
+      this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+      this.resumeFreeSpins().then(() => this.resumeAfterFeature())
+      return
+    }
+  }
+
+  private async resumeFreeSpins(): Promise<void> {
+    while (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
+      const { result, state } = await this._api.freeSpin()
+      this._gameState = state
+      await this.runFreeSpin(result as WoodlandWhisperFreeResult)
+
+      if (result.retriggeredPickBonus) {
+        this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+        await this._overlay?.announce('BONUS!', 1500)
+        await this.runPickBonus()
+      }
+    }
+  }
+
+  private resumeAfterFeature(): void {
+    if (this._fsm.state !== GameUIState.IDLE) {
+      this._fsm.transitionTo(GameUIState.IDLE)
+    }
   }
 
   public startAutoSpin(config: AutoSpinConfig): void {
@@ -167,9 +218,12 @@ export class GameController {
 
     // ── Base spin ─────────────────────────────────────────────────────────
     this._fsm.transitionTo(GameUIState.SPINNING)
-    await this._reels.spin()
+    this._reels.spin()
 
-    const baseResult = this._game.spin(this._rng, wager) as WoodlandWhisperBaseResult
+    const { result, state } = await this._api.spin(this._session.betMultiplier)
+    const baseResult = result as WoodlandWhisperBaseResult
+    this._gameState = state
+
     await this.wait(this._config.spinDelay)
 
     this._fsm.transitionTo(GameUIState.STOPPING)
@@ -195,23 +249,16 @@ export class GameController {
     }
 
     // ── Free spin loop ────────────────────────────────────────────────────
-    if (this._game.state.freeSpins && !baseResult.triggeredPickBonus) {
+    if (this._gameState.freeSpins && !baseResult.triggeredPickBonus) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       await this._overlay?.announce('FREE SPINS!', 1500)
     }
 
-    while (this._game.state.freeSpins && this._game.state.freeSpins.spinsRemaining > 0) {
+    if (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
-      const freeResult = this._game.next(this._rng) as WoodlandWhisperFreeResult
-      await this.runFreeSpin(freeResult)
-      cycleWin += freeResult.win
-
-      if (freeResult.retriggeredPickBonus) {
-        bonusTriggered = true
-        this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
-        await this._overlay?.announce('BONUS!', 1500)
-        await this.runPickBonus()
-      }
+      await this.resumeFreeSpins()
+      // cycleWin update from resumeFreeSpins would require returning win from it,
+      // but session win is already updated inside runFreeSpin.
     }
 
     // ── Done ──────────────────────────────────────────────────────────────
@@ -259,9 +306,12 @@ export class GameController {
 
     // ── Guaranteed-scatter spin ────────────────────────────────────────────
     this._fsm.transitionTo(GameUIState.SPINNING)
-    await this._reels.spin()
+    this._reels.spin()
 
-    const buyResult = this._game.buyBonus(this._rng, wager) as WoodlandWhisperBuyResult
+    const { result, state } = await this._api.buyBonus(this._session.betMultiplier)
+    const buyResult = result as WoodlandWhisperBuyResult
+    this._gameState = state
+
     await this.wait(this._config.spinDelay)
 
     this._fsm.transitionTo(GameUIState.STOPPING)
@@ -283,21 +333,14 @@ export class GameController {
     await this.runPickBonus()
 
     // ── Free spin loop ─────────────────────────────────────────────────────
-    if (this._game.state.freeSpins) {
+    if (this._gameState.freeSpins) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
       await this._overlay?.announce('FREE SPINS!', 1500)
     }
 
-    while (this._game.state.freeSpins && this._game.state.freeSpins.spinsRemaining > 0) {
+    if (this._gameState.freeSpins && this._gameState.freeSpins.spinsRemaining > 0) {
       this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
-      const freeResult = this._game.next(this._rng) as WoodlandWhisperFreeResult
-      await this.runFreeSpin(freeResult)
-
-      if (freeResult.retriggeredPickBonus) {
-        this._fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
-        await this._overlay?.announce('BONUS!', 1500)
-        await this.runPickBonus()
-      }
+      await this.resumeFreeSpins()
     }
 
     const s = this._fsm.state as GameUIState
@@ -336,10 +379,12 @@ export class GameController {
     this._pickUI.show()
 
     await new Promise<void>((resolve) => {
-      const onPick = (index: number) => {
-        if (!this._game.state.pickBonus) return
+      const onPick = async (index: number) => {
+        if (!this._gameState.pickBonus) return
 
-        const pickResult = this._game.pickBall(index)
+        const { result, state } = await this._api.pick(index)
+        const pickResult = result as any // PickResult
+        this._gameState = state
 
         this._pickUI!.revealCard(pickResult.pick.revealedIndex, pickResult.pick.value)
 

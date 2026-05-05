@@ -75,4 +75,17 @@ export class ReelSet extends Container {
       }
     }
   }
+
+  /**
+   * Instantly updates all reels to show specific symbols.
+   * @param grid Grid of symbol IDs in [col][row] format.
+   */
+  public setSymbols(grid: number[][]): void {
+    this._reels.forEach((reel, colIndex) => {
+      const symbols = grid[colIndex]
+      if (symbols) {
+        reel.setSymbols(symbols)
+      }
+    })
+  }
 }

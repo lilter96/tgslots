@@ -1,0 +1,113 @@
+import type {
+  WoodlandWhisperResult,
+  WoodlandWhisperState,
+} from '@tgslots/woodland-whisper/game-state-machine'
+
+export interface SpinResponse {
+  sessionId: string
+  result: WoodlandWhisperResult
+  state: WoodlandWhisperState
+}
+
+export interface ActionResponse {
+  result: WoodlandWhisperResult
+  state: WoodlandWhisperState
+}
+
+export interface StateResponse {
+  sessionId: string
+  state: WoodlandWhisperState
+}
+
+export class APIClient {
+  private _sessionId: string | null = null
+  private _baseUrl: string = 'http://localhost:3001/woodlandwhisper'
+
+  constructor() {
+    this._sessionId = localStorage.getItem('tgslots_session_id')
+  }
+
+  public get sessionId(): string | null {
+    return this._sessionId
+  }
+
+  private setSessionId(id: string | null) {
+    this._sessionId = id
+    if (id) {
+      localStorage.setItem('tgslots_session_id', id)
+    } else {
+      localStorage.removeItem('tgslots_session_id')
+    }
+  }
+
+  private async request<T>(path: string, options: RequestInit): Promise<T> {
+    const res = await fetch(`${this._baseUrl}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    })
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(error.error || `HTTP ${res.status}`)
+    }
+
+    return res.json()
+  }
+
+  public async spin(multiplier: number): Promise<SpinResponse> {
+    const body: any = { multiplier }
+    if (this._sessionId) body.sessionId = this._sessionId
+
+    const data = await this.request<SpinResponse>('/spin', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+
+    this.setSessionId(data.sessionId)
+    return data
+  }
+
+  public async buyBonus(multiplier: number): Promise<SpinResponse> {
+    const body: any = { multiplier }
+    if (this._sessionId) body.sessionId = this._sessionId
+
+    const data = await this.request<SpinResponse>('/buybonus', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+
+    this.setSessionId(data.sessionId)
+    return data
+  }
+
+  public async freeSpin(): Promise<ActionResponse> {
+    if (!this._sessionId) throw new Error('No active session')
+
+    return this.request<ActionResponse>('/freespin', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId: this._sessionId }),
+    })
+  }
+
+  public async pick(userIndex: number): Promise<ActionResponse> {
+    if (!this._sessionId) throw new Error('No active session')
+
+    return this.request<ActionResponse>('/pick', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId: this._sessionId, userIndex }),
+    })
+  }
+
+  public async getState(sessionId?: string): Promise<StateResponse> {
+    const id = sessionId || this._sessionId
+    const path = id ? `/state?sessionId=${id}` : '/state'
+    const data = await this.request<StateResponse>(path, {
+      method: 'GET',
+    })
+    this.setSessionId(data.sessionId)
+    return data
+  }
+}

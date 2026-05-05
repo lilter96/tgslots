@@ -7,7 +7,7 @@ import type {
 } from '@tgslots/slots-simulation-engine'
 import type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 import { Wager } from '@tgslots/slots-core/betting'
-import { WOODLAND_WHISPER_SAMPLER, BUY_BONUS_SAMPLER } from './logic.js'
+import { WOODLAND_WHISPER_SAMPLER, BUY_BONUS_SAMPLER, INITIAL_GRID_SAMPLER } from './logic.js'
 
 export interface FreeSpinState {
   triggeringWager: Wager
@@ -108,6 +108,15 @@ export class WoodlandWhisperStateMachine implements StateMachine<
 
   get state(): WoodlandWhisperState {
     return this._state
+  }
+
+  /**
+   * Initializes the state with a random non-winning grid.
+   * Used for brand new sessions to provide a valid but neutral initial screen.
+   */
+  initInitialGrid(rng: Rng): void {
+    const result = INITIAL_GRID_SAMPLER.sample(rng)
+    this._state.lastGrid = result.grid
   }
 
   baseGameSpin(rng: Rng, wager: Wager): WoodlandWhisperBaseResult {

@@ -8,6 +8,7 @@ import { Wager } from '@tgslots/slots-core/betting'
 import { ProjectedGrid } from '@tgslots/slots-core/spin-grid/spin-grid'
 import { engine } from './engine.js'
 import {
+  BET_CONFIG,
   FREE_SPIN_MULTIPLIER,
   INNER_WEIGHTS,
   PICK_BONUS_TABLE,
@@ -278,3 +279,28 @@ function createBuyBonusSampler(wager: Wager): Sampler<SpinEvaluationResult> {
 
 export const BUY_BONUS_SAMPLER = (wager: Wager): Sampler<SpinEvaluationResult> =>
   createBuyBonusSampler(wager)
+
+/**
+ * Sampler for the initial screen.
+ * Generates a random grid that is guaranteed to have NO wins and < 2 scatters.
+ */
+function createInitialGridSampler(): Sampler<SpinEvaluationResult> {
+  const defaultWager = new Wager(1, BET_CONFIG)
+  const baseSampler = innerSampler.flatMap((repSym) => {
+    const repIdx = INNER_IDX.get(repSym as number)!
+    return Sampler.traverse(POS_SAMPLERS, (ps) => ps).map((positions) =>
+      evaluateWithWager(RESOLVED[repIdx]!, positions, defaultWager, false),
+    )
+  })
+
+  return baseSampler.flatMap((result) => {
+    if (result.win === 0 && result.sc < 2) {
+      return Sampler.pure({ ...result, pickedBonus: 0 })
+    }
+    // Retry if it's a winning grid or has too many scatters.
+    // In practice, non-winning grids are very common, so this is efficient.
+    return createInitialGridSampler()
+  })
+}
+
+export const INITIAL_GRID_SAMPLER = createInitialGridSampler()

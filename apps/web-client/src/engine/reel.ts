@@ -119,4 +119,22 @@ export class Reel extends Container {
   public getSymbolAt(row: number): SymbolView | null {
     return this._symbols[row] ?? null
   }
+
+  /**
+   * Instantly updates the visible symbols on the reel without animation.
+   * @param symbols Array of symbol IDs. Should contain at least 'visibleSymbols' count.
+   */
+  public setSymbols(symbols: number[]): void {
+    const { symbolHeight } = this._config
+    this._symbols.forEach((symbol, i) => {
+      gsap.killTweensOf(symbol)
+      const symbolId = symbols[i % symbols.length]
+      if (symbolId !== undefined) {
+        symbol.setTexture(AssetLoader.getSymbolTexture(symbolId, this._symbolNames))
+      }
+      symbol.y = i * symbolHeight
+      symbol.setBlur(0)
+    })
+    this._spinning = false
+  }
 }

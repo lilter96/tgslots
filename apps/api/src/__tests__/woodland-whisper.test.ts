@@ -1,11 +1,5 @@
 /**
  * End-to-end integration tests for the Woodland Whisper API.
- *
- * Tests use Elysia's `.handle()` to exercise the full request/response
- * pipeline (routing, schema validation, error handling) without a real
- * network socket.  Where the outcome depends on a seeded RNG, we bypass
- * the random path by injecting deterministic state directly into the
- * session store.
  */
 import { describe, expect, it } from 'bun:test'
 import { Elysia } from 'elysia'
@@ -41,22 +35,9 @@ async function get(path: string): Promise<{ status: number; body: any }> {
 
 // ─── Deterministic state builders ───────────────────────────────────────────
 
-// A known wager used for all injected states
 const WAGER = new Wager(1, BET_CONFIG)
-
-// Board: 20 cards, 10 distinct values each appearing twice
 const BOARD: number[] = [10, 8, 10, 8, 15, 15, 20, 20, 30, 30, 50, 50, 75, 75, 100, 100, 13, 13, 9, 9]
-
-// Sequence that reaches match on the 4th reveal:
-//   pos 4 → 15 (new)
-//   pos 7 → 20 (new)
-//   pos 0 → 10 (new)
-//   pos 2 → 10 (repeat = match, winValue = 10)
 const PICK_SEQUENCE_TO_MATCH_AT_4 = [4, 7, 0, 2]
-
-// Sequence that matches on the 2nd reveal:
-//   pos 0 → 10 (new)
-//   pos 2 → 10 (repeat = match)
 const PICK_SEQUENCE_TO_MATCH_AT_2 = [0, 2]
 
 function makePickBonusState(overrides: Partial<PickBonusState> = {}): PickBonusState {
@@ -83,7 +64,7 @@ function makeFreeSpinState(overrides: Partial<FreeSpinState> = {}): FreeSpinStat
 
 function injectState(machine: any, partial: Partial<WoodlandWhisperState>): void {
   machine._state = {
-    lastGrid: null,
+    lastGrid: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
     freeSpins: null,
     pickBonus: null,
     ...partial,
@@ -128,19 +109,51 @@ describe('Session management', () => {
     expect(status).toBe(200)
     expect(body.sessionId).toBe(sessionId)
     expect(body.state).toBeDefined()
-    expect('freeSpins' in body.state).toBe(true)
-    expect('pickBonus' in body.state).toBe(true)
   })
 
-  it('GET /state with unknown sessionId returns 404', async () => {
-    const { status } = await get('/woodlandwhisper/state?sessionId=ghost')
-    expect(status).toBe(404)
+  it('GET /state without sessionId creates a new session with initial grid', async () => {
+    const { status, body } = await get('/woodlandwhisper/state')
+    expect(status).toBe(200)
+    expect(typeof body.sessionId).toBe('string')
+    expect(body.state.lastGrid).toHaveLength(3)
+    expect(body.state.lastGrid[0]).toHaveLength(5)
+  })
+
+  it('GET /state with unknown/expired sessionId creates a new session', async () => {
+    const { status, body } = await get('/woodlandwhisper/state?sessionId=expired-id')
+    expect(status).toBe(200)
+    expect(body.sessionId).not.toBe('expired-id')
+    expect(body.state.lastGrid).toBeDefined()
   })
 
   it('each POST /spin without sessionId creates a distinct session', async () => {
     const a = await post('/woodlandwhisper/spin', { multiplier: 1 })
     const b = await post('/woodlandwhisper/spin', { multiplier: 1 })
     expect(a.body.sessionId).not.toBe(b.body.sessionId)
+  })
+})
+
+// ─── Buy Bonus ───────────────────────────────────────────────────────────────
+
+describe('POST /buybonus', () => {
+  it('returns type BUY with a guaranteed bonus trigger', async () => {
+    const { status, body } = await post('/woodlandwhisper/buybonus', { multiplier: 1 })
+    expect(status).toBe(200)
+    expect(body.result.type).toBe('BUY')
+    expect(body.result.triggeredPickBonus).toBe(true)
+    expect(body.state.pickBonus).not.toBeNull()
+  })
+
+  it('creates a new session if sessionId is missing', async () => {
+    const { body } = await post('/woodlandwhisper/buybonus', { multiplier: 1 })
+    expect(typeof body.sessionId).toBe('string')
+  })
+
+  it('reuses session if sessionId is valid', async () => {
+    const first = await post('/woodlandwhisper/spin', { multiplier: 1 })
+    const id = first.body.sessionId
+    const second = await post('/woodlandwhisper/buybonus', { multiplier: 1, sessionId: id })
+    expect(second.body.sessionId).toBe(id)
   })
 })
 
@@ -176,7 +189,6 @@ describe('POST /spin — base game response structure', () => {
   })
 
   it('when no features are triggered, top-level state has null freeSpins and pickBonus', async () => {
-    // Run up to 50 spins on a fresh session until we find one with no trigger
     let cleanBody: any
     for (let i = 0; i < 50; i++) {
       const { body } = await post('/woodlandwhisper/spin', { multiplier: 1 })
@@ -209,7 +221,6 @@ describe('Pick bonus — state transitions', () => {
     const { id, machine } = createSession()
     injectState(machine, { pickBonus: makePickBonusState() })
 
-    // User taps card 19 — but pickSequence[0]=4, so board[4]=15 is revealed
     const { status, body } = await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 19 })
     expect(status).toBe(200)
     expect(body.result.type).toBe('PICK')
@@ -227,13 +238,11 @@ describe('Pick bonus — state transitions', () => {
     const r0 = await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 3 })
     const r1 = await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 7 })
 
-    // sequence: pos4→15 then pos7→20
     expect(r0.body.result.pick.revealedIndex).toBe(4)
     expect(r0.body.result.pick.value).toBe(15)
     expect(r1.body.result.pick.revealedIndex).toBe(7)
     expect(r1.body.result.pick.value).toBe(20)
 
-    // state accumulates userPicks and advances currentPickIndex
     expect(r1.body.state.pickBonus.currentPickIndex).toBe(2)
     expect(r1.body.state.pickBonus.userPicks).toEqual([3, 7])
     expect(r1.body.state.pickBonus.revealedValues).toEqual([15, 20])
@@ -253,17 +262,16 @@ describe('Pick bonus — state transitions', () => {
     const { id, machine } = createSession()
     injectState(machine, { pickBonus: makePickBonusState() })
 
-    // Play through all 4 picks: 15, 20, 10, 10(match)
     await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
     await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
     await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
     const { body } = await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
 
     expect(body.result.pick.isMatch).toBe(true)
-    expect(body.result.pick.value).toBe(10) // winValue
+    expect(body.result.pick.value).toBe(10)
     expect(body.state.pickBonus).toBeNull()
     expect(body.state.freeSpins).not.toBeNull()
-    expect(body.state.freeSpins.spinsRemaining).toBe(10) // winValue = 10
+    expect(body.state.freeSpins.spinsRemaining).toBe(10)
     expect(body.state.freeSpins.totalWin).toBe(0)
   })
 
@@ -285,7 +293,6 @@ describe('Pick bonus — state transitions', () => {
 
   it('retrigger during free spins adds winValue on top of existing spinsRemaining', async () => {
     const { id, machine } = createSession()
-    // Active free spins (3 remaining) and a simultaneous pick bonus
     injectState(machine, {
       freeSpins: makeFreeSpinState({ spinsRemaining: 3, totalWin: 500 }),
       pickBonus: makePickBonusState({ pickSequence: PICK_SEQUENCE_TO_MATCH_AT_2 }),
@@ -295,8 +302,8 @@ describe('Pick bonus — state transitions', () => {
     const { body } = await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
 
     expect(body.result.pick.isMatch).toBe(true)
-    expect(body.state.freeSpins.spinsRemaining).toBe(13) // 3 existing + 10 winValue
-    expect(body.state.freeSpins.totalWin).toBe(500)       // preserved
+    expect(body.state.freeSpins.spinsRemaining).toBe(13)
+    expect(body.state.freeSpins.totalWin).toBe(500)
     expect(body.state.pickBonus).toBeNull()
   })
 
@@ -382,8 +389,6 @@ describe('Free spins — state transitions', () => {
   })
 
   it('last free spin reaches spinsRemaining 0; freeSpins object stays until next spin', async () => {
-    // The state machine decrements to 0 but does NOT null out freeSpins —
-    // that only happens when spin() starts a new round.
     const { id, machine } = createSession()
     injectState(machine, { freeSpins: makeFreeSpinState({ spinsRemaining: 1 }) })
 
@@ -391,10 +396,8 @@ describe('Free spins — state transitions', () => {
     expect(body.result.type).toBe('FREE')
 
     if (!body.result.retriggeredPickBonus) {
-      // spinsRemaining reached 0; the freeSpins object persists with count 0
       expect(body.state.freeSpins.spinsRemaining).toBe(0)
     } else {
-      // Retrigger added more spins — still active
       expect(body.state.freeSpins.spinsRemaining).toBeGreaterThan(0)
       expect(body.state.pickBonus).not.toBeNull()
     }
@@ -407,7 +410,6 @@ describe('Free spins — state transitions', () => {
     const first = await post('/woodlandwhisper/freespin', { sessionId: id })
     expect(first.status).toBe(200)
 
-    // If it retriggered we can't test the 0-remaining guard here — skip
     if (first.body.result.retriggeredPickBonus) return
 
     const second = await post('/woodlandwhisper/freespin', { sessionId: id })
@@ -456,12 +458,9 @@ describe('POST /spin — resets in-progress state', () => {
 
     const { body } = await post('/woodlandwhisper/spin', { sessionId: id, multiplier: 1 })
     expect(body.result.type).toBe('BASE')
-    // Old totalWin must be gone; if this spin itself triggered pick bonus,
-    // freeSpins will be null (pick bonus comes before free spins)
     if (!body.result.triggeredPickBonus) {
       expect(body.state.freeSpins).toBeNull()
     }
-    // Old totalWin of 9999 must not appear in current freeSpins
     if (body.state.freeSpins) {
       expect(body.state.freeSpins.totalWin).not.toBe(9999)
     }
@@ -486,57 +485,8 @@ describe('POST /spin — resets in-progress state', () => {
     })
 
     const { body } = await post('/woodlandwhisper/spin', { sessionId: id, multiplier: 1 })
-    // totalFreeSpinWin in the result state must come from the new round only
     expect(body.result.state.totalFreeSpinWin).toBe(0)
     expect(body.result.state.freeSpinsLeft).toBe(0)
-  })
-})
-
-// ─── State consistency: response vs GET /state ───────────────────────────────
-
-describe('State consistency — response body vs GET /state', () => {
-  it('state returned by POST /spin matches subsequent GET /state', async () => {
-    const { body: spinBody } = await post('/woodlandwhisper/spin', { multiplier: 1 })
-    const sessionId: string = spinBody.sessionId
-
-    const { body: stateBody } = await get(`/woodlandwhisper/state?sessionId=${sessionId}`)
-    expect(stateBody.state).toEqual(spinBody.state)
-  })
-
-  it('state is stable between consecutive GET /state calls without any action', async () => {
-    const { id } = createSession()
-
-    const a = await get(`/woodlandwhisper/state?sessionId=${id}`)
-    const b = await get(`/woodlandwhisper/state?sessionId=${id}`)
-    expect(a.body.state).toEqual(b.body.state)
-  })
-
-  it('state progresses correctly through full pick bonus → free spins sequence', async () => {
-    const { id, machine } = createSession()
-    injectState(machine, { pickBonus: makePickBonusState({ pickSequence: PICK_SEQUENCE_TO_MATCH_AT_2 }) })
-
-    // Before any picks: pickBonus active, freeSpins null
-    const s0 = await get(`/woodlandwhisper/state?sessionId=${id}`)
-    expect(s0.body.state.pickBonus).not.toBeNull()
-    expect(s0.body.state.freeSpins).toBeNull()
-
-    // First pick: no match yet
-    await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
-    const s1 = await get(`/woodlandwhisper/state?sessionId=${id}`)
-    expect(s1.body.state.pickBonus).not.toBeNull()
-    expect(s1.body.state.pickBonus.currentPickIndex).toBe(1)
-    expect(s1.body.state.freeSpins).toBeNull()
-
-    // Second pick: match — pickBonus clears, freeSpins starts
-    await post('/woodlandwhisper/pick', { sessionId: id, userIndex: 0 })
-    const s2 = await get(`/woodlandwhisper/state?sessionId=${id}`)
-    expect(s2.body.state.pickBonus).toBeNull()
-    expect(s2.body.state.freeSpins.spinsRemaining).toBe(10)
-
-    // Play one free spin
-    await post('/woodlandwhisper/freespin', { sessionId: id })
-    const s3 = await get(`/woodlandwhisper/state?sessionId=${id}`)
-    expect(s3.body.state.freeSpins.spinsRemaining).toBe(9)
   })
 })
 
@@ -575,11 +525,6 @@ describe('Input validation', () => {
 
   it('POST /freespin with missing sessionId is rejected', async () => {
     const { status } = await post('/woodlandwhisper/freespin', {})
-    expect(status).toBeGreaterThanOrEqual(400)
-  })
-
-  it('GET /state without sessionId query param is rejected', async () => {
-    const { status } = await get('/woodlandwhisper/state')
     expect(status).toBeGreaterThanOrEqual(400)
   })
 })

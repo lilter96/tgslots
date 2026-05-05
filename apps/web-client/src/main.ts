@@ -43,11 +43,10 @@ async function init() {
   const gridConfig = { reels: 5, rows: 3, reelSpacing: 20 }
   const reelConfig = { symbolWidth: 140, symbolHeight: 140, visibleSymbols: 3, totalSymbols: 5 }
 
-  const initialGrid = Array.from({ length: 5 }, () =>
-    Array.from({ length: 5 }, () => Math.floor(Math.random() * (SYM_NAMES.length - 1))),
-  )
+  // Initial grid will be fetched from server in controller.init()
+  const emptyGrid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => 0))
 
-  const reelSet = new ReelSet(gridConfig, reelConfig, initialGrid, [...SYM_NAMES])
+  const reelSet = new ReelSet(gridConfig, reelConfig, emptyGrid, [...SYM_NAMES])
 
   const mask = new Graphics()
   app.stage.addChild(mask)
@@ -72,6 +71,10 @@ async function init() {
 
   const autoSpinPanel = new AutoSpinPanel()
   app.stage.addChild(autoSpinPanel)
+
+  // ── Bootstrap ───────────────────────────────────────────────────────────
+
+  await controller.init()
 
   // ── Layout ──────────────────────────────────────────────────────────────
 
