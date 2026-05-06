@@ -5,6 +5,8 @@ import { GameUIState } from '../types'
 import { GameStateMachine } from './state-machine'
 import { SessionManager } from './session-manager'
 import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
+import { BetSelector } from '../components/betSelector/bet-selector'
+
 
 const FONT_DISPLAY = 'Cinzel, serif'
 
@@ -62,11 +64,19 @@ export class HUD extends Container {
   private _buttonPanel: Container
 
   private _balanceCard: InfoCard
-  private _betCard: InfoCard
+  private _betSelector: BetSelector
+  //private _betCard: InfoCard
   private _winCard: InfoCard
   private _freeSpinsCard: InfoCard
 
   private _autoSpinActive = false
+
+  private _infoBounds = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  }
 
   constructor(session: SessionManager, fsm: GameStateMachine) {
     super()
@@ -96,10 +106,16 @@ export class HUD extends Container {
     this._buttonPanel = new Container()
 
     this._balanceCard = this._makeInfoCard('balance', 'BALANCE', 0x2a1608)
-    this._betCard = this._makeInfoCard('bet', 'BET', 0x1d1308)
+
+
+
+    //this._betCard = this._makeInfoCard('bet', 'BET', 0x1d1308)
     this._winCard = this._makeInfoCard('win', 'WIN', 0x15240d)
     this._freeSpinsCard = this._makeInfoCard('freeSpins', 'FREE SPINS', 0x1d1030)
     this._freeSpinsCard.container.visible = false
+
+    this._betSelector = new BetSelector()
+    this._infoContainer.addChild(this._betSelector)
 
     this._build()
     this.updateTexts()
@@ -140,7 +156,8 @@ export class HUD extends Container {
   }
 
   private _build() {
-    this.addChild(this._infoContainer)
+    this.addChild(this._infoContainer)  
+    // this.addChild(this._betSelector)
 
     this._drawAutoBtnBg(false)
     this._autoBtnCount.anchor.set(0.5)
@@ -195,6 +212,7 @@ export class HUD extends Container {
     buyLabel.x = BUY_W / 2
     buyLabel.y = 20
     this._buyBonusBtn.addChild(buyLabel)
+
     const buyCostLabel = new Text({
       text: '100× BET',
       style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 12 },
@@ -217,10 +235,24 @@ export class HUD extends Container {
     this._layout = layout
     this._layoutInfoCards(layout)
     this._layoutControls(layout)
+    this._layoutBetSelector(layout)
+
+  }
+
+  private _layoutBetSelector(layout: UILayoutSnapshot) {
+    const { x, y, width, height } = this._infoBounds
+    const padding = 16
+    const betWidth = width
+    const betHeight = height
+
+    this._betSelector.x = x + betWidth + padding
+    this._betSelector.y = y + (height - betHeight) / 2
+
+    this._betSelector.resize(betWidth/2, betHeight)
   }
 
   private _layoutInfoCards(layout: UILayoutSnapshot) {
-    const activeCards = [this._balanceCard, this._betCard, this._winCard]
+    const activeCards = [this._balanceCard, this._winCard]
     if (this._freeSpinsCard.container.visible) activeCards.push(this._freeSpinsCard)
 
     const { infoArea } = layout
@@ -251,7 +283,7 @@ export class HUD extends Container {
     const startX = infoArea.x + (infoArea.width - usedWidth) / 2
     const startY = infoArea.y + (infoArea.height - usedHeight) / 2
 
-    for (const card of [this._balanceCard, this._betCard, this._winCard, this._freeSpinsCard]) {
+    for (const card of [this._balanceCard, this._winCard, this._freeSpinsCard]) {
       card.container.visible =
         card === this._freeSpinsCard ? this._freeSpinsCard.container.visible : true
     }
@@ -263,6 +295,13 @@ export class HUD extends Container {
       card.container.y = startY + row * (cardHeight + gap)
       this._sizeInfoCard(card, cardWidth, cardHeight, layout.hudMode)
     })
+
+    this._infoBounds = {
+      x: startX,
+      y: startY,
+      width: usedWidth,
+      height: usedHeight,
+    }
   }
 
   private _sizeInfoCard(card: InfoCard, width: number, height: number, hudMode: HUDLayoutMode) {
@@ -333,7 +372,7 @@ export class HUD extends Container {
 
   public updateTexts() {
     this._balanceCard.value.text = `${this._session.balance}`
-    this._betCard.value.text = `${this._session.betMultiplier}`
+    //this._betCard.value.text = `${this._session.betMultiplier}`
     this._winCard.value.text = this._session.lastWin > 0 ? `${this._session.lastWin}` : '—'
   }
 
