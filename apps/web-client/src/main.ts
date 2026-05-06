@@ -21,6 +21,8 @@ async function init() {
     background: '#060e04',
     resizeTo: window,
     antialias: true,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
   })
   document.getElementById('game-container')?.appendChild(app.canvas)
 

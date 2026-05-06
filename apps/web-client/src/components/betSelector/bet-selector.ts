@@ -1,6 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js'
-
-const FONT = 'Cinzel, serif'
+import { drawWoodPanel, COMMON_FONT } from '../ui-utils'
 
 export class BetSelector extends Container {
   private _values = [1, 2, 3, 4, 5, 6]
@@ -8,9 +7,7 @@ export class BetSelector extends Container {
 
   private _valueText!: Text
 
-  // ссылки на элементы (ВАЖНО)
   private _bg!: Graphics
-  private _divider!: Graphics
   private _label!: Text
 
   private _upBtn!: Container
@@ -19,57 +16,37 @@ export class BetSelector extends Container {
   constructor() {
     super()
 
-    // BG
     this._bg = new Graphics()
-    this._bg.roundRect(0, 0, 220, 90, 8)
-    this._bg.fill(0x1e1e1e)
-    this._bg.stroke({ width: 2, color: 0x555555 })
     this.addChild(this._bg)
 
-    // Divider
-    this._divider = new Graphics()
-    this._divider.rect(160, 0, 2, 90)
-    this._divider.fill(0x333333)
-    this.addChild(this._divider)
-
-    // Label
     this._label = new Text({
       text: 'BET',
       style: {
-        fontFamily: FONT,
+        fontFamily: COMMON_FONT,
         fill: '#c8a060',
         fontSize: 12,
         fontWeight: '700',
         letterSpacing: 1.2,
       },
     })
-
-    this._label.position.set(20, 14)
     this.addChild(this._label)
 
-    // Value
     this._valueText = new Text({
       text: '',
       style: {
-        fontFamily: FONT,
-        fontSize: 12,
+        fontFamily: COMMON_FONT,
+        fontSize: 16,
         fontWeight: '700',
         fill: '#ffffff',
       },
     })
-
-    this._valueText.position.set(20, 38)
     this.addChild(this._valueText)
 
-    // UP button
     this._upBtn = this._createArrowButton(true)
-    this._upBtn.position.set(160, 0)
     this._upBtn.on('pointerdown', () => this._increase())
     this.addChild(this._upBtn)
 
-    // DOWN button
     this._downBtn = this._createArrowButton(false)
-    this._downBtn.position.set(160, 45)
     this._downBtn.on('pointerdown', () => this._decrease())
     this.addChild(this._downBtn)
 
@@ -80,35 +57,19 @@ export class BetSelector extends Container {
     const c = new Container()
 
     const bg = new Graphics()
+    // Transparent background, but interactive area
     bg.rect(0, 0, 60, 45)
-    bg.fill(0x2c2c2c)
+    bg.fill({ color: 0xffffff, alpha: 0 }) 
     c.addChild(bg)
 
     const arrow = new Graphics()
-
-    if (up) {
-      arrow.moveTo(30, 12)
-      arrow.lineTo(45, 28)
-      arrow.lineTo(15, 28)
-    } else {
-      arrow.moveTo(15, 16)
-      arrow.lineTo(45, 16)
-      arrow.lineTo(30, 32)
-    }
-
-    arrow.fill(0xffffff)
     c.addChild(arrow)
 
     c.eventMode = 'static'
     c.cursor = 'pointer'
 
-    c.on('pointerover', () => {
-      bg.tint = 0x666666
-    })
-
-    c.on('pointerout', () => {
-      bg.tint = 0xffffff
-    })
+    c.on('pointerover', () => { arrow.alpha = 0.7 })
+    c.on('pointerout', () => { arrow.alpha = 1 })
 
     return c
   }
@@ -130,63 +91,42 @@ export class BetSelector extends Container {
   }
 
   public resize(width: number, height: number) {
-    if (!this._bg) return
-
-    // BG
-    this._bg.clear()
-    this._bg.roundRect(0, 0, width, height, 8)
-    this._bg.fill(0x1e1e1e)
-    this._bg.stroke({ width: Math.max(1, height * 0.03), color: 0x555555 })
-
-    // Divider
-    const dividerX = width * 0.72
-    this._divider.clear()
-    this._divider.rect(dividerX, 0, 2, height)
-    this._divider.fill(0x333333)
+    drawWoodPanel(this._bg, width, height, 0x1d1308)
 
     // Label
-    this._label.style.fontSize = Math.min(14, height * 0.22)
-    this._label.position.set(width * 0.08, height * 0.12)
+    this._label.style.fontSize = Math.min(14, height * 0.25)
+    this._label.position.set(width * 0.08, height * 0.15)
 
     // Value
-    this._valueText.style.fontSize = Math.min(16, height * 0.45)
-    this._valueText.position.set(width * 0.08, height * 0.45)
+    this._valueText.style.fontSize = Math.min(18, height * 0.4)
+    this._valueText.position.set(width * 0.08, height * 0.5)
 
     // Buttons
-    const btnHeight = height / 2
-    const btnWidth = width - dividerX
+    const btnWidth = width * 0.25
+    const btnHeight = height
+    const btnX = width - btnWidth
 
-    this._upBtn.position.set(dividerX, 0)
-    this._downBtn.position.set(dividerX, btnHeight)
+    this._upBtn.position.set(btnX, 0)
+    this._downBtn.position.set(btnX, btnHeight / 2)
 
-    const upBg = this._upBtn.children[0] as Graphics
-    const downBg = this._downBtn.children[0] as Graphics
-
-    upBg.clear()
-    upBg.rect(0, 0, btnWidth, btnHeight)
-    upBg.fill(0x2c2c2c)
-
-    downBg.clear()
-    downBg.rect(0, 0, btnWidth, btnHeight)
-    downBg.fill(0x2c2c2c)
-
-    // arrows
     const upArrow = this._upBtn.children[1] as Graphics
     const downArrow = this._downBtn.children[1] as Graphics
 
-    const arrowScale = Math.min(width, height) * 0.01
+    const size = Math.min(btnWidth, btnHeight / 2) * 0.4
+    const cx = btnWidth / 2
+    const cy = btnHeight / 4
 
     upArrow.clear()
-    upArrow.moveTo(0, arrowScale * 2)
-    upArrow.lineTo(arrowScale * 1.5, 0)
-    upArrow.lineTo(arrowScale * 3, arrowScale * 2)
-    upArrow.fill(0xffffff)
+    upArrow.moveTo(cx, cy - size / 2)
+    upArrow.lineTo(cx + size / 2, cy + size / 2)
+    upArrow.lineTo(cx - size / 2, cy + size / 2)
+    upArrow.fill(0xffe066)
 
     downArrow.clear()
-    downArrow.moveTo(0, 0)
-    downArrow.lineTo(arrowScale * 3, 0)
-    downArrow.lineTo(arrowScale * 1.5, arrowScale * 2)
-    downArrow.fill(0xffffff)
+    downArrow.moveTo(cx, cy + size / 2)
+    downArrow.lineTo(cx + size / 2, cy - size / 2)
+    downArrow.lineTo(cx - size / 2, cy - size / 2)
+    downArrow.fill(0xffe066)
   }
 
   public get value() {
