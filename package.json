@@ -7,13 +7,17 @@
     "packages/games/*"
   ],
   "scripts": {
-    "build": "bun run --workspaces build",
+    "help": "bun scripts/help.ts",
     "setup": "bun install && bun run build",
     "validate": "bun run typecheck && bun run eslint:lint && bun test",
+    "build": "bun run --workspaces build",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "dev:all": "bun install && concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\"",
+    "dev:api": "bun --filter @tgslots/api dev",
+    "dev:client": "bun --filter @tgslots/web-client dev",
     "eslint:lint": "eslint .",
     "eslint:fix": "eslint --fix .",
-    "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },
   "lint-staged": {
