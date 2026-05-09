@@ -41,6 +41,7 @@ up:
 - [[task_031_super_cascades_engine]] — 2026-04-28 — Added Cluster-Pays cluster evaluator and Super Cascades tumble engine to slots-core (mutable cascade grid, vanishing rules, Sampler-driven refill flow, 22 new tests).
 - [[task_032_web_client_free_spins_status]] — 2026-05-06 — Added persistent free-spin remaining banner and dynamic awarded-spin announcements to the Woodland Whisper web client; added frontend status-derivation tests and a new [[web-client]] component note.
 - [[task_033_web_client_responsive_layout]] — 2026-05-06 — Rebuilt the Woodland Whisper web client around a shared responsive Pixi layout model; refactored the HUD into a bottom-pinned slot footer and updated the auto-spin modal, pick-bonus board, and win overlay for portrait/landscape phone, tablet, and desktop support; added layout tests.
+- [[task_034_ci_pipeline_verification]] — 2026-05-09 — Verified and documented the automated GitHub Actions PR review pipeline; confirmed zero-touch PR review logic and slash command support.
 
 ## In Progress
 

@@ -43,3 +43,6 @@ apps/simulations/*.pdf
 !package.json
 !tsconfig*.json
 !**/config/*.json
+
+.gemini/
+gha-creds-*.json
