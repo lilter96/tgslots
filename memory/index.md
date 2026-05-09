@@ -12,9 +12,9 @@ tags:
 
 ## Status
 
-- **Phase**: Active Development — 2 games implemented, unified simulation CLI and report generation in place
+- **Phase**: Active Development — 2 games implemented, API + simulation CLI + Pixi web client in place
 - **Runtime**: Bun + TypeScript strict
-- **Tests**: 11 files / 168 passing tests across `math`, `slots-core`, and `slots-simulation-engine` as of 2026-04-26
+- **Tests**: 275 passing tests as of 2026-05-10
 - **Date Initialized**: 2026-04-21
 
 ## Architecture
@@ -52,6 +52,7 @@ tags:
 | Simulation | `@tgslots/slots-simulation-engine` | Parallel runner, scoped metrics, CLI, JSON/HTML reports |
 | Game       | `@tgslots/ancient-dragon`          | 5×3, 25 lines, 88.05% RTP target, mystery INNER + free spins |
 | Game       | `@tgslots/woodland-whisper`        | 5×3, 30 lines, 88.04% RTP, pick bonus             |
+| App        | `apps/api`                         | Elysia HTTP API (port 3001) — GameServer dispatcher, IGameModule adapters |
 | App        | `apps/simulations`                 | Unified simulation CLI and worker entrypoints     |
 | App        | `apps/web-client`                  | Pixi Woodland Whisper frontend with API-backed feature flow |
 

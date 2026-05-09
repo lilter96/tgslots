@@ -42,6 +42,8 @@ up:
 - [[task_032_web_client_free_spins_status]] — 2026-05-06 — Added persistent free-spin remaining banner and dynamic awarded-spin announcements to the Woodland Whisper web client; added frontend status-derivation tests and a new [[web-client]] component note.
 - [[task_033_web_client_responsive_layout]] — 2026-05-06 — Rebuilt the Woodland Whisper web client around a shared responsive Pixi layout model; refactored the HUD into a bottom-pinned slot footer and updated the auto-spin modal, pick-bonus board, and win overlay for portrait/landscape phone, tablet, and desktop support; added layout tests.
 
+- [[task_034_api_dispatcher_architecture]] — 2026-05-10 — Type-safe stateless `GameRegistry + GameServer` dispatcher; `IGameModule` adapters for both games; `InMemorySessionManager`; generic `/game/:gameId/:action` + per-game typed routes; all 275 tests pass.
+
 ## In Progress
 
 _(none)_

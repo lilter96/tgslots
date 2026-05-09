@@ -107,6 +107,7 @@ export const SpinResponseSchema = t.Object({
 })
 
 export const ActionResponseSchema = t.Object({
+  sessionId: t.String(),
   result: WoodlandWhisperResultSchema,
   state: WoodlandWhisperStateSchema,
 })

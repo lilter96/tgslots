@@ -16,7 +16,7 @@ up:
 | Runtime         | Bun v1.3.12+                     |
 | Language        | TypeScript 5.9, strict mode, ESM |
 | Package manager | Bun workspaces                   |
-| Testing         | bun:test (11 files / 168 passing tests as of 2026-04-26) |
+| Testing         | bun:test (275 passing tests as of 2026-05-10) |
 | Parallelism     | node:worker_threads via Bun      |
 
 ## Repository Layout
@@ -31,6 +31,7 @@ tgslots/                        ← Bun monorepo root
 │       ├── ancient-dragon/     ← @tgslots/ancient-dragon
 │       └── woodland-whisper/   ← @tgslots/woodland-whisper
 └── apps/
+    ├── api/                    ← Elysia HTTP API (port 3001)
     ├── simulations/            ← CLI entry points (not a publishable package)
     └── web-client/             ← Pixi frontend for Woodland Whisper
 ```
@@ -38,19 +39,19 @@ tgslots/                        ← Bun monorepo root
 ## Layer Architecture
 
 ```
-┌─────────────────────────────────┐
-│ apps/simulations / web-client   │  CLI, worker spawning, frontend
-├─────────────────────────────────┤
-│  @tgslots/slots-simulation-engine│  Parallel runner, scoped metrics, reports
-├──────────────┬──────────────────┤
-│ @tgslots/    │ @tgslots/        │
-│ ancient-     │ woodland-        │  Game logic, constants, sampling
-│ dragon       │ whisper          │
-├──────────────┴──────────────────┤
-│       @tgslots/slots-core       │  Paylines, paytable, symbol registry
-├─────────────────────────────────┤
-│         @tgslots/math           │  RNG, Sampler, Distribution, functionals
-└─────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│  apps/api (Elysia, port 3001)            │  GameServer + IGameModule dispatcher
+│  apps/simulations / apps/web-client      │  CLI, worker spawning, Pixi frontend
+├──────────────────────────────────────────┤
+│  @tgslots/slots-simulation-engine        │  Parallel runner, scoped metrics, reports
+├──────────────────┬───────────────────────┤
+│ @tgslots/        │ @tgslots/             │
+│ ancient-dragon   │ woodland-whisper      │  Game logic, constants, sampling
+├──────────────────┴───────────────────────┤
+│         @tgslots/slots-core              │  Paylines, paytable, symbol registry
+├──────────────────────────────────────────┤
+│           @tgslots/math                  │  RNG, Sampler, Distribution, functionals
+└──────────────────────────────────────────┘
 ```
 
 ## Module Structure (per package)
@@ -143,6 +144,36 @@ config/config.json     Complete game config (symbols, paylines, reels)
 - Wild: WOMAN, Scatter: COIN, Pick Bonus: matching pair → free spins
 - Free spin multiplier: 2x
 
+### apps/api
+
+```
+src/
+  index.ts                     wiring: registers both game modules, mounts all routes
+  dispatcher.ts                GameServer — register(), synchronous execute()
+  game-module.ts               IGameModule<G> interface
+  session-manager.ts           ISessionManager + SessionEntry interfaces
+  in-memory-session-manager.ts Map-backed impl; 1-hour TTL, purgeExpired on access
+  types/
+    game-registry.ts           GameRegistry + GameId/GameState/GameResult/ActionType/ActionPayload
+    actions.ts                 ActionRequest, ActionResponse, DispatchOutcome
+    woodland-whisper.reg.ts    declaration merge: registers 'woodland-whisper'
+    ancient-dragon.reg.ts      declaration merge: registers 'ancient-dragon'
+  modules/
+    woodland-whisper-state.ts  WoodlandWhisperSerializedState (triggeringMultiplier, not Wager)
+    woodland-whisper.module.ts WoodlandWhisperModule implements IGameModule
+    ancient-dragon-state.ts    AncientDragonSerializedState
+    ancient-dragon.module.ts   AncientDragonModule implements IGameModule
+  routes.ts                    generic POST /game/:gameId/:action
+  routes/
+    woodland-whisper.routes.ts typed wrappers at /woodlandwhisper (spin, buybonus, freespin, pick, state)
+    ancient-dragon.routes.ts   typed wrappers at /ancientdragon (spin, freespin, state)
+  dtos.ts                      shared TypeBox response schemas
+```
+
+- **Adding a new game**: implement `IGameModule<G>`, declare-merge the registry, mount routes. Dispatcher core unchanged.
+- **Session format**: JSON only — `triggeringMultiplier: number` replaces `Wager` instances; module hydrates on load.
+- **`/state` fallback**: expired sessionId silently creates a new session (retries with `sessionId: undefined`).
+
 ## Key Design Decisions
 
 - **State machine pattern** for game flow (base game ↔ feature states)
@@ -151,11 +182,12 @@ config/config.json     Complete game config (symbols, paylines, reels)
 - **Worker threads** for embarrassingly parallel simulation
 - **Integer symbol IDs** (not strings) in evaluation hot path
 - **Integer credit betting model** via `BetConfiguration` and `Wager`
+- **GameRegistry declaration merging** for compile-time type safety across dispatcher, modules, and routes
 - Config-driven (Woodland Whisper JSON config; Ancient Dragon inline constants)
 
-## Architectural Gaps (as of 2026-04-26)
+## Architectural Gaps (as of 2026-05-10)
 
-1. Test coverage is still concentrated in `math` and `slots-core` betting; game packages and simulation-engine need direct tests.
-2. No Telegram bot layer yet (simulation-only project).
+1. Test coverage is still concentrated in `math` and `slots-core` betting; game packages need more direct tests.
+2. No Telegram bot layer yet.
 3. No wallet/economy service.
 4. No CI pipeline is documented or present in the repo.

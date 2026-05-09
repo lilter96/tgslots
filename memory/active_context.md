@@ -8,11 +8,12 @@ tags:
 - "context"
 up: 
 - "[[index]]"
-current_task: "task_033_web_client_responsive_layout"
+current_task: "task_034_api_dispatcher_architecture"
 ---
 # Active Context
 
 ## Recent Changes
+- Implemented Type-Safe Stateless Dispatcher API (`apps/api`). Added `GameRegistry + GameServer` dispatcher, `IGameModule` interface, `InMemorySessionManager`, typed module adapters for both Woodland Whisper and Ancient Dragon, a generic `/game/:gameId/:action` route, and per-game typed route wrappers at `/woodlandwhisper` and `/ancientdragon`. Deleted the old hardcoded `sessions.ts` and `woodland-whisper.ts`. All 275 tests pass. See [[task_034_api_dispatcher_architecture]].
 - Rebuilt the Woodland Whisper web client around a shared responsive Pixi layout model. Added viewport/orientation-aware scene geometry, refactored the HUD into a bottom-pinned adaptive slot footer for both info and controls, narrowed footer info cards on normal/large screens, and made the auto-spin modal, pick-bonus board, and win overlay resize cleanly across phone, tablet, and desktop screens in both portrait and landscape. Added deterministic layout tests and updated mobile viewport/canvas handling.
 - Fixed Woodland Whisper web-client free-spin UX. Added a persistent HUD banner showing remaining free spins, dynamic `X FREE SPINS WON` announcements after pick-bonus trigger/retrigger, and pure helper coverage for state-delta derivation and restore behavior. Memory now includes a dedicated `[[web-client]]` component note.
 - Added Buy Free Spins feature to Woodland Whisper. Config: `buy_bonus_cost_multiplier: 100` in `config.json`. Backend: `WoodlandWhisperBuyResult` type (`'BUY'` SpinType), `buyBonus(rng, wager)` method on state machine, metrics recorded under `features/buy-bonus`. Frontend: `BUY BONUS` button (gold, `100× BET` label) in HUD emits `buyBonus` event; `GameController.buyBonus()` deducts cost and runs pick bonus + free spin loop; `IDLE → FEATURE_TRANSITION` added as valid UI state transition.
@@ -24,5 +25,6 @@ current_task: "task_033_web_client_responsive_layout"
 - Earlier: split metric kinds into `payout`/`rtp` (ADR 003); fixed Ancient Dragon 33% RTP and migrated to external config format.
 
 ## Next Steps
+- Boot `apps/api` and smoke-test both games end-to-end via the web client / curl.
 - Expand test coverage for core packages.
 - Implement the third slot game.

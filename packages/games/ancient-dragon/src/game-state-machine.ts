@@ -36,8 +36,10 @@ export class AncientDragonStateMachine implements StateMachine<
   AncientDragonResult,
   AncientDragonState
 > {
-  private _state: AncientDragonState = {
-    freeSpins: null,
+  private _state: AncientDragonState
+
+  constructor(initialState?: AncientDragonState) {
+    this._state = initialState ?? { freeSpins: null }
   }
 
   get state(): AncientDragonState {

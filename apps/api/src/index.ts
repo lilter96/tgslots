@@ -1,7 +1,21 @@
 import { Elysia } from 'elysia'
 import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
-import { woodlandWhisperRouter } from './woodland-whisper.js'
+import { jsRng } from '@tgslots/math/rng'
+import { GameServer } from './dispatcher.js'
+import { InMemorySessionManager } from './in-memory-session-manager.js'
+import { WoodlandWhisperModule } from './modules/woodland-whisper.module.js'
+import { AncientDragonModule } from './modules/ancient-dragon.module.js'
+import { createRoutes } from './routes.js'
+import { woodlandWhisperRoutes } from './routes/woodland-whisper.routes.js'
+import { ancientDragonRoutes } from './routes/ancient-dragon.routes.js'
+
+const sessions = new InMemorySessionManager()
+const rng = jsRng()
+const server = new GameServer(sessions, rng)
+
+server.register(new WoodlandWhisperModule())
+server.register(new AncientDragonModule())
 
 const app = new Elysia()
   .use(cors())
@@ -10,13 +24,15 @@ const app = new Elysia()
       documentation: {
         info: {
           title: 'TG Slots API',
-          version: '1.0.0',
-          description: 'API for tgslots game simulations and sessions',
+          version: '2.0.0',
+          description: 'Multi-game slot platform API — stateless dispatcher architecture',
         },
       },
     }),
   )
-  .use(woodlandWhisperRouter)
+  .use(createRoutes(server))
+  .use(woodlandWhisperRoutes(server))
+  .use(ancientDragonRoutes(server))
   .onError(({ error, set }) => {
     set.status = 500
     return { error: error instanceof Error ? error.message : 'Internal server error' }

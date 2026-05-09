@@ -12,6 +12,12 @@ up:
 ## Package Dependency Graph
 
 ```
+apps/api
+  ├── @tgslots/math                  (jsRng)
+  ├── @tgslots/ancient-dragon        (AncientDragonModule, BET_CONFIG, state types)
+  ├── @tgslots/woodland-whisper      (WoodlandWhisperModule, BET_CONFIG, state types)
+  └── elysia, @elysiajs/swagger, @elysiajs/cors
+
 apps/simulations
   ├── @tgslots/math                  (mt19937 RNG seed)
   ├── @tgslots/slots-simulation-engine
@@ -47,7 +53,7 @@ Layer 0 (foundation):  @tgslots/math
 Layer 1 (core):        @tgslots/slots-core
 Layer 2 (games):       @tgslots/ancient-dragon, @tgslots/woodland-whisper
 Layer 2 (infra):       @tgslots/slots-simulation-engine
-Layer 3 (apps):        apps/simulations
+Layer 3 (apps):        apps/api, apps/simulations, apps/web-client
 ```
 
 ## Runtime Dependencies

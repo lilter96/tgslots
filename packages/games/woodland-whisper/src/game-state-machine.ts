@@ -99,12 +99,12 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   WoodlandWhisperResult,
   WoodlandWhisperState
 > {
-  private _state: WoodlandWhisperState = {
-    lastGrid: null,
-    freeSpins: null,
-    pickBonus: null,
-  }
+  private _state: WoodlandWhisperState
   private _currentRoundFreeScatterWin = 0
+
+  constructor(initialState?: WoodlandWhisperState) {
+    this._state = initialState ?? { lastGrid: null, freeSpins: null, pickBonus: null }
+  }
 
   get state(): WoodlandWhisperState {
     return this._state
