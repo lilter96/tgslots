@@ -5,16 +5,16 @@ import { GameUIState } from '../types'
 import { GameStateMachine } from './state-machine'
 import { SessionManager } from './session-manager'
 import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
+import { BetSelector } from '../components/betSelector/bet-selector'
+import { drawWoodPanel, COMMON_FONT } from '../components/ui-utils'
 
-const FONT_DISPLAY = 'Cinzel, serif'
-
+const SPIN_D = 88
+const BTN_GAP = 12
+const PANEL_H = SPIN_D
 const BUY_W = 140
 const BUY_H = 68
 const AUTO_W = BUY_W
 const AUTO_H = 68
-const SPIN_D = 88
-const BTN_GAP = 12
-const PANEL_H = SPIN_D
 const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W
 
 interface InfoCard {
@@ -23,16 +23,6 @@ interface InfoCard {
   background: Graphics
   title: Text
   value: Text
-}
-
-function drawWoodPanel(g: Graphics, w: number, h: number, fill = 0x2a1608) {
-  g.clear()
-  g.roundRect(0, 0, w, h, 12)
-  g.fill(fill)
-  g.roundRect(0, 0, w, h, 12)
-  g.stroke({ width: 2, color: 0xd4a017 })
-  g.roundRect(3, 3, w - 6, h - 6, 9)
-  g.stroke({ width: 0.9, color: 0xffe066, alpha: 0.32 })
 }
 
 function woodPanel(w: number, h: number, fill = 0x2a1608): Graphics {
@@ -62,11 +52,18 @@ export class HUD extends Container {
   private _buttonPanel: Container
 
   private _balanceCard: InfoCard
-  private _betCard: InfoCard
+  private _betSelector: BetSelector
   private _winCard: InfoCard
   private _freeSpinsCard: InfoCard
 
   private _autoSpinActive = false
+
+  private _infoBounds = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  }
 
   constructor(session: SessionManager, fsm: GameStateMachine) {
     super()
@@ -76,18 +73,18 @@ export class HUD extends Container {
     this._spinButton = new Container()
     this._spinLabel = new Text({
       text: 'SPIN',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '900' },
+      style: { fontFamily: COMMON_FONT, fill: '#ffe066', fontSize: 20, fontWeight: '900' },
     })
 
     this._autoBtn = new Container()
     this._autoBtnBg = new Graphics()
     this._autoBtnCount = new Text({
       text: 'AUTO',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 16, fontWeight: '700' },
+      style: { fontFamily: COMMON_FONT, fill: '#ffe066', fontSize: 16, fontWeight: '700' },
     })
     this._autoBtnHint = new Text({
       text: 'STOP',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffcc80', fontSize: 10 },
+      style: { fontFamily: COMMON_FONT, fill: '#ffcc80', fontSize: 10 },
     })
 
     this._buyBonusBtn = new Container()
@@ -96,7 +93,7 @@ export class HUD extends Container {
     this._buttonPanel = new Container()
 
     this._balanceCard = this._makeInfoCard('balance', 'BALANCE', 0x2a1608)
-    this._betCard = this._makeInfoCard('bet', 'BET', 0x1d1308)
+    this._betSelector = new BetSelector()
     this._winCard = this._makeInfoCard('win', 'WIN', 0x15240d)
     this._freeSpinsCard = this._makeInfoCard('freeSpins', 'FREE SPINS', 0x1d1030)
     this._freeSpinsCard.container.visible = false
@@ -112,7 +109,7 @@ export class HUD extends Container {
     const titleText = new Text({
       text: title,
       style: {
-        fontFamily: FONT_DISPLAY,
+        fontFamily: COMMON_FONT,
         fill: '#c8a060',
         fontSize: 12,
         fontWeight: '700',
@@ -124,7 +121,7 @@ export class HUD extends Container {
     const valueText = new Text({
       text: '',
       style: {
-        fontFamily: FONT_DISPLAY,
+        fontFamily: COMMON_FONT,
         fill: '#ffe066',
         fontSize: 24,
         fontWeight: '700',
@@ -141,6 +138,7 @@ export class HUD extends Container {
 
   private _build() {
     this.addChild(this._infoContainer)
+    this._infoContainer.addChild(this._betSelector)
 
     this._drawAutoBtnBg(false)
     this._autoBtnCount.anchor.set(0.5)
@@ -189,15 +187,16 @@ export class HUD extends Container {
     this._buyBonusBtn.addChild(this._buyBonusBtnBg)
     const buyLabel = new Text({
       text: 'BUY BONUS',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 16, fontWeight: '900' },
+      style: { fontFamily: COMMON_FONT, fill: '#ffe066', fontSize: 16, fontWeight: '900' },
     })
     buyLabel.anchor.set(0.5)
     buyLabel.x = BUY_W / 2
     buyLabel.y = 20
     this._buyBonusBtn.addChild(buyLabel)
+
     const buyCostLabel = new Text({
       text: '100× BET',
-      style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 12 },
+      style: { fontFamily: COMMON_FONT, fill: '#c8a060', fontSize: 12 },
     })
     buyCostLabel.anchor.set(0.5)
     buyCostLabel.x = BUY_W / 2
@@ -220,7 +219,7 @@ export class HUD extends Container {
   }
 
   private _layoutInfoCards(layout: UILayoutSnapshot) {
-    const activeCards = [this._balanceCard, this._betCard, this._winCard]
+    const activeCards = [this._balanceCard, this._winCard]
     if (this._freeSpinsCard.container.visible) activeCards.push(this._freeSpinsCard)
 
     const { infoArea } = layout
@@ -231,10 +230,10 @@ export class HUD extends Container {
       layout.hudMode === 'wide' ? 156 : layout.hudMode === 'portrait' ? 108 : 118
     const maxCardWidth = layout.hudMode === 'wide' ? 168 : layout.hudMode === 'portrait' ? 136 : 128
     const cols = Math.min(
-      activeCards.length,
+      activeCards.length + 1, // +1 for betSelector
       Math.max(1, Math.floor((infoArea.width + gap) / (minCardWidth + gap))),
     )
-    const rows = Math.ceil(activeCards.length / cols)
+    const rows = Math.ceil((activeCards.length + 1) / cols)
 
     const availableCardWidth = (infoArea.width - gap * (cols - 1)) / cols
     const cardWidth =
@@ -251,18 +250,37 @@ export class HUD extends Container {
     const startX = infoArea.x + (infoArea.width - usedWidth) / 2
     const startY = infoArea.y + (infoArea.height - usedHeight) / 2
 
-    for (const card of [this._balanceCard, this._betCard, this._winCard, this._freeSpinsCard]) {
+    for (const card of [this._balanceCard, this._winCard, this._freeSpinsCard]) {
       card.container.visible =
         card === this._freeSpinsCard ? this._freeSpinsCard.container.visible : true
     }
 
-    activeCards.forEach((card, index) => {
+    const allItems = [...activeCards, this._betSelector]
+    this._betSelector.visible = true
+    allItems.forEach((item, index) => {
       const col = index % cols
       const row = Math.floor(index / cols)
-      card.container.x = startX + col * (cardWidth + gap)
-      card.container.y = startY + row * (cardHeight + gap)
-      this._sizeInfoCard(card, cardWidth, cardHeight, layout.hudMode)
+      const x = startX + col * (cardWidth + gap)
+      const y = startY + row * (cardHeight + gap)
+
+      if (item instanceof Container && !(item as any).key) {
+        item.x = x
+        item.y = y
+        this._betSelector.resize(cardWidth, cardHeight)
+      } else {
+        const card = item as InfoCard
+        card.container.x = x
+        card.container.y = y
+        this._sizeInfoCard(card, cardWidth, cardHeight, layout.hudMode)
+      }
     })
+
+    this._infoBounds = {
+      x: startX,
+      y: startY,
+      width: usedWidth,
+      height: usedHeight,
+    }
   }
 
   private _sizeInfoCard(card: InfoCard, width: number, height: number, hudMode: HUDLayoutMode) {
@@ -333,7 +351,7 @@ export class HUD extends Container {
 
   public updateTexts() {
     this._balanceCard.value.text = `${this._session.balance}`
-    this._betCard.value.text = `${this._session.betMultiplier}`
+    //this._betCard.value.text = `${this._session.betMultiplier}`
     this._winCard.value.text = this._session.lastWin > 0 ? `${this._session.lastWin}` : '—'
   }
 
