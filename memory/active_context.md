@@ -13,6 +13,7 @@ current_task: none
 # Active Context
 
 ## Recent Changes
+- Fixed CI workflow hangs by adding `trust_workspace` and `trust_extensions` flags to all Gemini GitHub Action workflows. Confirmed that Gemini CLI v0.39.1+ requires these for non-interactive environments.
 - Verified and documented the automated GitHub Actions PR review pipeline. Confirmed it correctly triggers on `pull_request.opened` and follows project-specific `coding_rules.md`. Added slash command documentation for manual triggers (`@gemini-cli /review`).
 - Rebuilt the Woodland Whisper web client around a shared responsive Pixi layout model. Added viewport/orientation-aware scene geometry, refactored the HUD into a bottom-pinned adaptive slot footer for both info and controls, narrowed footer info cards on normal/large screens, and made the auto-spin modal, pick-bonus board, and win overlay resize cleanly across phone, tablet, and desktop screens in both portrait and landscape. Added deterministic layout tests and updated mobile viewport/canvas handling.
 - Fixed Woodland Whisper web-client free-spin UX. Added a persistent HUD banner showing remaining free spins, dynamic `X FREE SPINS WON` announcements after pick-bonus trigger/retrigger, and pure helper coverage for state-delta derivation and restore behavior. Memory now includes a dedicated `[[web-client]]` component note.
