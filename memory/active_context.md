@@ -8,11 +8,13 @@ tags:
 - "context"
 up: 
 - "[[index]]"
-current_task: "task_033_web_client_responsive_layout"
+current_task: none
 ---
 # Active Context
 
 ## Recent Changes
+- Fixed CI workflow hangs by adding `trust_workspace` and `trust_extensions` flags to all Gemini GitHub Action workflows. Confirmed that Gemini CLI v0.39.1+ requires these for non-interactive environments.
+- Verified and documented the automated GitHub Actions PR review pipeline. Confirmed it correctly triggers on `pull_request.opened` and follows project-specific `coding_rules.md`. Added slash command documentation for manual triggers (`@gemini-cli /review`).
 - Rebuilt the Woodland Whisper web client around a shared responsive Pixi layout model. Added viewport/orientation-aware scene geometry, refactored the HUD into a bottom-pinned adaptive slot footer for both info and controls, narrowed footer info cards on normal/large screens, and made the auto-spin modal, pick-bonus board, and win overlay resize cleanly across phone, tablet, and desktop screens in both portrait and landscape. Added deterministic layout tests and updated mobile viewport/canvas handling.
 - Fixed Woodland Whisper web-client free-spin UX. Added a persistent HUD banner showing remaining free spins, dynamic `X FREE SPINS WON` announcements after pick-bonus trigger/retrigger, and pure helper coverage for state-delta derivation and restore behavior. Memory now includes a dedicated `[[web-client]]` component note.
 - Added Buy Free Spins feature to Woodland Whisper. Config: `buy_bonus_cost_multiplier: 100` in `config.json`. Backend: `WoodlandWhisperBuyResult` type (`'BUY'` SpinType), `buyBonus(rng, wager)` method on state machine, metrics recorded under `features/buy-bonus`. Frontend: `BUY BONUS` button (gold, `100× BET` label) in HUD emits `buyBonus` event; `GameController.buyBonus()` deducts cost and runs pick bonus + free spin loop; `IDLE → FEATURE_TRANSITION` added as valid UI state transition.
