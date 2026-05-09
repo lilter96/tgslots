@@ -8,7 +8,9 @@
   ],
   "scripts": {
     "build": "bun run --workspaces build",
-    "dev:all": "concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\"",
+    "setup": "bun install && bun run build",
+    "validate": "bun run typecheck && bun run eslint:lint && bun test",
+    "dev:all": "bun install && concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\"",
     "eslint:lint": "eslint .",
     "eslint:fix": "eslint --fix .",
     "typecheck": "tsc --noEmit",
