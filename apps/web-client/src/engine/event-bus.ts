@@ -6,7 +6,9 @@ export interface GameEventMap {
   'feature:exit': { type: string }
   'balance:changed': { balance: number }
   'free-spins:updated': { remaining: number; awarded?: number }
+  'auto-spin:updated': { active: boolean; remaining: number }
   'pick-card-selected': { index: number }
+  'buy-bonus:requested': Record<string, never>
   'error:api': { message: string }
 }
 

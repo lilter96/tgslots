@@ -35,6 +35,7 @@ Slot game implementation: 5×3 grid, 30 paylines, 88.04% RTP target. Features pi
 | Mystery              | REPLACEMENT symbol → weighted random replacement                         |
 | Feature              | Pick Bonus: choose cards to find matching pair → awards free spins count |
 | Free Spin Multiplier | 2x on all wins                                                           |
+| Buy Bonus            | Guaranteed bonus trigger for `buy_bonus_cost_multiplier = 100`× wager    |
 
 ## Public API
 
@@ -51,6 +52,7 @@ export { WoodlandWhisperStateMachine, WOODLAND_WHISPER_SAMPLER, BET_CONFIG, SIM_
 #### Granular Methods
 
 - `baseGameSpin(rng, wager)`: Executes the base game spin.
+- `buyBonus(rng, wager)`: Executes the guaranteed bonus-purchase entry spin.
 - `freeGameSpin(rng)`: Executes a single free spin.
 - `pickBall(rng)`: Executes a single pick in the pick bonus.
 
@@ -81,7 +83,7 @@ interface WoodlandWhisperState {
 
 ```typescript
 interface WoodlandWhisperResult extends SpinResult {
-  type: 'BASE' | 'FREE' | 'PICK'
+  type: 'BASE' | 'BUY' | 'FREE' | 'PICK'
   sc?: number
   grid?: number[][]
   pickedBonus?: number
@@ -105,6 +107,7 @@ interface WoodlandWhisperResult extends SpinResult {
 
 - `WOODLAND_WHISPER_SAMPLER`: Returns evaluation results including the 5x3 grid.
 - `generatePickBonus(winValue, rng)`: Generates a shuffled 20-item board and a valid pick sequence resulting in `winValue`.
+- `BUY_BONUS_COST_MULTIPLIER` (from `constants.ts`): cost multiplier consumed by API/web-client buy-bonus flows.
 
 ## Dependencies
 

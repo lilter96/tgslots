@@ -34,6 +34,7 @@ src/games/
     index.ts                       ← declare module + IGameClient export
     manifest.ts, assets.ts
     runtime.ts                     ← WoodlandWhisperRuntime (pick bonus, buy bonus, free spins)
+    buy-bonus-control.ts
     pick-bonus-view.ts
     free-spins-helpers.ts
     __tests__/
@@ -49,6 +50,10 @@ src/games/
 - `assets: AssetManifest` — SVG symbol/environment records
 - `mount(ctx: GameUIContext<G>): Promise<GameRuntime<G>>`
 
+**`GameUIContext<G>`** (web-client local):
+- `scene`, `eventBus`, `dispatcher`, `assets`
+- `fsm`, `session`, `hud` so a plugin can mount game-specific HUD controls without pushing game logic into the shared engine
+
 **`GameRuntime<G>`**:
 - `applyState(state)` — restores visual state; always emits `'free-spins:updated'` on the event bus
 - `presentResult(action, result)` — drives reel animation, win overlay, and feature views
@@ -63,11 +68,11 @@ src/games/
 | `engine/spin-orchestrator.ts` | Generic FSM loop: wager deduction, spin, free-spin loop (`while freeSpinsRemaining > 0`), auto-spin with stop conditions |
 | `engine/state-machine.ts` | UI FSM: IDLE → SPINNING → STOPPING → WIN_SHOW / FEATURE_TRANSITION → IDLE |
 | `engine/session-manager.ts` | Balance, bet multiplier, last win |
-| `engine/event-bus.ts` | Typed pub/sub: `win:awarded`, `free-spins:updated`, `feature:enter/exit`, `pick-card-selected`, `error:api` |
+| `engine/event-bus.ts` | Typed pub/sub: `win:awarded`, `free-spins:updated`, `auto-spin:updated`, `buy-bonus:requested`, `feature:enter/exit`, `pick-card-selected`, `error:api` |
 | `engine/signal.ts` | ~60-line typed reactive signal; `subscribe` returns unsubscribe token |
 | `engine/scene.ts` | `PixiScene` — 5 named z-ordered Containers: background → reels → features → hud → overlays; `clearGameLayers()` empties bottom 3 |
 | `engine/asset-registry.ts` | Namespaced texture loading; SVG rasterization via canvas API |
-| `engine/hud.ts` | Bottom-pinned adaptive HUD footer: balance, bet, last-win, spin, auto-spin, free-spins badge |
+| `engine/hud.ts` | Bottom-pinned adaptive HUD footer: balance, bet, last-win, spin, auto-spin, free-spins badge, and plugin-owned control slots |
 | `engine/layout.ts` | Responsive viewport snapshot per manifest dimensions; portrait/landscape/wide |
 | `engine/reel-set.ts`, `engine/reel.ts`, `engine/symbol-view.ts` | Manifest-driven reel strip rendering |
 | `engine/win-overlay.ts` | Transient win/feature announcements; copy from `manifest.winTiers` |
@@ -92,6 +97,14 @@ src/games/
 - `SpinOrchestrator` tracks `_freeSpinsRemaining` via this event and loops `doFreeSpin()` automatically
 - HUD shows persistent free-spins badge via `eventBus.on('free-spins:updated', ...)`
 - Announced as `N FREE SPINS WON` via `formatFreeSpinsAwardedMessage(n)` (Woodland only)
+
+## Woodland Buy Bonus Flow
+
+- Woodland Whisper mounts `buy-bonus-control.ts` into `hud.slot('control-right')`
+- The button emits `buy-bonus:requested`; `main.ts` forwards it to `SpinOrchestrator.buyBonus(session.betMultiplier)`
+- The control disables itself outside `IDLE`, during auto-spin, or while free spins are active by listening to `fsm`, `auto-spin:updated`, and `free-spins:updated`
+- Woodland Whisper `applyState()` does **not** render the pick-bonus board immediately from action responses; it only stashes pending feature state. The board is shown by the explicit feature flow (`presentResult(...)->_runPickBonus()`) or by `resumeFeatures()` during session restore.
+- Woodland Whisper pick-bonus UI is mounted in `scene.overlays`, not `scene.features`, so the full-screen bonus board correctly covers the bottom HUD/footer.
 
 ## Verification
 

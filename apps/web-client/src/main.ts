@@ -2,6 +2,7 @@ import { Application } from 'pixi.js'
 import { BET_CONFIG as WW_BET_CONFIG, BUY_BONUS_COST_MULTIPLIER } from '@tgslots/woodland-whisper'
 import { BET_CONFIG as AD_BET_CONFIG } from '@tgslots/ancient-dragon'
 import { Wager } from '@tgslots/slots-core'
+import type { GameId } from '@tgslots/shared-contracts'
 import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
 import type { AncientDragonSerializedState } from '@tgslots/shared-contracts/states'
 import { GameStateMachine } from './engine/state-machine.js'
@@ -58,10 +59,16 @@ async function mountGame(gameId: string): Promise<void> {
   const autoSpinPanel = new AutoSpinPanel()
   scene.overlays.addChild(autoSpinPanel)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dispatcher = new GameDispatcher(gameId as any, BASE_URL)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ctx = { scene, eventBus, dispatcher: dispatcher as any, assets }
+  const dispatcher = new GameDispatcher(gameId as GameId, BASE_URL)
+  const ctx = {
+    scene,
+    eventBus,
+    dispatcher,
+    assets,
+    fsm,
+    session,
+    hud,
+  } as unknown as Parameters<typeof client.mount>[0]
   const runtime = await client.mount(ctx)
 
   let orchestrator: SpinOrchestrator<'woodland-whisper'> | SpinOrchestrator<'ancient-dragon'>
@@ -145,24 +152,37 @@ async function mountGame(gameId: string): Promise<void> {
   doLayout(app.screen.width, app.screen.height)
   app.renderer.on('resize', (W: number, H: number) => doLayout(W, H))
 
+  const syncAutoSpinState = () => {
+    hud.syncAutoSpin(orchestrator.isAutoSpin, orchestrator.autoSpinRemaining)
+    eventBus.emit('auto-spin:updated', {
+      active: orchestrator.isAutoSpin,
+      remaining: orchestrator.autoSpinRemaining,
+    })
+  }
+
   // HUD event wiring
   hud.on('spin', () => orchestrator.spin(session.betMultiplier).catch(console.error))
   hud.on('autoSpin', () => autoSpinPanel.show())
   hud.on('stopAutoSpin', () => {
     orchestrator.stopAutoSpin()
-    hud.syncAutoSpin(false, 0)
+    syncAutoSpinState()
+  })
+  eventBus.on('buy-bonus:requested', () => {
+    orchestrator.buyBonus(session.betMultiplier).catch(console.error)
   })
 
   autoSpinPanel.on('start', (config: AutoSpinConfig) => {
     orchestrator.startAutoSpin(config)
-    hud.syncAutoSpin(true, orchestrator.autoSpinRemaining)
+    syncAutoSpinState()
   })
 
   fsm.addListener((state) => {
     if (state === GameUIState.IDLE) {
-      hud.syncAutoSpin(orchestrator.isAutoSpin, orchestrator.autoSpinRemaining)
+      syncAutoSpinState()
     }
   })
+
+  syncAutoSpinState()
 
   console.log('Game initialized.')
 }

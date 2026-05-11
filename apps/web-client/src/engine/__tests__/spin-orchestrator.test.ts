@@ -63,6 +63,44 @@ function buildSetup(initialBalance = 1000, freeSpinsToTrigger = 0, baseWin = 0) 
   return { fsm, session, eventBus, orchestrator, s }
 }
 
+function buildBuyBonusSetup(initialBalance = 5000, freeSpinsToTrigger = 0) {
+  const fsm = new GameStateMachine()
+  const session = new SessionManager(initialBalance)
+  const eventBus = new GameEventBus()
+  const s = { buyBonusCallCount: 0, freeSpinCallCount: 0, freeSpinsLeft: 0 }
+
+  const runtime: GameRuntime<'woodland-whisper'> = {
+    applyState() {
+      eventBus.emit('free-spins:updated', { remaining: s.freeSpinsLeft })
+    },
+    async presentResult() {},
+    resize() {},
+    destroy() {},
+  }
+
+  const actions: OrchestratorActions<'woodland-whisper'> = {
+    spinCost: () => 10,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    doSpin: async () => ({ sessionId: 'x', state: {} }) as any,
+    buyBonusCost: () => 1000,
+    doBuyBonus: async () => {
+      s.buyBonusCallCount++
+      s.freeSpinsLeft = freeSpinsToTrigger
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { sessionId: 'x', state: {}, result: { type: 'BUY' } } as any
+    },
+    doFreeSpin: async () => {
+      s.freeSpinCallCount++
+      s.freeSpinsLeft = Math.max(0, s.freeSpinsLeft - 1)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { sessionId: 'x', state: {} } as any
+    },
+  }
+
+  const orchestrator = new SpinOrchestrator(fsm, session, runtime, eventBus, actions)
+  return { fsm, session, orchestrator, s }
+}
+
 describe('SpinOrchestrator', () => {
   describe('basic spin (no win, no free spins)', () => {
     it('transitions IDLE → SPINNING → STOPPING → IDLE', async () => {
@@ -199,6 +237,26 @@ describe('SpinOrchestrator', () => {
       const { fsm, orchestrator, s } = buildSetup(1000, 0)
       await orchestrator.resumeFreeSpins()
       expect(s.freeSpinCallCount).toBe(0)
+      expect(fsm.state).toBe(GameUIState.IDLE)
+    })
+  })
+
+  describe('buy bonus', () => {
+    it('deducts the configured buy-bonus cost and dispatches the action once', async () => {
+      const { session, orchestrator, s } = buildBuyBonusSetup()
+
+      await orchestrator.buyBonus(1)
+
+      expect(s.buyBonusCallCount).toBe(1)
+      expect(session.balance).toBe(4000)
+    })
+
+    it('runs the free-spin loop after the buy-bonus result updates remaining spins', async () => {
+      const { fsm, orchestrator, s } = buildBuyBonusSetup(5000, 3)
+
+      await orchestrator.buyBonus(1)
+
+      expect(s.freeSpinCallCount).toBe(3)
       expect(fsm.state).toBe(GameUIState.IDLE)
     })
   })

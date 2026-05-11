@@ -6,6 +6,7 @@ import type { UILayoutSnapshot } from '../../engine/layout.js'
 import { ReelSet } from '../../engine/reel-set.js'
 import { WinOverlay } from '../../engine/win-overlay.js'
 import { PickBonusView } from './pick-bonus-view.js'
+import { BuyBonusControl } from './buy-bonus-control.js'
 import { PAYLINE_DATA, Symbols } from '@tgslots/woodland-whisper'
 import type {
   WoodlandWhisperBaseResult,
@@ -14,7 +15,9 @@ import type {
   WoodlandWhisperPickResult,
   WoodlandWhisperResult,
 } from '@tgslots/woodland-whisper'
+import { BUY_BONUS_COST_MULTIPLIER } from '@tgslots/woodland-whisper'
 import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
+import type { WWPickBonusSerialized } from '@tgslots/shared-contracts/states'
 import { deriveAwardedFreeSpins } from './free-spins-helpers.js'
 import { manifest } from './manifest.js'
 
@@ -48,11 +51,13 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   private _reelSet!: ReelSet
   private _overlay!: WinOverlay
   private _pickUI!: PickBonusView
+  private _buyBonusControl!: BuyBonusControl
   private _bgSprite!: Sprite
   private _bgTex!: Texture
   private _mask!: Graphics
   private _frame!: Graphics
   private _layout?: UILayoutSnapshot
+  private _pendingPickBonusState: WWPickBonusSerialized | null = null
 
   async init(ctx: GameUIContext<'woodland-whisper'>): Promise<void> {
     this._ctx = ctx
@@ -85,27 +90,27 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._frame = new Graphics()
     ctx.scene.reels.addChild(this._frame)
 
-    // Win overlay
-    this._overlay = new WinOverlay()
-    this._overlay.setGame(ctx.assets, [...manifest.winTiers])
-    ctx.scene.overlays.addChild(this._overlay)
-
     // Pick bonus UI
     this._pickUI = new PickBonusView()
     this._pickUI.on('pick', (index: number) => {
       ctx.eventBus.emit('pick-card-selected', { index })
     })
-    ctx.scene.features.addChild(this._pickUI)
+    ctx.scene.overlays.addChild(this._pickUI)
+
+    // Win overlay
+    this._overlay = new WinOverlay()
+    this._overlay.setGame(ctx.assets, [...manifest.winTiers])
+    ctx.scene.overlays.addChild(this._overlay)
+
+    this._buyBonusControl = new BuyBonusControl(ctx.eventBus, ctx.fsm, BUY_BONUS_COST_MULTIPLIER)
+    ctx.hud.slot('control-right').addChild(this._buyBonusControl)
   }
 
   applyState(state: WoodlandWhisperSerializedState): void {
     if (state.lastGrid) {
       this._reelSet.setSymbols(transposeGrid(state.lastGrid))
     }
-    if (state.pickBonus) {
-      this._pickUI.show()
-      this._pickUI.restoreState(state.pickBonus.userPicks, state.pickBonus.revealedValues)
-    }
+    this._pendingPickBonusState = state.pickBonus
 
     const remaining = state.freeSpins?.spinsRemaining ?? 0
     this._ctx.eventBus.emit('free-spins:updated', { remaining })
@@ -195,7 +200,12 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   }
 
   async resumeFeatures(): Promise<void> {
-    if (this._pickUI.visible) {
+    if (this._pendingPickBonusState) {
+      this._pickUI.show()
+      this._pickUI.restoreState(
+        this._pendingPickBonusState.userPicks,
+        this._pendingPickBonusState.revealedValues,
+      )
       await this._runPickBonus()
     }
   }
@@ -204,6 +214,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._reelSet.destroy({ children: true })
     this._overlay.destroy({ children: true })
     this._pickUI.destroy({ children: true })
+    this._buyBonusControl.destroy({ children: true })
     this._bgSprite.destroy()
     this._mask.destroy()
     this._frame.destroy()
@@ -284,6 +295,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   }
 
   private async _runPickBonus(): Promise<void> {
+    this._pendingPickBonusState = null
     this._pickUI.show()
     let matched = false
 

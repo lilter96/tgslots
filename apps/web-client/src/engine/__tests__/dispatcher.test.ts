@@ -14,11 +14,11 @@ Object.defineProperty(globalThis, 'localStorage', {
 })
 
 function makeFetch(body: unknown, status = 200): typeof fetch {
-  return async () =>
+  return (async () =>
     new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
-    }) as Response
+    }) as Response) as unknown as typeof fetch
 }
 
 describe('GameDispatcher', () => {
@@ -26,13 +26,13 @@ describe('GameDispatcher', () => {
 
   it('builds the correct URL: /game/:gameId/:action', async () => {
     let capturedUrl = ''
-    globalThis.fetch = async (url) => {
+    globalThis.fetch = (async (url) => {
       capturedUrl = url as string
       return new Response(JSON.stringify({ sessionId: 'sess', state: {}, result: undefined }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
-    }
+    }) as typeof fetch
 
     const d = new GameDispatcher('woodland-whisper', 'http://api.test')
     await d.dispatch('spin', { multiplier: 1 })
@@ -41,13 +41,13 @@ describe('GameDispatcher', () => {
 
   it('uses a relative base URL when baseUrl is empty', async () => {
     let capturedUrl = ''
-    globalThis.fetch = async (url) => {
+    globalThis.fetch = (async (url) => {
       capturedUrl = url as string
       return new Response(JSON.stringify({ sessionId: 'sess', state: {} }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
-    }
+    }) as typeof fetch
 
     const d = new GameDispatcher('ancient-dragon', '')
     await d.dispatch('spin', { multiplier: 2 })
@@ -64,13 +64,13 @@ describe('GameDispatcher', () => {
   it('sends existing sessionId in request body', async () => {
     storageMap.set('tgslots:session:woodland-whisper', 'prior-sess')
     let capturedBody: Record<string, unknown> = {}
-    globalThis.fetch = async (_url, opts) => {
+    globalThis.fetch = (async (_url, opts) => {
       capturedBody = JSON.parse((opts as RequestInit).body as string)
       return new Response(JSON.stringify({ sessionId: 'prior-sess', state: {} }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
-    }
+    }) as typeof fetch
 
     const d = new GameDispatcher('woodland-whisper', '')
     await d.dispatch('spin', { multiplier: 1 })
@@ -79,13 +79,13 @@ describe('GameDispatcher', () => {
 
   it('does not include sessionId in body when none is stored', async () => {
     let capturedBody: Record<string, unknown> = {}
-    globalThis.fetch = async (_url, opts) => {
+    globalThis.fetch = (async (_url, opts) => {
       capturedBody = JSON.parse((opts as RequestInit).body as string)
       return new Response(JSON.stringify({ sessionId: 'new', state: {} }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
-    }
+    }) as typeof fetch
 
     const d = new GameDispatcher('woodland-whisper', '')
     await d.dispatch('spin', { multiplier: 1 })
@@ -111,7 +111,7 @@ describe('GameDispatcher', () => {
   it('auto-retries on 404 when a stale sessionId is stored, creating a fresh session', async () => {
     storageMap.set('tgslots:session:woodland-whisper', 'stale-sess')
     let callCount = 0
-    globalThis.fetch = async (_url, opts) => {
+    globalThis.fetch = (async (_url, opts) => {
       callCount++
       const body = JSON.parse((opts as RequestInit).body as string) as Record<string, unknown>
       if (callCount === 1) {
@@ -126,7 +126,7 @@ describe('GameDispatcher', () => {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
-    }
+    }) as typeof fetch
 
     const d = new GameDispatcher('woodland-whisper', '')
     const result = await d.dispatch('spin', { multiplier: 1 })

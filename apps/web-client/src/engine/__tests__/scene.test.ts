@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'bun:test'
-import type { Scene } from '../scene'
 
-// Lightweight in-memory fulfillment of the Scene interface.
-// PixiScene wraps five Pixi Containers in the same layer order — this test
-// verifies the contract that any correct Scene implementation must satisfy
-// (z-ordering by index, clearGameLayers touching only the game layers).
+// Lightweight in-memory scene model used to verify the PixiScene contract:
+// five layers in the expected z-order, and clearGameLayers touching only the
+// game-owned layers.
 class FakeContainer {
   readonly children: FakeContainer[] = []
   addChild(c: FakeContainer): FakeContainer {
@@ -16,7 +14,7 @@ class FakeContainer {
   }
 }
 
-class FakeScene implements Scene {
+class FakeScene {
   private readonly _stage: FakeContainer
   readonly background: FakeContainer
   readonly reels: FakeContainer

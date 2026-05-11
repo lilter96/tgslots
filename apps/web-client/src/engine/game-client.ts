@@ -5,6 +5,9 @@ import type { GameEventBus } from './event-bus.js'
 import type { GameDispatcher } from './dispatcher.js'
 import type { GameAssets } from './asset-registry.js'
 import type { UILayoutSnapshot } from './layout.js'
+import type { GameStateMachine } from './state-machine.js'
+import type { SessionManager } from './session-manager.js'
+import type { HUD } from './hud.js'
 
 export type { GameManifest, AssetManifest, GameAssets }
 
@@ -13,6 +16,9 @@ export interface GameUIContext<G extends GameId> {
   readonly eventBus: GameEventBus
   readonly dispatcher: GameDispatcher<G>
   readonly assets: GameAssets
+  readonly fsm: GameStateMachine
+  readonly session: SessionManager
+  readonly hud: HUD
 }
 
 export interface GameRuntime<G extends GameId> {
