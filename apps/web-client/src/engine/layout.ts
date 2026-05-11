@@ -74,7 +74,12 @@ function makeRect(x: number, y: number, width: number, height: number): Rect {
   }
 }
 
-export function getResponsiveLayout(screenWidth: number, screenHeight: number): UILayoutSnapshot {
+export function getResponsiveLayout(
+  screenWidth: number,
+  screenHeight: number,
+  reelNaturalWidth = REEL_NATURAL_WIDTH,
+  reelNaturalHeight = REEL_NATURAL_HEIGHT,
+): UILayoutSnapshot {
   const orientation: OrientationMode = screenWidth >= screenHeight ? 'landscape' : 'portrait'
   const viewportClass = getViewportClass(screenWidth, screenHeight)
   const shortestSide = Math.min(screenWidth, screenHeight)
@@ -121,10 +126,10 @@ export function getResponsiveLayout(screenWidth: number, screenHeight: number): 
 
   const reelScale = Math.min(
     1,
-    fitScale(gameplayArea.width, gameplayArea.height, REEL_NATURAL_WIDTH, REEL_NATURAL_HEIGHT),
+    fitScale(gameplayArea.width, gameplayArea.height, reelNaturalWidth, reelNaturalHeight),
   )
-  const reelWidth = REEL_NATURAL_WIDTH * reelScale
-  const reelHeight = REEL_NATURAL_HEIGHT * reelScale
+  const reelWidth = reelNaturalWidth * reelScale
+  const reelHeight = reelNaturalHeight * reelScale
   const reelBounds = makeRect(
     gameplayArea.x + (gameplayArea.width - reelWidth) / 2,
     gameplayArea.y + (gameplayArea.height - reelHeight) / 2,
@@ -165,6 +170,6 @@ export function getResponsiveLayout(screenWidth: number, screenHeight: number): 
       x: reelBounds.x + reelBounds.width / 2,
       y: reelBounds.y + reelBounds.height / 2,
     },
-    winOverlayScale: clamp(reelBounds.width / 780, 0.52, 1),
+    winOverlayScale: clamp(reelBounds.width / reelNaturalWidth, 0.52, 1),
   }
 }

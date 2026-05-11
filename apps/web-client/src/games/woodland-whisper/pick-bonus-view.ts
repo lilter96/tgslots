@@ -1,6 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
-import type { UILayoutSnapshot } from './layout'
+import type { UILayoutSnapshot } from '../../engine/layout.js'
 
 const FONT = 'Cinzel, serif'
 const CARD_SIZE = 120
@@ -54,7 +54,7 @@ function makeParchmentCard(): { card: Container; label: Text } {
   return { card, label }
 }
 
-export class PickBonusUI extends Container {
+export class PickBonusView extends Container {
   private _cards: Container[] = []
   private _labels: Text[] = []
   private _pendingReveal = false

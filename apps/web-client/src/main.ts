@@ -1,164 +1,192 @@
-import { Application, Graphics, Sprite } from 'pixi.js'
-import { AssetLoader } from './engine/asset-loader'
-import { GameStateMachine } from './engine/state-machine'
-import { ReelSet } from './engine/reel-set'
-import { SessionManager } from './engine/session-manager'
-import { GameController } from './engine/game-controller'
-import { HUD } from './engine/hud'
-import { PickBonusUI } from './engine/pick-bonus-ui'
-import { WinOverlay } from './engine/win-overlay'
-import { AutoSpinPanel } from './engine/auto-spin-panel'
-import type { AutoSpinConfig } from './types'
-import { GameUIState } from './types'
-import { getResponsiveLayout, REEL_NATURAL_WIDTH } from './engine/layout'
-import { SYM_NAMES } from '@tgslots/woodland-whisper'
+import { Application } from 'pixi.js'
+import { BET_CONFIG as WW_BET_CONFIG, BUY_BONUS_COST_MULTIPLIER } from '@tgslots/woodland-whisper'
+import { BET_CONFIG as AD_BET_CONFIG } from '@tgslots/ancient-dragon'
+import { Wager } from '@tgslots/slots-core'
+import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
+import type { AncientDragonSerializedState } from '@tgslots/shared-contracts/states'
+import { GameStateMachine } from './engine/state-machine.js'
+import { SessionManager } from './engine/session-manager.js'
+import { HUD } from './engine/hud.js'
+import { AutoSpinPanel } from './engine/auto-spin-panel.js'
+import { AssetRegistry } from './engine/asset-registry.js'
+import { GameDispatcher } from './engine/dispatcher.js'
+import { GameEventBus } from './engine/event-bus.js'
+import { PixiScene } from './engine/scene.js'
+import { SpinOrchestrator } from './engine/spin-orchestrator.js'
+import type { OrchestratorActions } from './engine/spin-orchestrator.js'
+import type { GameRuntime } from './engine/game-client.js'
+import { getResponsiveLayout } from './engine/layout.js'
+import { gameRegistry } from './games/registry.js'
+import { GamePicker } from './app/game-picker.js'
+import type { AutoSpinConfig } from './types.js'
+import { GameUIState } from './types.js'
 
-const FRAME_PAD = 4
+// Import game registrations so declaration-merging activates before any dispatch call
+import './games/woodland-whisper/index.js'
+import './games/ancient-dragon/index.js'
 
-async function init() {
+// Empty string → relative URL, forwarded by the Vite dev proxy to :3001.
+// Set VITE_API_URL to an absolute URL in production.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BASE_URL: string = (import.meta as any).env?.VITE_API_URL ?? ''
+
+async function mountGame(gameId: string): Promise<void> {
+  const gameClient = gameRegistry[gameId]
+  if (gameClient === undefined) return
+  const client = gameClient
+
   const app = new Application()
   await app.init({
     background: '#060e04',
     resizeTo: window,
     antialias: true,
+    preference: 'webgl',
   })
   document.getElementById('game-container')?.appendChild(app.canvas)
 
-  await AssetLoader.loadAll()
-
-  // ── Background sprite ───────────────────────────────────────────────────
-  const bgTex = AssetLoader.getTexture('BG')
-  const bgSprite = new Sprite(bgTex)
-  bgSprite.anchor.set(0.5)
-  app.stage.addChild(bgSprite)
-
+  const scene = new PixiScene(app.stage)
   const fsm = new GameStateMachine()
   const session = new SessionManager(10000)
+  const eventBus = new GameEventBus()
+  const assetRegistry = new AssetRegistry()
 
-  const gridConfig = { reels: 5, rows: 3, reelSpacing: 20 }
-  const reelConfig = { symbolWidth: 140, symbolHeight: 140, visibleSymbols: 3, totalSymbols: 5 }
-
-  // Initial grid will be fetched from server in controller.init()
-  const emptyGrid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => 0))
-
-  const reelSet = new ReelSet(gridConfig, reelConfig, emptyGrid, [...SYM_NAMES])
-
-  const mask = new Graphics()
-  app.stage.addChild(mask)
-  reelSet.mask = mask
-  app.stage.addChild(reelSet)
-
-  const frame = new Graphics()
-  app.stage.addChild(frame)
-
-  const controller = new GameController(fsm, reelSet, session)
-
-  const pickUI = new PickBonusUI()
-  app.stage.addChild(pickUI)
-  controller.setPickUI(pickUI)
-
-  const overlay = new WinOverlay()
-  app.stage.addChild(overlay)
-  controller.setOverlay(overlay)
+  const assets = await assetRegistry.loadGame(client.manifest, client.assets)
 
   const hud = new HUD(session, fsm)
-  app.stage.addChild(hud)
-
-  controller.addFreeSpinsStatusListener((status) => {
-    hud.syncFreeSpinsStatus(status)
-  })
+  scene.hud.addChild(hud)
 
   const autoSpinPanel = new AutoSpinPanel()
-  app.stage.addChild(autoSpinPanel)
+  scene.overlays.addChild(autoSpinPanel)
 
-  // ── Bootstrap ───────────────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dispatcher = new GameDispatcher(gameId as any, BASE_URL)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ctx = { scene, eventBus, dispatcher: dispatcher as any, assets }
+  const runtime = await client.mount(ctx)
 
-  await controller.init()
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-
-  function doLayout(W: number, H: number) {
-    const layout = getResponsiveLayout(W, H)
-
-    // Background — cover the canvas
-    const bgScale = Math.max(W / bgTex.width, H / bgTex.height)
-    bgSprite.scale.set(bgScale)
-    bgSprite.x = W / 2
-    bgSprite.y = H / 2
-
-    // Reel set — fit into the shared gameplay area
-    const reelScale = layout.reelBounds.width / REEL_NATURAL_WIDTH
-
-    reelSet.scale.set(reelScale)
-    reelSet.x = layout.reelBounds.x
-    reelSet.y = layout.reelBounds.y
-
-    // Mask — match the scaled reel-set footprint
-    mask.clear()
-    mask.rect(reelSet.x, reelSet.y, layout.reelBounds.width, layout.reelBounds.height)
-    mask.fill(0xffffff)
-
-    // Frame — outer border + column/row separators in screen coordinates
-    frame.clear()
-
-    frame.rect(
-      reelSet.x - FRAME_PAD,
-      reelSet.y - FRAME_PAD,
-      layout.reelBounds.width + FRAME_PAD * 2,
-      layout.reelBounds.height + FRAME_PAD * 2,
+  let orchestrator: SpinOrchestrator<'woodland-whisper'> | SpinOrchestrator<'ancient-dragon'>
+  if (gameId === 'ancient-dragon') {
+    const d = dispatcher as GameDispatcher<'ancient-dragon'>
+    const adActions: OrchestratorActions<'ancient-dragon'> = {
+      spinCost: (m) => new Wager(m, AD_BET_CONFIG).totalWager,
+      doSpin: (m) => d.dispatch('spin', { multiplier: m }),
+      doFreeSpin: () => d.dispatch('freespin', {}),
+    }
+    orchestrator = new SpinOrchestrator(
+      fsm,
+      session,
+      runtime as GameRuntime<'ancient-dragon'>,
+      eventBus,
+      adActions,
     )
-    frame.stroke({ color: 0xd4a017, width: 4, alpha: 1 })
-
-    for (let col = 1; col < gridConfig.reels; col++) {
-      const sepX =
-        reelSet.x +
-        (col * (reelConfig.symbolWidth + gridConfig.reelSpacing) - gridConfig.reelSpacing / 2) *
-          reelScale
-      frame.moveTo(sepX, reelSet.y)
-      frame.lineTo(sepX, reelSet.y + layout.reelBounds.height)
+  } else {
+    const d = dispatcher as GameDispatcher<'woodland-whisper'>
+    const wwActions: OrchestratorActions<'woodland-whisper'> = {
+      spinCost: (m) => new Wager(m, WW_BET_CONFIG).totalWager,
+      doSpin: (m) => d.dispatch('spin', { multiplier: m }),
+      buyBonusCost: (m) => new Wager(m, WW_BET_CONFIG).totalWager * BUY_BONUS_COST_MULTIPLIER,
+      doBuyBonus: (m) => d.dispatch('buybonus', { multiplier: m }),
+      doFreeSpin: () => d.dispatch('freespin', {}),
     }
-    frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
+    orchestrator = new SpinOrchestrator(
+      fsm,
+      session,
+      runtime as GameRuntime<'woodland-whisper'>,
+      eventBus,
+      wwActions,
+    )
+  }
 
-    for (let row = 1; row < reelConfig.visibleSymbols; row++) {
-      const sepY = reelSet.y + row * reelConfig.symbolHeight * reelScale
-      frame.moveTo(reelSet.x, sepY)
-      frame.lineTo(reelSet.x + layout.reelBounds.width, sepY)
+  // Sync free-spins badge in HUD whenever remaining count changes
+  eventBus.on('free-spins:updated', ({ remaining, awarded }) => {
+    hud.syncFreeSpinsStatus({ active: remaining > 0, remaining, awarded: awarded ?? null })
+  })
+
+  // Restore session state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const initResponse = await (dispatcher as any).dispatch('state', {})
+  if (gameId === 'ancient-dragon') {
+    const initState = initResponse.state as AncientDragonSerializedState
+    runtime.applyState(initState as Parameters<typeof runtime.applyState>[0])
+    orchestrator.resumeFreeSpins().catch(console.error)
+  } else {
+    const initState = initResponse.state as WoodlandWhisperSerializedState
+    runtime.applyState(initState as Parameters<typeof runtime.applyState>[0])
+
+    if (initState.pickBonus && runtime.resumeFeatures) {
+      fsm.transitionTo(GameUIState.FEATURE_TRANSITION)
+      runtime
+        .resumeFeatures()
+        .then(() => {
+          if (fsm.state === GameUIState.FEATURE_TRANSITION) {
+            fsm.transitionTo(GameUIState.IDLE)
+          }
+          return orchestrator.resumeFreeSpins()
+        })
+        .catch(console.error)
+    } else {
+      orchestrator.resumeFreeSpins().catch(console.error)
     }
-    frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
+  }
 
+  // Layout — driven by per-game manifest dimensions
+  function doLayout(W: number, H: number) {
+    const layout = getResponsiveLayout(
+      W,
+      H,
+      client.manifest.reelNaturalWidth,
+      client.manifest.reelNaturalHeight,
+    )
+    runtime.resize(layout)
     hud.resize(layout)
-    pickUI.resize(layout)
-    overlay.resize(layout)
     autoSpinPanel.resize(layout)
   }
 
   doLayout(app.screen.width, app.screen.height)
   app.renderer.on('resize', (W: number, H: number) => doLayout(W, H))
 
-  // ── Event wiring ──────────────────────────────────────────────────────────
-
-  hud.on('spin', () => controller.spin().catch(console.error))
-  hud.on('buyBonus', () => controller.buyBonus().catch(console.error))
-
+  // HUD event wiring
+  hud.on('spin', () => orchestrator.spin(session.betMultiplier).catch(console.error))
   hud.on('autoSpin', () => autoSpinPanel.show())
-
   hud.on('stopAutoSpin', () => {
-    controller.stopAutoSpin()
+    orchestrator.stopAutoSpin()
     hud.syncAutoSpin(false, 0)
   })
 
   autoSpinPanel.on('start', (config: AutoSpinConfig) => {
-    controller.startAutoSpin(config)
-    hud.syncAutoSpin(true, controller.autoSpinRemaining)
+    orchestrator.startAutoSpin(config)
+    hud.syncAutoSpin(true, orchestrator.autoSpinRemaining)
   })
 
   fsm.addListener((state) => {
     if (state === GameUIState.IDLE) {
-      hud.syncAutoSpin(controller.isAutoSpin, controller.autoSpinRemaining)
+      hud.syncAutoSpin(orchestrator.isAutoSpin, orchestrator.autoSpinRemaining)
     }
   })
 
   console.log('Game initialized.')
+}
+
+function showPicker(): void {
+  const games = Object.entries(gameRegistry).map(([id, client]) => ({
+    id,
+    displayName: client.manifest.displayName,
+  }))
+  new GamePicker(games, (gameId) => {
+    mountGame(gameId).catch(console.error)
+  })
+}
+
+async function init() {
+  const params = new URLSearchParams(location.search)
+  const gameId = params.get('game')
+
+  if (!gameId || !gameRegistry[gameId]) {
+    showPicker()
+    return
+  }
+
+  await mountGame(gameId)
 }
 
 init().catch(console.error)

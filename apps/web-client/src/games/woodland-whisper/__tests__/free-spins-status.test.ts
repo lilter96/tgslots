@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'bun:test'
-import type { WoodlandWhisperState } from '@tgslots/woodland-whisper/game-state-machine'
+import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
 import {
   deriveAwardedFreeSpins,
   deriveFreeSpinsStatus,
   formatFreeSpinsAwardedMessage,
-} from '../free-spins-status'
+} from '../free-spins-helpers'
 
-function makeState(spinsRemaining: number | null): WoodlandWhisperState {
+function makeState(spinsRemaining: number | null): WoodlandWhisperSerializedState {
   return {
     lastGrid: null,
     freeSpins:
       spinsRemaining === null
         ? null
         : {
-            triggeringWager: {} as never,
+            triggeringMultiplier: 1,
             totalWin: 0,
             spinsRemaining,
           },

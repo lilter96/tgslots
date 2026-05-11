@@ -15,6 +15,7 @@
     "@tgslots/slots-core": "workspace:*",
     "@tgslots/ancient-dragon": "workspace:*",
     "@tgslots/woodland-whisper": "workspace:*",
+    "@tgslots/shared-contracts": "workspace:*",
     "elysia": "^1.2.25"
   }
 }

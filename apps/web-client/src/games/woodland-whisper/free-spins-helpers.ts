@@ -1,9 +1,9 @@
-import type { WoodlandWhisperState } from '@tgslots/woodland-whisper/game-state-machine'
-import type { FreeSpinsStatus } from '../types'
+import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
+import type { FreeSpinsStatus } from '../../types.js'
 
 export function deriveAwardedFreeSpins(
-  previousState: WoodlandWhisperState,
-  nextState: WoodlandWhisperState,
+  previousState: WoodlandWhisperSerializedState,
+  nextState: WoodlandWhisperSerializedState,
 ): number | null {
   const previousRemaining = previousState.freeSpins?.spinsRemaining ?? 0
   const nextRemaining = nextState.freeSpins?.spinsRemaining ?? 0
@@ -12,7 +12,7 @@ export function deriveAwardedFreeSpins(
 }
 
 export function deriveFreeSpinsStatus(
-  state: WoodlandWhisperState,
+  state: WoodlandWhisperSerializedState,
   awarded: number | null = null,
 ): FreeSpinsStatus {
   const remaining = state.freeSpins?.spinsRemaining ?? 0

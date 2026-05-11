@@ -8,14 +8,14 @@ import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
 
 const FONT_DISPLAY = 'Cinzel, serif'
 
-const BUY_W = 140
-const BUY_H = 68
-const AUTO_W = BUY_W
+const SLOT_W = 140
+const SLOT_H = 68
+const AUTO_W = 140
 const AUTO_H = 68
 const SPIN_D = 88
 const BTN_GAP = 12
 const PANEL_H = SPIN_D
-const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + BUY_W
+const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + SLOT_W
 
 interface InfoCard {
   key: 'balance' | 'bet' | 'win' | 'freeSpins'
@@ -50,9 +50,6 @@ export class HUD extends Container {
   private _spinButton: Container
   private _spinLabel: Text
 
-  private _buyBonusBtn: Container
-  private _buyBonusBtnBg: Graphics
-
   private _autoBtn: Container
   private _autoBtnBg: Graphics
   private _autoBtnCount: Text
@@ -67,6 +64,7 @@ export class HUD extends Container {
   private _freeSpinsCard: InfoCard
 
   private _autoSpinActive = false
+  private readonly _slots = new Map<string, Container>()
 
   constructor(session: SessionManager, fsm: GameStateMachine) {
     super()
@@ -90,8 +88,6 @@ export class HUD extends Container {
       style: { fontFamily: FONT_DISPLAY, fill: '#ffcc80', fontSize: 10 },
     })
 
-    this._buyBonusBtn = new Container()
-    this._buyBonusBtnBg = new Graphics()
     this._infoContainer = new Container()
     this._buttonPanel = new Container()
 
@@ -104,6 +100,26 @@ export class HUD extends Container {
     this._build()
     this.updateTexts()
     this._fsm.addListener(() => this._onStateChange())
+  }
+
+  /** Returns a named slot container inside the button panel for game-specific feature buttons. */
+  public slot(name: string): Container {
+    let c = this._slots.get(name)
+    if (!c) {
+      c = new Container()
+      this._slots.set(name, c)
+      if (name === 'control-right') {
+        c.x = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP
+        c.y = (PANEL_H - SLOT_H) / 2
+        this._buttonPanel.addChild(c)
+      }
+    }
+    return c
+  }
+
+  /** Clears all slot children added by a game runtime — call on game unmount. */
+  public clearSlots(): void {
+    for (const c of this._slots.values()) c.removeChildren()
   }
 
   private _makeInfoCard(key: InfoCard['key'], title: string, fill: number): InfoCard {
@@ -180,35 +196,6 @@ export class HUD extends Container {
     this._spinButton.cursor = 'pointer'
     this._spinButton.on('pointerdown', () => this.emit('spin'))
     this._buttonPanel.addChild(this._spinButton)
-
-    this._buyBonusBtnBg.roundRect(0, 0, BUY_W, BUY_H, 10)
-    this._buyBonusBtnBg.fill(0x2a1608)
-    this._buyBonusBtnBg.stroke({ width: 2, color: 0xd4a017 })
-    this._buyBonusBtnBg.roundRect(3, 3, BUY_W - 6, BUY_H - 6, 7)
-    this._buyBonusBtnBg.stroke({ width: 0.8, color: 0xffe066, alpha: 0.3 })
-    this._buyBonusBtn.addChild(this._buyBonusBtnBg)
-    const buyLabel = new Text({
-      text: 'BUY BONUS',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 16, fontWeight: '900' },
-    })
-    buyLabel.anchor.set(0.5)
-    buyLabel.x = BUY_W / 2
-    buyLabel.y = 20
-    this._buyBonusBtn.addChild(buyLabel)
-    const buyCostLabel = new Text({
-      text: '100× BET',
-      style: { fontFamily: FONT_DISPLAY, fill: '#c8a060', fontSize: 12 },
-    })
-    buyCostLabel.anchor.set(0.5)
-    buyCostLabel.x = BUY_W / 2
-    buyCostLabel.y = 46
-    this._buyBonusBtn.addChild(buyCostLabel)
-    this._buyBonusBtn.x = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP
-    this._buyBonusBtn.y = (PANEL_H - BUY_H) / 2
-    this._buyBonusBtn.interactive = true
-    this._buyBonusBtn.cursor = 'pointer'
-    this._buyBonusBtn.on('pointerdown', () => this.emit('buyBonus'))
-    this._buttonPanel.addChild(this._buyBonusBtn)
 
     this.addChild(this._buttonPanel)
   }
@@ -359,8 +346,6 @@ export class HUD extends Container {
     const spinEnabled = idle && !this._autoSpinActive
     this._spinButton.alpha = spinEnabled ? 1 : 0.4
     this._spinButton.interactive = spinEnabled
-    this._buyBonusBtn.alpha = spinEnabled ? 1 : 0.4
-    this._buyBonusBtn.interactive = spinEnabled
     const autoEnabled = this._autoSpinActive || idle
     this._autoBtn.alpha = autoEnabled ? 1 : 0.5
     this._autoBtn.interactive = autoEnabled

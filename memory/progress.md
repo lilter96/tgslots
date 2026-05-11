@@ -43,6 +43,7 @@ up:
 - [[task_033_web_client_responsive_layout]] — 2026-05-06 — Rebuilt the Woodland Whisper web client around a shared responsive Pixi layout model; refactored the HUD into a bottom-pinned slot footer and updated the auto-spin modal, pick-bonus board, and win overlay for portrait/landscape phone, tablet, and desktop support; added layout tests.
 
 - [[task_034_api_dispatcher_architecture]] — 2026-05-10 — Type-safe stateless `GameRegistry + GameServer` dispatcher; `IGameModule` adapters for both games; `InMemorySessionManager`; generic `/game/:gameId/:action` + per-game typed routes; all 275 tests pass.
+- [[task_035_web_client_plugin_refactor]] — 2026-05-11 — Multi-game plugin architecture for `apps/web-client`. `IGameClient<G>` contract + `GameRuntime<G>`; both WW and AD selectable via `?game=`; `GamePicker` DOM overlay; `SpinOrchestrator` replaces `GameController`; `PixiScene` layer stack; `@tgslots/shared-contracts` shared with `apps/api`. 6 new test files; dead code (`asset-loader.ts`, `pick-bonus-ui.ts`, `free-spins-status.ts`, `game-host.ts`, `asset-loader.test.ts`) removed. 318 tests pass.
 
 ## In Progress
 

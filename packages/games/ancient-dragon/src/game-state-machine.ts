@@ -6,6 +6,7 @@ import type {
   StateMachine,
 } from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
+import type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 import { ANCIENT_DRAGON_SAMPLER } from './logic.js'
 
 export interface FreeSpinState {
@@ -22,12 +23,16 @@ export interface AncientDragonBaseResult extends SpinResult {
   type: 'BASE'
   sc: number
   triggeredFreeSpins: boolean
+  grid: number[][]
+  hits: readonly PaylineHit[]
 }
 
 export interface AncientDragonFreeResult extends SpinResult {
   type: 'FREE'
   sc: number
   retriggeredFreeSpins: boolean
+  grid: number[][]
+  hits: readonly PaylineHit[]
 }
 
 export type AncientDragonResult = AncientDragonBaseResult | AncientDragonFreeResult
@@ -64,6 +69,8 @@ export class AncientDragonStateMachine implements StateMachine<
       win: result.win,
       sc: result.sc,
       triggeredFreeSpins: isTrigger,
+      grid: result.grid,
+      hits: result.hits,
     }
   }
 
@@ -89,6 +96,8 @@ export class AncientDragonStateMachine implements StateMachine<
       win: result.win,
       sc: result.sc,
       retriggeredFreeSpins: isTrigger,
+      grid: result.grid,
+      hits: result.hits,
     }
   }
 

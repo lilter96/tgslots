@@ -2,26 +2,31 @@ import { Container, Ticker } from 'pixi.js'
 import type { UIReelConfig } from '../types'
 import { gsap } from 'gsap'
 import { SymbolView } from './symbol-view'
-import { AssetLoader } from './asset-loader'
+import type { GameAssets } from './asset-registry'
 
 export class Reel extends Container {
   private _symbols: SymbolView[] = []
   private _config: UIReelConfig
-  private _symbolIds: number[] = []
-  private _symbolNames: string[]
+  private _assets: GameAssets
+  private _symbolCount: number
   private _spinning = false
   private _scrollY = 0
   private _spinTicker?: (ticker: Ticker) => void
 
-  constructor(config: UIReelConfig, initialSymbolIds: number[], symbolNames: string[]) {
+  constructor(
+    config: UIReelConfig,
+    initialSymbolIds: number[],
+    assets: GameAssets,
+    symbolCount: number,
+  ) {
     super()
     this._config = config
-    this._symbolIds = [...initialSymbolIds]
-    this._symbolNames = symbolNames
-    this.init()
+    this._assets = assets
+    this._symbolCount = symbolCount
+    this._init(initialSymbolIds)
   }
 
-  private init() {
+  private _init(initialSymbolIds: number[]) {
     const { totalSymbols, symbolHeight, symbolWidth } = this._config
 
     for (let i = 0; i < totalSymbols; i++) {
@@ -29,9 +34,9 @@ export class Reel extends Container {
       symbolView.y = i * symbolHeight
       symbolView.setSize(symbolWidth, symbolHeight)
 
-      const symbolId = this._symbolIds[i % this._symbolIds.length]
+      const symbolId = initialSymbolIds[i % initialSymbolIds.length]
       if (symbolId !== undefined) {
-        symbolView.setTexture(AssetLoader.getSymbolTexture(symbolId, this._symbolNames))
+        symbolView.setTexture(this._assets.getSymbolTexture(symbolId))
       }
 
       this._symbols.push(symbolView)
@@ -46,7 +51,7 @@ export class Reel extends Container {
 
     const { symbolHeight, totalSymbols } = this._config
     const reelHeight = totalSymbols * symbolHeight
-    const spinSpeed = symbolHeight * 15 // px per second
+    const spinSpeed = symbolHeight * 15
 
     this._symbols.forEach((s) => s.setBlur(10))
 
@@ -60,10 +65,9 @@ export class Reel extends Container {
         const newY = (i * symbolHeight + this._scrollY) % reelHeight
         symbol.y = newY
 
-        // Wrap: symbol moved from bottom back to top — randomize it
         if (newY < prevY - symbolHeight / 2) {
-          const randomId = Math.floor(Math.random() * (this._symbolNames.length - 1))
-          symbol.setTexture(AssetLoader.getSymbolTexture(randomId, this._symbolNames))
+          const randomId = Math.floor(Math.random() * this._symbolCount)
+          symbol.setTexture(this._assets.getSymbolTexture(randomId))
         }
       }
     }
@@ -83,12 +87,11 @@ export class Reel extends Container {
 
     this._symbols.forEach((s) => s.setBlur(0))
 
-    // Set final textures and position slightly above targets for a drop-in
     this._symbols.forEach((symbol, i) => {
       gsap.killTweensOf(symbol)
       const symbolId = finalSymbols[i]
       if (symbolId !== undefined) {
-        symbol.setTexture(AssetLoader.getSymbolTexture(symbolId, this._symbolNames))
+        symbol.setTexture(this._assets.getSymbolTexture(symbolId))
       }
       symbol.y = i * symbolHeight - symbolHeight * 0.25
     })
@@ -120,17 +123,13 @@ export class Reel extends Container {
     return this._symbols[row] ?? null
   }
 
-  /**
-   * Instantly updates the visible symbols on the reel without animation.
-   * @param symbols Array of symbol IDs. Should contain at least 'visibleSymbols' count.
-   */
   public setSymbols(symbols: number[]): void {
     const { symbolHeight } = this._config
     this._symbols.forEach((symbol, i) => {
       gsap.killTweensOf(symbol)
       const symbolId = symbols[i % symbols.length]
       if (symbolId !== undefined) {
-        symbol.setTexture(AssetLoader.getSymbolTexture(symbolId, this._symbolNames))
+        symbol.setTexture(this._assets.getSymbolTexture(symbolId))
       }
       symbol.y = i * symbolHeight
       symbol.setBlur(0)

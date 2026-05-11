@@ -1,22 +1,16 @@
 import { Container, Sprite, Text, TextStyle } from 'pixi.js'
 import { gsap } from 'gsap'
-import { AssetLoader } from './asset-loader'
-import { formatFreeSpinsAwardedMessage } from './free-spins-status'
+import type { GameAssets } from './asset-registry'
+import type { WinTier } from '@tgslots/shared-contracts'
 import type { UILayoutSnapshot } from './layout'
-
-const TEXTURE_MAP: Record<string, string> = {
-  'BONUS!': 'ANNOUNCE_BONUS',
-  'FREE SPINS!': 'ANNOUNCE_FREE',
-  'WIN!': 'WIN_SMALL',
-  'BIG WIN!': 'WIN_BIG',
-  'MEGA WIN!': 'WIN_MEGA',
-}
 
 export class WinOverlay extends Container {
   private _sprite: Sprite
   private _fallbackText: Text
   private _baseScale = 1
   private _baseFontSize = 72
+  private _assets: GameAssets | null = null
+  private _winTiers: readonly WinTier[] = []
 
   constructor() {
     super()
@@ -42,6 +36,11 @@ export class WinOverlay extends Container {
     this.visible = false
   }
 
+  public setGame(assets: GameAssets, winTiers: readonly WinTier[]): void {
+    this._assets = assets
+    this._winTiers = winTiers
+  }
+
   public resize(layout: UILayoutSnapshot) {
     this.x = layout.overlayCenter.x
     this.y = layout.overlayCenter.y
@@ -50,17 +49,19 @@ export class WinOverlay extends Container {
   }
 
   public async announce(text: string, duration = 2000): Promise<void> {
-    const textureName = TEXTURE_MAP[text]
-    if (textureName) {
-      this._sprite.texture = AssetLoader.getTexture(textureName)
-      this._sprite.visible = true
-      this._fallbackText.visible = false
+    const tier = this._winTiers.find((t) => t.copy === text)
+    const textureName = tier?.textureName
+
+    if (textureName && this._assets) {
+      try {
+        this._sprite.texture = this._assets.getTexture(textureName)
+        this._sprite.visible = true
+        this._fallbackText.visible = false
+      } catch {
+        this._showFallbackText(text)
+      }
     } else {
-      this._fallbackText.style.fontSize =
-        (text.length > 12 ? this._baseFontSize * 0.72 : this._baseFontSize) / this._baseScale
-      this._fallbackText.text = text
-      this._fallbackText.visible = true
-      this._sprite.visible = false
+      this._showFallbackText(text)
     }
 
     this.visible = true
@@ -90,14 +91,21 @@ export class WinOverlay extends Container {
 
   public async announceWin(amount: number, totalWager: number): Promise<void> {
     const ratio = totalWager > 0 ? amount / totalWager : 0
-    let tier: string
-    if (ratio >= 50) tier = 'MEGA WIN!'
-    else if (ratio >= 20) tier = 'BIG WIN!'
-    else tier = 'WIN!'
-    return this.announce(tier, 2500)
+    const tier = [...this._winTiers]
+      .sort((a, b) => b.thresholdX - a.thresholdX)
+      .find((t) => ratio >= t.thresholdX)
+    return this.announce(tier?.copy ?? 'WIN!', 2500)
   }
 
   public async announceFreeSpinsAwarded(awarded: number, duration = 2000): Promise<void> {
-    return this.announce(formatFreeSpinsAwardedMessage(awarded), duration)
+    return this.announce(`${awarded} FREE SPINS WON`, duration)
+  }
+
+  private _showFallbackText(text: string) {
+    this._fallbackText.style.fontSize =
+      (text.length > 12 ? this._baseFontSize * 0.72 : this._baseFontSize) / this._baseScale
+    this._fallbackText.text = text
+    this._fallbackText.visible = true
+    this._sprite.visible = false
   }
 }

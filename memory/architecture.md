@@ -16,7 +16,7 @@ up:
 | Runtime         | Bun v1.3.12+                     |
 | Language        | TypeScript 5.9, strict mode, ESM |
 | Package manager | Bun workspaces                   |
-| Testing         | bun:test (275 passing tests as of 2026-05-10) |
+| Testing         | bun:test (318 passing tests as of 2026-05-11) |
 | Parallelism     | node:worker_threads via Bun      |
 
 ## Repository Layout
@@ -33,7 +33,7 @@ tgslots/                        ← Bun monorepo root
 └── apps/
     ├── api/                    ← Elysia HTTP API (port 3001)
     ├── simulations/            ← CLI entry points (not a publishable package)
-    └── web-client/             ← Pixi frontend for Woodland Whisper
+    └── web-client/             ← Pixi multi-game frontend (Woodland Whisper + Ancient Dragon)
 ```
 
 ## Layer Architecture

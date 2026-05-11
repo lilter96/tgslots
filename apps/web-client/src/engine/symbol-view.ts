@@ -4,7 +4,6 @@ export class SymbolView extends Container {
   private _sprite: Sprite
   private _blurFilter: BlurFilter
   private _highlightGfx: Graphics
-  private _isWinning = false
 
   constructor() {
     super()
@@ -36,30 +35,6 @@ export class SymbolView extends Container {
     this._sprite.height = height * 0.8
     this._sprite.x = width / 2
     this._sprite.y = height / 2
-  }
-
-  public showWin() {
-    if (this._isWinning) return
-    this._isWinning = true
-
-    import('gsap').then(({ gsap }) => {
-      gsap.to(this._sprite.scale, {
-        x: '+=0.2',
-        y: '+=0.2',
-        duration: 0.4,
-        yoyo: true,
-        repeat: -1,
-        ease: 'sine.inOut',
-      })
-    })
-  }
-
-  public clearWin() {
-    this._isWinning = false
-    import('gsap').then(({ gsap }) => {
-      gsap.killTweensOf(this._sprite.scale)
-      this._sprite.scale.set(1, 1)
-    })
   }
 
   public highlight(color: number = 0xffd700): void {

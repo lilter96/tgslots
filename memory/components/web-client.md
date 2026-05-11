@@ -21,38 +21,81 @@ component: "web-client"
 
 ## Responsibility
 
-Pixi-based Woodland Whisper frontend. Owns responsive scene layout, local session balance display, reel rendering, HUD, feature overlays, auto-spin controls, API-driven game flow, and restoration of active pick-bonus / free-spin sessions from backend state.
+Pixi-based multi-game frontend. Both Woodland Whisper and Ancient Dragon are selectable. Owns responsive scene layout, session balance, reel rendering, HUD, feature overlays, auto-spin controls, API-driven game flow, and session restoration. Built on a plugin architecture: adding a new game = drop a folder under `src/games/<id>/` and export an `IGameClient` instance.
 
-## UI Flow
+## Plugin Architecture
 
-- `GameController` is the orchestration layer between API state, reel animations, feature overlays, and HUD synchronization.
-- `layout.ts` computes a shared viewport snapshot for reels, a bottom-pinned HUD footer, modals, and overlay anchors across portrait, compact landscape, and wide desktop layouts.
-- `HUD` renders balance, bet, last win, the buy-bonus button, auto-spin controls, and the persistent free-spins status panel via adaptive info cards with capped desktop widths and a bottom-pinned responsive control dock.
-- `WinOverlay` renders transient feature announcements from layout-driven overlay anchors and scales copy/artwork by viewport size.
-- `PickBonusUI` renders the 20-card pick-bonus board inside responsive feature bounds and restores revealed picks from session state.
-- `AutoSpinPanel` renders a responsive modal with wrapped preset chips and stable left-aligned toggle rows on narrow and wide screens.
+Games register themselves by augmenting `GameRegistry` (declaration merging from `@tgslots/shared-contracts/game-registry`) and implementing `IGameClient<G>`:
 
-## Free Spins UX
+```
+src/games/
+  registry.ts                     ← Record<GameId, IGameClient<GameId>>
+  woodland-whisper/
+    index.ts                       ← declare module + IGameClient export
+    manifest.ts, assets.ts
+    runtime.ts                     ← WoodlandWhisperRuntime (pick bonus, buy bonus, free spins)
+    pick-bonus-view.ts
+    free-spins-helpers.ts
+    __tests__/
+  ancient-dragon/
+    index.ts
+    manifest.ts, assets.ts
+    runtime.ts                     ← AncientDragonRuntime (mystery INNER reveal, free spins)
+    __tests__/
+```
 
-- The HUD shows a persistent `FREE SPINS` panel whenever `state.freeSpins?.spinsRemaining > 0`.
-- The panel displays the remaining count, e.g. `7 LEFT`.
-- When a pick bonus resolves into free spins, the centered banner shows the awarded amount, e.g. `10 FREE SPINS WON`.
-- On free-spin retrigger, the awarded amount is computed from the delta between previous and next `spinsRemaining`, then announced without requiring any backend DTO change.
-- On session restore, active free spins resume with the persistent remaining-count panel visible, but without replaying a fabricated “won X spins” announcement.
+**`IGameClient<G>`** (from `@tgslots/shared-contracts`):
+- `manifest: GameManifest` — grid, symbols, theme, features, natural dimensions
+- `assets: AssetManifest` — SVG symbol/environment records
+- `mount(ctx: GameUIContext<G>): Promise<GameRuntime<G>>`
 
-## Key Files
+**`GameRuntime<G>`**:
+- `applyState(state)` — restores visual state; always emits `'free-spins:updated'` on the event bus
+- `presentResult(action, result)` — drives reel animation, win overlay, and feature views
+- `resize(layout)`, `destroy()`
+- Optional `resumeFeatures?()` — resumes pick-bonus or mid-session features after restore
 
-- `src/engine/layout.ts` — shared responsive viewport model for reels, bottom HUD footer, modal, and overlay bounds
-- `src/engine/game-controller.ts` — API orchestration, feature loops, free-spin status broadcasting
-- `src/engine/hud.ts` — adaptive bottom-footer HUD, control dock, and persistent free-spins status panel
-- `src/engine/auto-spin-panel.ts` — responsive auto-spin modal
-- `src/engine/win-overlay.ts` — transient feature and win banners
-- `src/engine/pick-bonus-ui.ts` — responsive pick-bonus board
-- `src/engine/free-spins-status.ts` — pure status derivation and dynamic copy helpers
-- `src/main.ts` — Pixi bootstrap and controller/HUD wiring
+## Engine Layer (zero knowledge of any specific game)
+
+| File | Responsibility |
+|---|---|
+| `engine/dispatcher.ts` | `GameDispatcher<G>` — `POST /game/:gameId/:action`, persists sessionId per game in `localStorage` (`tgslots:session:<gameId>`) |
+| `engine/spin-orchestrator.ts` | Generic FSM loop: wager deduction, spin, free-spin loop (`while freeSpinsRemaining > 0`), auto-spin with stop conditions |
+| `engine/state-machine.ts` | UI FSM: IDLE → SPINNING → STOPPING → WIN_SHOW / FEATURE_TRANSITION → IDLE |
+| `engine/session-manager.ts` | Balance, bet multiplier, last win |
+| `engine/event-bus.ts` | Typed pub/sub: `win:awarded`, `free-spins:updated`, `feature:enter/exit`, `pick-card-selected`, `error:api` |
+| `engine/signal.ts` | ~60-line typed reactive signal; `subscribe` returns unsubscribe token |
+| `engine/scene.ts` | `PixiScene` — 5 named z-ordered Containers: background → reels → features → hud → overlays; `clearGameLayers()` empties bottom 3 |
+| `engine/asset-registry.ts` | Namespaced texture loading; SVG rasterization via canvas API |
+| `engine/hud.ts` | Bottom-pinned adaptive HUD footer: balance, bet, last-win, spin, auto-spin, free-spins badge |
+| `engine/layout.ts` | Responsive viewport snapshot per manifest dimensions; portrait/landscape/wide |
+| `engine/reel-set.ts`, `engine/reel.ts`, `engine/symbol-view.ts` | Manifest-driven reel strip rendering |
+| `engine/win-overlay.ts` | Transient win/feature announcements; copy from `manifest.winTiers` |
+| `engine/auto-spin-panel.ts` | Responsive auto-spin modal |
+
+## App Entry
+
+| File | Responsibility |
+|---|---|
+| `src/main.ts` | `init()` reads `?game=`; missing/unknown → `showPicker()`. `mountGame(gameId)` bootstraps Pixi app, scene, session, eventBus, assetRegistry, HUD, dispatcher, runtime, orchestrator |
+| `src/app/game-picker.ts` | Pure DOM overlay listing `gameRegistry` entries; `history.pushState` on selection |
+
+## API Connectivity
+
+- Dev: `BASE_URL = ''` — `/game/*` forwarded to `:3001` by Vite dev proxy (`vite.config.ts`)
+- Prod: set `VITE_API_URL` env var
+- SessionId persisted in `localStorage` per game
+
+## Free Spins Flow
+
+- `runtime.applyState()` always emits `'free-spins:updated'`
+- `SpinOrchestrator` tracks `_freeSpinsRemaining` via this event and loops `doFreeSpin()` automatically
+- HUD shows persistent free-spins badge via `eventBus.on('free-spins:updated', ...)`
+- Announced as `N FREE SPINS WON` via `formatFreeSpinsAwardedMessage(n)` (Woodland only)
 
 ## Verification
 
-- `bun run test`
-- `bun run typecheck`
+- `bun --filter @tgslots/web-client test`
+- `bun --filter @tgslots/web-client run typecheck`
 - `bun run build`
+- Manual: `http://localhost:3002/?game=woodland-whisper`, `?game=ancient-dragon`, `http://localhost:3002/` (picker)

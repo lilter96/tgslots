@@ -7,5 +7,5 @@
     }
   },
   "include": ["apps/**/*.ts", "packages/**/*.ts"],
-  "exclude": ["node_modules", "**/node_modules", "**/dist", "apps/web-client/**"]
+  "exclude": ["node_modules", "**/node_modules", "**/dist", "apps/web-client/**", "**/*.test.ts"]
 }

@@ -58,7 +58,7 @@ class AncientDragonStateMachine implements StateMachine<AncientDragonResult, Anc
 
 interface FreeSpinState { triggeringWager: Wager; totalWin: number; spinsRemaining: number }
 interface AncientDragonState { freeSpins: FreeSpinState | null }
-interface AncientDragonResult extends SpinResult { sc: number; triggeredFreeSpins: boolean; retriggeredFreeSpins?: boolean }
+interface AncientDragonResult extends SpinResult { sc: number; triggeredFreeSpins: boolean; retriggeredFreeSpins?: boolean; grid: number[][]; hits: PaylineHit[] }
 ```
 
 ### Logic (internal)

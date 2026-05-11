@@ -5,6 +5,7 @@ import { evaluateSpin } from '@tgslots/slots-core/paylines/evaluator'
 import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precomputed-engine'
 import { Wager } from '@tgslots/slots-core/betting'
 import { ProjectedGrid } from '@tgslots/slots-core/spin-grid/spin-grid'
+import type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 import { engine } from './engine.js'
 import { INNER_WEIGHTS, SCATTER_PAY, STRIP_STRINGS, Symbols } from './constants.js'
 
@@ -27,25 +28,29 @@ const scatterEngine = new PrecomputedScatterEngine(
 export interface SpinEvaluationResult {
   readonly win: number
   readonly sc: number
+  readonly grid: number[][]
+  readonly hits: readonly PaylineHit[]
 }
 
 function evaluateWithWager(
   strips: readonly Uint8Array[],
   positions: readonly number[],
   wager: Wager,
-): { win: number; sc: number } {
-  const grid = new ProjectedGrid(strips, positions, 3)
+): SpinEvaluationResult {
+  const projected = new ProjectedGrid(strips, positions, 3)
 
-  const lineResult = evaluateSpin(grid, engine)
+  const lineResult = evaluateSpin(projected, engine)
   const scatterResult = scatterEngine.evaluateAtPositions(positions, 1)
 
-  // Rules:
-  // Line wins: base * creditsPerLine
-  // Scatter wins: base * totalWager
+  // Line wins: base * creditsPerLine; Scatter wins: base * totalWager
   const lineWin = lineResult.totalWin * wager.creditsPerLine
   const scatterWin = scatterResult.win * wager.totalWager
 
-  return { win: lineWin + scatterWin, sc: scatterResult.count }
+  const grid = Array.from({ length: strips.length }, (_, reel) =>
+    Array.from({ length: 3 }, (_, row) => projected.getSymbol(reel, row)),
+  )
+
+  return { win: lineWin + scatterWin, sc: scatterResult.count, grid, hits: lineResult.hits }
 }
 
 function resolveStrips(stripStrings: readonly string[][], repSym: number): Uint8Array[] {

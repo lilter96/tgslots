@@ -13,9 +13,10 @@
   "dependencies": {
     "pixi.js": "^8.1.0",
     "gsap": "^3.12.5",
-    "@tgslots/math": "workspace:*",
     "@tgslots/slots-core": "workspace:*",
-    "@tgslots/woodland-whisper": "workspace:*"
+    "@tgslots/woodland-whisper": "workspace:*",
+    "@tgslots/ancient-dragon": "workspace:*",
+    "@tgslots/shared-contracts": "workspace:*"
   },
   "devDependencies": {
     "vite": "^5.4.0",

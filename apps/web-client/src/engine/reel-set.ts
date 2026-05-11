@@ -1,30 +1,30 @@
 import { Container } from 'pixi.js'
 import { Reel } from './reel'
 import type { UIGridConfig, UIReelConfig } from '../types'
+import type { GameAssets } from './asset-registry'
 
 export class ReelSet extends Container {
   private _reels: Reel[] = []
   private _gridConfig: UIGridConfig
   private _reelConfig: UIReelConfig
-  private _symbolNames: string[]
 
   constructor(
     gridConfig: UIGridConfig,
     reelConfig: UIReelConfig,
     initialGrid: number[][],
-    symbolNames: string[],
+    assets: GameAssets,
+    symbolCount: number,
   ) {
     super()
     this._gridConfig = gridConfig
     this._reelConfig = reelConfig
-    this._symbolNames = symbolNames
-    this.init(initialGrid)
+    this._init(initialGrid, assets, symbolCount)
   }
 
-  private init(initialGrid: number[][]) {
+  private _init(initialGrid: number[][], assets: GameAssets, symbolCount: number) {
     for (let i = 0; i < this._gridConfig.reels; i++) {
       const initialSymbols = initialGrid[i] || []
-      const reel = new Reel(this._reelConfig, initialSymbols, this._symbolNames)
+      const reel = new Reel(this._reelConfig, initialSymbols, assets, symbolCount)
       reel.x = i * (this._reelConfig.symbolWidth + this._gridConfig.reelSpacing)
       this._reels.push(reel)
       this.addChild(reel)
@@ -76,16 +76,10 @@ export class ReelSet extends Container {
     }
   }
 
-  /**
-   * Instantly updates all reels to show specific symbols.
-   * @param grid Grid of symbol IDs in [col][row] format.
-   */
   public setSymbols(grid: number[][]): void {
     this._reels.forEach((reel, colIndex) => {
       const symbols = grid[colIndex]
-      if (symbols) {
-        reel.setSymbols(symbols)
-      }
+      if (symbols) reel.setSymbols(symbols)
     })
   }
 }

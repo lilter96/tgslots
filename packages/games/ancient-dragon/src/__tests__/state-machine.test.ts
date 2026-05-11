@@ -20,12 +20,17 @@ describe('AncientDragonStateMachine', () => {
     const baseResult = sm.spin(rng, wager) as AncientDragonBaseResult
     expect(baseResult.type).toBe('BASE')
     expect(baseResult.sc).toBeDefined()
+    expect(baseResult.grid).toHaveLength(5)
+    expect(baseResult.grid[0]).toHaveLength(3)
+    expect(Array.isArray(baseResult.hits)).toBe(true)
 
     // 2. If triggered, check next()
     if (baseResult.triggeredFreeSpins) {
       expect(sm.state.freeSpins).not.toBeNull()
       const fsResult = sm.next(rng) as AncientDragonFreeResult
       expect(fsResult?.type).toBe('FREE')
+      expect(fsResult.grid).toHaveLength(5)
+      expect(Array.isArray(fsResult.hits)).toBe(true)
     }
   })
 
