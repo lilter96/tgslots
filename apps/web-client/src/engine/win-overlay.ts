@@ -3,6 +3,8 @@ import { gsap } from 'gsap'
 import type { GameAssets } from './asset-registry'
 import type { WinTier } from '@tgslots/shared-contracts'
 import type { UILayoutSnapshot } from './layout'
+import { getSpinSpeedProfile } from './spin-speed.js'
+import type { SpinSpeedProfile } from './spin-speed.js'
 
 export class WinOverlay extends Container {
   private _sprite: Sprite
@@ -11,6 +13,7 @@ export class WinOverlay extends Container {
   private _baseFontSize = 72
   private _assets: GameAssets | null = null
   private _winTiers: readonly WinTier[] = []
+  private _speedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
 
   constructor() {
     super()
@@ -66,20 +69,33 @@ export class WinOverlay extends Container {
 
     this.visible = true
     this.scale.set(this._baseScale * 0.6)
+    const holdDurationMs = Math.max(
+      this._speedProfile.overlayMinMs,
+      duration * this._speedProfile.overlayDurationMultiplier,
+    )
 
     return new Promise((resolve) => {
       gsap
         .timeline({ onComplete: resolve })
-        .to(this, { alpha: 1, duration: 0.25, ease: 'power2.out' })
+        .to(this, {
+          alpha: 1,
+          duration: this._speedProfile.overlayFadeInMs / 1000,
+          ease: 'power2.out',
+        })
         .to(
           this.scale,
-          { x: this._baseScale, y: this._baseScale, duration: 0.25, ease: 'back.out(2)' },
+          {
+            x: this._baseScale,
+            y: this._baseScale,
+            duration: this._speedProfile.overlayFadeInMs / 1000,
+            ease: 'back.out(2)',
+          },
           '<',
         )
-        .to(this, { alpha: 1, duration: duration / 1000 })
+        .to(this, { alpha: 1, duration: holdDurationMs / 1000 })
         .to(this, {
           alpha: 0,
-          duration: 0.3,
+          duration: this._speedProfile.overlayFadeOutMs / 1000,
           ease: 'power1.in',
           onComplete: () => {
             this.visible = false
@@ -99,6 +115,10 @@ export class WinOverlay extends Container {
 
   public async announceFreeSpinsAwarded(awarded: number, duration = 2000): Promise<void> {
     return this.announce(`${awarded} FREE SPINS WON`, duration)
+  }
+
+  public syncSpinSpeed(profile: SpinSpeedProfile): void {
+    this._speedProfile = profile
   }
 
   private _showFallbackText(text: string) {

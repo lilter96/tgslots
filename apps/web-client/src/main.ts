@@ -17,6 +17,7 @@ import { SpinOrchestrator } from './engine/spin-orchestrator.js'
 import type { OrchestratorActions } from './engine/spin-orchestrator.js'
 import type { GameRuntime } from './engine/game-client.js'
 import { getResponsiveLayout } from './engine/layout.js'
+import { SpinSpeedController } from './engine/spin-speed.js'
 import { gameRegistry } from './games/registry.js'
 import { GamePicker } from './app/game-picker.js'
 import type { AutoSpinConfig } from './types.js'
@@ -50,6 +51,7 @@ async function mountGame(gameId: string): Promise<void> {
   const session = new SessionManager(10000)
   const eventBus = new GameEventBus()
   const assetRegistry = new AssetRegistry()
+  const spinSpeed = new SpinSpeedController()
 
   const assets = await assetRegistry.loadGame(client.manifest, client.assets)
 
@@ -85,6 +87,7 @@ async function mountGame(gameId: string): Promise<void> {
       runtime as GameRuntime<'ancient-dragon'>,
       eventBus,
       adActions,
+      () => spinSpeed.profile,
     )
   } else {
     const d = dispatcher as GameDispatcher<'woodland-whisper'>
@@ -101,7 +104,14 @@ async function mountGame(gameId: string): Promise<void> {
       runtime as GameRuntime<'woodland-whisper'>,
       eventBus,
       wwActions,
+      () => spinSpeed.profile,
     )
+  }
+
+  const syncSpinSpeed = () => {
+    const { mode, profile } = spinSpeed.state
+    hud.syncSpinSpeed(mode)
+    runtime.syncSpinSpeed?.(profile)
   }
 
   // Sync free-spins badge in HUD whenever remaining count changes
@@ -163,6 +173,14 @@ async function mountGame(gameId: string): Promise<void> {
   // HUD event wiring
   hud.on('spin', () => orchestrator.spin(session.betMultiplier).catch(console.error))
   hud.on('autoSpin', () => autoSpinPanel.show())
+  hud.on('toggleFastSpin', () => {
+    spinSpeed.toggleFast()
+    syncSpinSpeed()
+  })
+  hud.on('toggleTurboSpin', () => {
+    spinSpeed.toggleTurbo()
+    syncSpinSpeed()
+  })
   hud.on('stopAutoSpin', () => {
     orchestrator.stopAutoSpin()
     syncAutoSpinState()
@@ -183,6 +201,7 @@ async function mountGame(gameId: string): Promise<void> {
   })
 
   syncAutoSpinState()
+  syncSpinSpeed()
 
   console.log('Game initialized.')
 }

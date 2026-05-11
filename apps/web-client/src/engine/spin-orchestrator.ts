@@ -5,6 +5,8 @@ import type { SessionManager } from './session-manager.js'
 import type { GameEventBus } from './event-bus.js'
 import type { AutoSpinConfig } from '../types.js'
 import { GameUIState } from '../types.js'
+import { getSpinSpeedProfile } from './spin-speed.js'
+import type { SpinSpeedProfile } from './spin-speed.js'
 
 export interface OrchestratorActions<G extends GameId> {
   spinCost(betMultiplier: number): number
@@ -25,6 +27,8 @@ export class SpinOrchestrator<G extends GameId> {
     private readonly _runtime: GameRuntime<G>,
     eventBus: GameEventBus,
     private readonly _actions: OrchestratorActions<G>,
+    private readonly _getSpinSpeedProfile: () => SpinSpeedProfile = () =>
+      getSpinSpeedProfile('normal'),
   ) {
     eventBus.on('win:awarded', ({ amount }) => {
       this._session.addWin(amount)
@@ -154,6 +158,6 @@ export class SpinOrchestrator<G extends GameId> {
 
     setTimeout(() => {
       this.spin(this._session.betMultiplier).catch(console.error)
-    }, 500)
+    }, this._getSpinSpeedProfile().autoSpinDelayMs)
   }
 }

@@ -65,15 +65,16 @@ src/games/
 | File | Responsibility |
 |---|---|
 | `engine/dispatcher.ts` | `GameDispatcher<G>` — `POST /game/:gameId/:action`, persists sessionId per game in `localStorage` (`tgslots:session:<gameId>`) |
-| `engine/spin-orchestrator.ts` | Generic FSM loop: wager deduction, spin, free-spin loop (`while freeSpinsRemaining > 0`), auto-spin with stop conditions |
+| `engine/spin-orchestrator.ts` | Generic FSM loop: wager deduction, spin, free-spin loop (`while freeSpinsRemaining > 0`), auto-spin with stop conditions, and shared speed-aware auto-spin cadence |
 | `engine/state-machine.ts` | UI FSM: IDLE → SPINNING → STOPPING → WIN_SHOW / FEATURE_TRANSITION → IDLE |
 | `engine/session-manager.ts` | Balance, bet multiplier, last win |
 | `engine/event-bus.ts` | Typed pub/sub: `win:awarded`, `free-spins:updated`, `auto-spin:updated`, `buy-bonus:requested`, `feature:enter/exit`, `pick-card-selected`, `error:api` |
 | `engine/signal.ts` | ~60-line typed reactive signal; `subscribe` returns unsubscribe token |
 | `engine/scene.ts` | `PixiScene` — 5 named z-ordered Containers: background → reels → features → hud → overlays; `clearGameLayers()` empties bottom 3 |
 | `engine/asset-registry.ts` | Namespaced texture loading; SVG rasterization via canvas API |
-| `engine/hud.ts` | Bottom-pinned adaptive HUD footer: balance, bet, last-win, spin, auto-spin, free-spins badge, and plugin-owned control slots |
+| `engine/hud.ts` | Bottom-pinned adaptive HUD footer: balance, bet, last-win, `FAST` / `TURBO`, spin, auto-spin, free-spins badge, and plugin-owned control slots |
 | `engine/layout.ts` | Responsive viewport snapshot per manifest dimensions; portrait/landscape/wide |
+| `engine/spin-speed.ts` | Shared `normal` / `fast` / `turbo` timing profiles plus the controller that coordinates HUD state, runtime pacing, and auto-spin delay |
 | `engine/reel-set.ts`, `engine/reel.ts`, `engine/symbol-view.ts` | Manifest-driven reel strip rendering |
 | `engine/win-overlay.ts` | Transient win/feature announcements; copy from `manifest.winTiers` |
 | `engine/auto-spin-panel.ts` | Responsive auto-spin modal |
@@ -97,6 +98,13 @@ src/games/
 - `SpinOrchestrator` tracks `_freeSpinsRemaining` via this event and loops `doFreeSpin()` automatically
 - HUD shows persistent free-spins badge via `eventBus.on('free-spins:updated', ...)`
 - Announced as `N FREE SPINS WON` via `formatFreeSpinsAwardedMessage(n)` (Woodland only)
+
+## Spin Speed Modes
+
+- `SpinSpeedController` owns the active mode: `normal`, `fast`, or `turbo`
+- `HUD` exposes compact `FAST` and `TURBO` toggles in the bottom footer and `main.ts` syncs the selected mode into the mounted runtime
+- `SpinOrchestrator` uses the active profile for post-spin auto-spin delay
+- `ReelSet`, `Reel`, `WinOverlay`, and both game runtimes use the shared profile for reel stagger, spin duration, settle timing, overlay pacing, win-line highlight pacing, scatter pacing, and pick-bonus pacing
 
 ## Woodland Buy Bonus Flow
 

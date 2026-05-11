@@ -3,6 +3,8 @@ import type { UIReelConfig } from '../types'
 import { gsap } from 'gsap'
 import { SymbolView } from './symbol-view'
 import type { GameAssets } from './asset-registry'
+import { getSpinSpeedProfile } from './spin-speed.js'
+import type { SpinSpeedProfile } from './spin-speed.js'
 
 export class Reel extends Container {
   private _symbols: SymbolView[] = []
@@ -12,6 +14,7 @@ export class Reel extends Container {
   private _spinning = false
   private _scrollY = 0
   private _spinTicker?: (ticker: Ticker) => void
+  private _speedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
 
   constructor(
     config: UIReelConfig,
@@ -51,12 +54,11 @@ export class Reel extends Container {
 
     const { symbolHeight, totalSymbols } = this._config
     const reelHeight = totalSymbols * symbolHeight
-    const spinSpeed = symbolHeight * 15
-
     this._symbols.forEach((s) => s.setBlur(10))
 
     this._spinTicker = (ticker: Ticker) => {
       const delta = ticker.deltaMS / 1000
+      const spinSpeed = symbolHeight * 15 * this._speedProfile.reelVelocityMultiplier
       this._scrollY += spinSpeed * delta
 
       for (let i = 0; i < this._symbols.length; i++) {
@@ -101,7 +103,7 @@ export class Reel extends Container {
       this._symbols.forEach((symbol, i) => {
         gsap.to(symbol, {
           y: i * symbolHeight,
-          duration: 0.5,
+          duration: this._speedProfile.reelSettleDurationMs / 1000,
           ease: 'back.out(1.7)',
           onComplete: () => {
             completed++
@@ -135,5 +137,9 @@ export class Reel extends Container {
       symbol.setBlur(0)
     })
     this._spinning = false
+  }
+
+  public syncSpinSpeed(profile: SpinSpeedProfile): void {
+    this._speedProfile = profile
   }
 }

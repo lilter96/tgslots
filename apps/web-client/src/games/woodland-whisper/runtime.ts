@@ -20,6 +20,8 @@ import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/s
 import type { WWPickBonusSerialized } from '@tgslots/shared-contracts/states'
 import { deriveAwardedFreeSpins } from './free-spins-helpers.js'
 import { manifest } from './manifest.js'
+import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
+import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
 
 const FRAME_PAD = 4
 const PAYLINE_WIN_COLOR = 0xffd700
@@ -58,6 +60,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   private _frame!: Graphics
   private _layout?: UILayoutSnapshot
   private _pendingPickBonusState: WWPickBonusSerialized | null = null
+  private _spinSpeedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
 
   async init(ctx: GameUIContext<'woodland-whisper'>): Promise<void> {
     this._ctx = ctx
@@ -220,11 +223,17 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._frame.destroy()
   }
 
+  syncSpinSpeed(profile: SpinSpeedProfile): void {
+    this._spinSpeedProfile = profile
+    this._reelSet.syncSpinSpeed(profile)
+    this._overlay.syncSpinSpeed(profile)
+  }
+
   // ── Private presentation helpers ───────────────────────────────────────────
 
   private async _presentBase(result: WoodlandWhisperBaseResult): Promise<void> {
     this._reelSet.spin()
-    await this._wait(1000)
+    await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
     await this._reelSet.stop(transposed)
@@ -248,7 +257,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
 
   private async _presentBuy(result: WoodlandWhisperBuyResult): Promise<void> {
     this._reelSet.spin()
-    await this._wait(1000)
+    await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
     await this._reelSet.stop(transposed)
@@ -266,7 +275,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
 
   private async _presentFree(result: WoodlandWhisperFreeResult): Promise<void> {
     this._reelSet.spin()
-    await this._wait(1000)
+    await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
     await this._reelSet.stop(transposed)
@@ -286,10 +295,10 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
 
   private async _presentPick(result: WoodlandWhisperPickResult): Promise<void> {
     this._pickUI.revealCard(result.pick.userIndex, result.pick.value)
-    await this._wait(400)
+    await this._wait(this._spinSpeedProfile.pickRevealMs)
 
     if (result.pick.isMatch) {
-      await this._wait(1100)
+      await this._wait(this._spinSpeedProfile.pickMatchPauseMs)
       this._pickUI.hide()
     }
   }
@@ -324,7 +333,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
 
       if (pickResult.pick.isMatch) {
         matched = true
-        await this._wait(1500)
+        await this._wait(this._spinSpeedProfile.pickMatchPauseMs)
         this._pickUI.hide()
 
         if (awarded && awarded > 0) {
@@ -332,7 +341,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
           this._ctx.eventBus.emit('free-spins:updated', { remaining: awarded, awarded })
         }
       } else {
-        await this._wait(400)
+        await this._wait(this._spinSpeedProfile.pickMissPauseMs)
       }
     }
   }
@@ -352,12 +361,18 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
 
     if (hits.length === 0 && scatterCells.length >= 2) {
       highlightScatters()
-      await this._wait(2000)
+      await this._wait(this._spinSpeedProfile.scatterHighlightMs)
       this._reelSet.clearAllHighlights()
       return
     }
 
-    const msPerLine = Math.max(700, Math.min(1500, 2000 / Math.max(hits.length, 1)))
+    const msPerLine = Math.max(
+      this._spinSpeedProfile.lineHighlightMinMs,
+      Math.min(
+        this._spinSpeedProfile.lineHighlightMaxMs,
+        this._spinSpeedProfile.lineHighlightBudgetMs / Math.max(hits.length, 1),
+      ),
+    )
 
     for (const hit of hits) {
       this._reelSet.clearAllHighlights()

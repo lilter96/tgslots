@@ -2,11 +2,14 @@ import { Container } from 'pixi.js'
 import { Reel } from './reel'
 import type { UIGridConfig, UIReelConfig } from '../types'
 import type { GameAssets } from './asset-registry'
+import { getSpinSpeedProfile } from './spin-speed.js'
+import type { SpinSpeedProfile } from './spin-speed.js'
 
 export class ReelSet extends Container {
   private _reels: Reel[] = []
   private _gridConfig: UIGridConfig
   private _reelConfig: UIReelConfig
+  private _speedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
 
   constructor(
     gridConfig: UIGridConfig,
@@ -37,7 +40,7 @@ export class ReelSet extends Container {
         setTimeout(async () => {
           await reel.spin()
           resolve()
-        }, i * 50)
+        }, i * this._speedProfile.reelStartStaggerMs)
       })
     })
     await Promise.all(promises)
@@ -50,7 +53,7 @@ export class ReelSet extends Container {
         setTimeout(async () => {
           await reel.stop(finalSymbols)
           resolve()
-        }, i * 150)
+        }, i * this._speedProfile.reelStopStaggerMs)
       })
     })
     await Promise.all(promises)
@@ -81,5 +84,12 @@ export class ReelSet extends Container {
       const symbols = grid[colIndex]
       if (symbols) reel.setSymbols(symbols)
     })
+  }
+
+  public syncSpinSpeed(profile: SpinSpeedProfile): void {
+    this._speedProfile = profile
+    for (const reel of this._reels) {
+      reel.syncSpinSpeed(profile)
+    }
   }
 }

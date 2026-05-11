@@ -6,6 +6,7 @@ import { SpinOrchestrator } from '../spin-orchestrator'
 import type { OrchestratorActions } from '../spin-orchestrator'
 import type { GameRuntime } from '../game-client'
 import { GameUIState } from '../../types'
+import { getSpinSpeedProfile } from '../spin-speed'
 
 // Fake action response shape (only fields the orchestrator reads)
 function makeResponse(freeSpinsRemaining = 0, winAmount = 0) {
@@ -283,6 +284,48 @@ describe('SpinOrchestrator', () => {
       orchestrator.startAutoSpin({ spins: 5, stopOnWin: false, stopOnBonus: false })
       orchestrator.stopAutoSpin()
       expect(orchestrator.isAutoSpin).toBe(false)
+    })
+
+    it('uses the active spin-speed profile for the next auto-spin delay', async () => {
+      const fsm = new GameStateMachine()
+      const session = new SessionManager(1000)
+      const eventBus = new GameEventBus()
+
+      const runtime: GameRuntime<'woodland-whisper'> = {
+        applyState() {
+          eventBus.emit('free-spins:updated', { remaining: 0 })
+        },
+        async presentResult() {},
+        resize() {},
+        destroy() {},
+      }
+
+      const actions: OrchestratorActions<'woodland-whisper'> = {
+        spinCost: () => 10,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        doSpin: async () => ({ sessionId: 'x', state: {} }) as any,
+      }
+
+      const delays: number[] = []
+      const originalSetTimeout = globalThis.setTimeout
+      globalThis.setTimeout = ((_handler: TimerHandler, timeout?: number) => {
+        delays.push(timeout ?? 0)
+        return 0 as unknown as ReturnType<typeof setTimeout>
+      }) as unknown as typeof setTimeout
+
+      try {
+        const orchestrator = new SpinOrchestrator(fsm, session, runtime, eventBus, actions, () =>
+          getSpinSpeedProfile('turbo'),
+        )
+
+        orchestrator.startAutoSpin({ spins: 2, stopOnWin: false, stopOnBonus: false })
+        await Promise.resolve()
+        await Promise.resolve()
+
+        expect(delays[0]).toBe(getSpinSpeedProfile('turbo').autoSpinDelayMs)
+      } finally {
+        globalThis.setTimeout = originalSetTimeout
+      }
     })
   })
 })

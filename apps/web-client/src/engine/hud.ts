@@ -5,17 +5,21 @@ import { GameUIState } from '../types'
 import { GameStateMachine } from './state-machine'
 import { SessionManager } from './session-manager'
 import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
+import type { SpinSpeedMode } from './spin-speed'
 
 const FONT_DISPLAY = 'Cinzel, serif'
 
 const SLOT_W = 140
 const SLOT_H = 68
+const SPEED_W = 104
+const SPEED_H = 68
+const SPEED_ROW_H = 28
 const AUTO_W = 140
 const AUTO_H = 68
 const SPIN_D = 88
 const BTN_GAP = 12
 const PANEL_H = SPIN_D
-const PANEL_W = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + SLOT_W
+const PANEL_W = SPEED_W + BTN_GAP + AUTO_W + BTN_GAP + SPIN_D + BTN_GAP + SLOT_W
 
 interface InfoCard {
   key: 'balance' | 'bet' | 'win' | 'freeSpins'
@@ -50,6 +54,16 @@ export class HUD extends Container {
   private _spinButton: Container
   private _spinLabel: Text
 
+  private _speedPanel: Container
+  private _speedBg: Graphics
+  private _fastBtn: Container
+  private _fastBtnBg: Graphics
+  private _fastBtnLabel: Text
+  private _turboBtn: Container
+  private _turboBtnBg: Graphics
+  private _turboBtnLabel: Text
+  private _spinSpeedMode: SpinSpeedMode = 'normal'
+
   private _autoBtn: Container
   private _autoBtnBg: Graphics
   private _autoBtnCount: Text
@@ -75,6 +89,21 @@ export class HUD extends Container {
     this._spinLabel = new Text({
       text: 'SPIN',
       style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 20, fontWeight: '900' },
+    })
+
+    this._speedPanel = new Container()
+    this._speedBg = new Graphics()
+    this._fastBtn = new Container()
+    this._fastBtnBg = new Graphics()
+    this._fastBtnLabel = new Text({
+      text: 'FAST',
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe9b8', fontSize: 14, fontWeight: '800' },
+    })
+    this._turboBtn = new Container()
+    this._turboBtnBg = new Graphics()
+    this._turboBtnLabel = new Text({
+      text: 'TURBO',
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe9b8', fontSize: 14, fontWeight: '800' },
     })
 
     this._autoBtn = new Container()
@@ -109,7 +138,7 @@ export class HUD extends Container {
       c = new Container()
       this._slots.set(name, c)
       if (name === 'control-right') {
-        c.x = AUTO_W + BTN_GAP + SPIN_D + BTN_GAP
+        c.x = SPEED_W + BTN_GAP + AUTO_W + BTN_GAP + SPIN_D + BTN_GAP
         c.y = (PANEL_H - SLOT_H) / 2
         this._buttonPanel.addChild(c)
       }
@@ -158,6 +187,26 @@ export class HUD extends Container {
   private _build() {
     this.addChild(this._infoContainer)
 
+    this._speedBg.roundRect(0, 0, SPEED_W, SPEED_H, 10)
+    this._speedBg.fill(0x0f1722)
+    this._speedBg.stroke({ width: 2, color: 0xd4a017 })
+    this._speedPanel.addChild(this._speedBg)
+    this._speedPanel.y = (PANEL_H - SPEED_H) / 2
+
+    this._buildSpeedButton(this._fastBtn, this._fastBtnBg, this._fastBtnLabel, 5)
+    this._fastBtn.on('pointerdown', () => this.emit('toggleFastSpin'))
+
+    this._buildSpeedButton(
+      this._turboBtn,
+      this._turboBtnBg,
+      this._turboBtnLabel,
+      SPEED_H - SPEED_ROW_H - 5,
+    )
+    this._turboBtn.on('pointerdown', () => this.emit('toggleTurboSpin'))
+
+    this._speedPanel.addChild(this._fastBtn, this._turboBtn)
+    this._buttonPanel.addChild(this._speedPanel)
+
     this._drawAutoBtnBg(false)
     this._autoBtnCount.anchor.set(0.5)
     this._autoBtnCount.x = AUTO_W / 2
@@ -166,6 +215,7 @@ export class HUD extends Container {
     this._autoBtnHint.x = AUTO_W / 2
     this._autoBtnHint.visible = false
     this._autoBtn.addChild(this._autoBtnBg, this._autoBtnCount, this._autoBtnHint)
+    this._autoBtn.x = SPEED_W + BTN_GAP
     this._autoBtn.y = (PANEL_H - AUTO_H) / 2
     this._autoBtn.interactive = true
     this._autoBtn.cursor = 'pointer'
@@ -191,13 +241,14 @@ export class HUD extends Container {
     this._spinLabel.x = SPIN_D / 2
     this._spinLabel.y = SPIN_D / 2
     this._spinButton.addChild(this._spinLabel)
-    this._spinButton.x = AUTO_W + BTN_GAP
+    this._spinButton.x = SPEED_W + BTN_GAP + AUTO_W + BTN_GAP
     this._spinButton.interactive = true
     this._spinButton.cursor = 'pointer'
     this._spinButton.on('pointerdown', () => this.emit('spin'))
     this._buttonPanel.addChild(this._spinButton)
 
     this.addChild(this._buttonPanel)
+    this.syncSpinSpeed('normal')
   }
 
   public resize(layout: UILayoutSnapshot) {
@@ -300,6 +351,38 @@ export class HUD extends Container {
     this._autoBtnBg.stroke({ width: 0.8, color: active ? 0xffaa60 : 0xffe066, alpha: 0.3 })
   }
 
+  private _buildSpeedButton(
+    container: Container,
+    background: Graphics,
+    label: Text,
+    y: number,
+  ): void {
+    label.anchor.set(0.5)
+    label.x = (SPEED_W - 10) / 2
+    label.y = SPEED_ROW_H / 2
+    container.x = 5
+    container.y = y
+    container.interactive = true
+    container.cursor = 'pointer'
+    container.addChild(background, label)
+  }
+
+  private _drawSpeedButton(background: Graphics, active: boolean, turbo = false): void {
+    background.clear()
+    background.roundRect(0, 0, SPEED_W - 10, SPEED_ROW_H, 8)
+    background.fill(active ? (turbo ? 0x6a1200 : 0x163d61) : 0x1d2430)
+    background.stroke({
+      width: 1.5,
+      color: active ? (turbo ? 0xff8c42 : 0x74c0fc) : 0x5b6677,
+    })
+    background.roundRect(2, 2, SPEED_W - 14, SPEED_ROW_H - 4, 6)
+    background.stroke({
+      width: 0.8,
+      color: active ? 0xffe4b0 : 0xd9dfeb,
+      alpha: active ? 0.34 : 0.18,
+    })
+  }
+
   public syncAutoSpin(isActive: boolean, remaining: number) {
     this._autoSpinActive = isActive
     this._drawAutoBtnBg(isActive)
@@ -316,6 +399,14 @@ export class HUD extends Container {
     }
 
     this._refreshButtonStates()
+  }
+
+  public syncSpinSpeed(mode: SpinSpeedMode) {
+    this._spinSpeedMode = mode
+    this._drawSpeedButton(this._fastBtnBg, mode === 'fast')
+    this._drawSpeedButton(this._turboBtnBg, mode === 'turbo', true)
+    this._fastBtn.alpha = mode === 'turbo' ? 0.72 : 1
+    this._turboBtn.alpha = mode === 'fast' ? 0.82 : 1
   }
 
   public updateTexts() {

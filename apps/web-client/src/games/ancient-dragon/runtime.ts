@@ -12,6 +12,8 @@ import type {
 } from '@tgslots/ancient-dragon'
 import type { AncientDragonSerializedState } from '@tgslots/shared-contracts/states'
 import { manifest } from './manifest.js'
+import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
+import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
 
 const FRAME_PAD = 4
 const PAYLINE_WIN_COLOR = 0xffd700
@@ -47,6 +49,7 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
   private _mask!: Graphics
   private _frame!: Graphics
   private _layout?: UILayoutSnapshot
+  private _spinSpeedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
 
   async init(ctx: GameUIContext<'ancient-dragon'>): Promise<void> {
     this._ctx = ctx
@@ -159,9 +162,15 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
     this._frame.destroy()
   }
 
+  syncSpinSpeed(profile: SpinSpeedProfile): void {
+    this._spinSpeedProfile = profile
+    this._reelSet.syncSpinSpeed(profile)
+    this._overlay.syncSpinSpeed(profile)
+  }
+
   private async _presentBase(result: AncientDragonBaseResult): Promise<void> {
     this._reelSet.spin()
-    await this._wait(1000)
+    await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
     await this._reelSet.stop(transposed)
@@ -184,7 +193,7 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
 
   private async _presentFree(result: AncientDragonFreeResult): Promise<void> {
     this._reelSet.spin()
-    await this._wait(1000)
+    await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
     await this._reelSet.stop(transposed)
@@ -215,12 +224,18 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
 
     if (hits.length === 0 && scatterCells.length >= 2) {
       highlightScatters()
-      await this._wait(2000)
+      await this._wait(this._spinSpeedProfile.scatterHighlightMs)
       this._reelSet.clearAllHighlights()
       return
     }
 
-    const msPerLine = Math.max(700, Math.min(1500, 2000 / Math.max(hits.length, 1)))
+    const msPerLine = Math.max(
+      this._spinSpeedProfile.lineHighlightMinMs,
+      Math.min(
+        this._spinSpeedProfile.lineHighlightMaxMs,
+        this._spinSpeedProfile.lineHighlightBudgetMs / Math.max(hits.length, 1),
+      ),
+    )
 
     for (const hit of hits) {
       this._reelSet.clearAllHighlights()

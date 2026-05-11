@@ -8,11 +8,12 @@ tags:
 - "context"
 up: 
 - "[[index]]"
-current_task: "task_036_web_client_buy_bonus_restore"
+current_task: "task_037_web_client_spin_speed_modes"
 ---
 # Active Context
 
 ## Recent Changes
+- **Added shared fast and turbo spin speeds to the plugin web client** ([[task_037_web_client_spin_speed_modes]]). Introduced `SpinSpeedController` with `normal`/`fast`/`turbo` timing profiles, added compact `FAST` and `TURBO` toggles to the bottom footer HUD, routed auto-spin pacing through the active profile in `SpinOrchestrator`, and made both Woodland Whisper and Ancient Dragon runtimes consume the same reel/overlay/highlight/pick-bonus timing model. Added controller coverage plus auto-spin delay verification, and verified `bun --filter @tgslots/web-client test`, `bun --filter @tgslots/web-client typecheck`, and `bun --filter @tgslots/web-client build`.
 - **Restored Woodland Whisper buy bonus in the plugin web client** ([[task_036_web_client_buy_bonus_restore]]). Added a plugin-owned `BUY BONUS` HUD control mounted through `GameUIContext.hud`, routed clicks through `buy-bonus:requested` to `SpinOrchestrator.buyBonus()`, and synchronized disabled state via FSM, free-spin, and auto-spin events. Corrected the sequencing bug where action-state hydration opened the pick-bonus board before the guaranteed trigger spin finished; `applyState()` now defers pick-bonus rendering until the feature flow starts or a suspended session is resumed. Also moved the pick-bonus board from `scene.features` to `scene.overlays` so it covers the footer HUD correctly. Added buy-bonus helper/orchestrator/runtime coverage, fixed package-level web-client test typing, and verified `bun --filter @tgslots/web-client test`, `bun run --filter @tgslots/web-client typecheck`, `bun run typecheck`, and `bun run --filter @tgslots/web-client build`.
 - **Deleted dead engine files** (post-plugin-refactor cleanup). Removed `asset-loader.ts`, `pick-bonus-ui.ts`, `free-spins-status.ts`, `game-host.ts`, and `asset-loader.test.ts` from `apps/web-client/src/engine/`. All superseded by plugin-architecture equivalents; confirmed zero live importers before deletion. 318 tests pass, typecheck clean.
 - **Completed web client plugin refactor** ([[task_035_web_client_plugin_refactor]]). `apps/web-client` is now a multi-game plugin host. Both Woodland Whisper and Ancient Dragon are playable. Engine has zero imports from any specific game package. `@tgslots/shared-contracts` shared between `apps/api` and `apps/web-client`. New test files: `signal`, `dispatcher`, `spin-orchestrator`, `scene`, shared-contracts registry; `free-spins-status` test relocated to WW plugin folder.
