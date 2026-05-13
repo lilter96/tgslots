@@ -5,7 +5,7 @@ RUN bun install
 
 ARG VITE_GAME_CLIENT_URL
 ENV VITE_GAME_CLIENT_URL=$VITE_GAME_CLIENT_URL
-RUN bun --filter @tgslots/marketing run build
+RUN bun run --cwd apps/marketing build
 
 FROM caddy:2.8-alpine
 COPY --from=build /app/apps/marketing/dist /srv

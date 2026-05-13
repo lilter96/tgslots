@@ -5,7 +5,7 @@ RUN bun install
 
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
-RUN bun --filter @tgslots/web-client run build
+RUN bun run --cwd apps/web-client build
 
 FROM caddy:2.8-alpine
 COPY --from=build /app/apps/web-client/dist /srv
