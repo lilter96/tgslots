@@ -14,8 +14,10 @@ export const assets: AssetManifest = {
     J: SYMBOL_SVG['J']!,
     '10': SYMBOL_SVG['10']!,
     '9': SYMBOL_SVG['9']!,
-    COIN: SYMBOL_SVG['COIN']!,
     REPLACEMENT: SYMBOL_SVG['REPLACEMENT']!,
+  },
+  images: {
+    COIN: '/assets/images/woodland-whisper/coin-symbol.png',
   },
   env: {
     FRAME: { svg: ENVIRONMENT_SVG.FRAME, width: 390, height: 340 },

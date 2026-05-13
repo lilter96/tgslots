@@ -44,6 +44,10 @@ async function mountGame(gameId: string): Promise<void> {
     resizeTo: window,
     antialias: true,
     preference: 'webgl',
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
+    hello: true,
+    roundPixels: true,
   })
   document.getElementById('game-container')?.appendChild(app.canvas)
 

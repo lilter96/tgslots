@@ -44,6 +44,7 @@ export interface EnvAsset {
 
 export interface AssetManifest {
   readonly symbols: Record<string, SvgOrUrl>
+  readonly images?: Record<string, string>
   readonly env: Record<string, EnvAsset>
   readonly audio?: Record<string, string>
 }
