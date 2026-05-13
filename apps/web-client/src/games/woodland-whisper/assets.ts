@@ -18,7 +18,6 @@ export const assets: AssetManifest = {
     REPLACEMENT: SYMBOL_SVG['REPLACEMENT']!,
   },
   env: {
-    BG: { svg: ENVIRONMENT_SVG.BG, width: 390, height: 692 },
     FRAME: { svg: ENVIRONMENT_SVG.FRAME, width: 390, height: 340 },
     WIN_SMALL: { svg: ENVIRONMENT_SVG.WIN_SMALL, width: 800, height: 200 },
     WIN_BIG: { svg: ENVIRONMENT_SVG.WIN_BIG, width: 800, height: 260 },

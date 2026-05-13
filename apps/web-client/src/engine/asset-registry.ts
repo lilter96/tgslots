@@ -4,6 +4,7 @@ import type { GameManifest, AssetManifest } from '@tgslots/shared-contracts'
 export interface GameAssets {
   getSymbolTexture(symbolId: number): Texture
   getTexture(name: string): Texture
+  rasterizeSvg(name: string, svg: string, w: number, h: number): Promise<Texture>
 }
 
 export class AssetRegistry {
@@ -20,7 +21,7 @@ export class AssetRegistry {
 
     for (const [name, svg] of Object.entries(assets.symbols)) {
       jobs.push(
-        this._rasterize(name, svg, manifest.symbolSize, manifest.symbolSize).then((t) => {
+        this.rasterizeSvg(name, svg, manifest.symbolSize, manifest.symbolSize).then((t) => {
           textures.set(name, t)
         }),
       )
@@ -28,7 +29,7 @@ export class AssetRegistry {
 
     for (const [name, env] of Object.entries(assets.env)) {
       jobs.push(
-        this._rasterize(name, env.svg, env.width, env.height).then((t) => {
+        this.rasterizeSvg(name, env.svg, env.width, env.height).then((t) => {
           textures.set(name, t)
         }),
       )
@@ -47,6 +48,8 @@ export class AssetRegistry {
   }
 
   private _makeAccessor(manifest: GameManifest, textures: Map<string, Texture>): GameAssets {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const registry = this
     return {
       getSymbolTexture(symbolId: number): Texture {
         const meta = manifest.symbols[symbolId]
@@ -60,10 +63,13 @@ export class AssetRegistry {
         if (!texture) throw new Error(`Texture not found: ${name}`)
         return texture
       },
+      rasterizeSvg(name: string, svg: string, w: number, h: number): Promise<Texture> {
+        return registry.rasterizeSvg(name, svg, w, h)
+      },
     }
   }
 
-  private async _rasterize(name: string, svg: string, w: number, h: number): Promise<Texture> {
+  async rasterizeSvg(name: string, svg: string, w: number, h: number): Promise<Texture> {
     const blob = new Blob([svg], { type: 'image/svg+xml' })
     const url = URL.createObjectURL(blob)
 

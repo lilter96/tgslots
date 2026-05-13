@@ -1,8 +1,9 @@
-import { Graphics, Sprite } from 'pixi.js'
-import type { Texture } from 'pixi.js'
+import { Graphics } from 'pixi.js'
 import type { GameRuntime } from '../../engine/game-client.js'
 import type { GameUIContext } from '../../engine/game-client.js'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
+import { BackgroundContainer } from './backgrounds/background-container.js'
+import { pickVariant } from './backgrounds/scenes.js'
 import { ReelSet } from '../../engine/reel-set.js'
 import { WinOverlay } from '../../engine/win-overlay.js'
 import { PickBonusView } from './pick-bonus-view.js'
@@ -54,8 +55,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   private _overlay!: WinOverlay
   private _pickUI!: PickBonusView
   private _buyBonusControl!: BuyBonusControl
-  private _bgSprite!: Sprite
-  private _bgTex!: Texture
+  private _background!: BackgroundContainer
   private _mask!: Graphics
   private _frame!: Graphics
   private _layout?: UILayoutSnapshot
@@ -66,10 +66,8 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._ctx = ctx
 
     // Background
-    this._bgTex = ctx.assets.getTexture('BG')
-    this._bgSprite = new Sprite(this._bgTex)
-    this._bgSprite.anchor.set(0.5)
-    ctx.scene.background.addChild(this._bgSprite)
+    this._background = new BackgroundContainer({ assets: ctx.assets })
+    ctx.scene.background.addChild(this._background)
 
     // Reel set
     const emptyGrid = Array.from({ length: GRID_CONFIG.reels }, () =>
@@ -149,11 +147,13 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._layout = layout
     const { W, H } = { W: layout.screenWidth, H: layout.screenHeight }
 
-    // Background — cover canvas
-    const bgScale = Math.max(W / this._bgTex.width, H / this._bgTex.height)
-    this._bgSprite.scale.set(bgScale)
-    this._bgSprite.x = W / 2
-    this._bgSprite.y = H / 2
+    // Background
+    const variant = pickVariant({
+      viewportClass: layout.viewportClass,
+      orientation: layout.orientation,
+    })
+    void this._background.setVariant(variant)
+    this._background.setViewport(W, H)
 
     // Reel set
     const reelScale = layout.reelBounds.width / manifest.reelNaturalWidth
@@ -218,7 +218,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._overlay.destroy({ children: true })
     this._pickUI.destroy({ children: true })
     this._buyBonusControl.destroy({ children: true })
-    this._bgSprite.destroy()
+    this._background.destroy()
     this._mask.destroy()
     this._frame.destroy()
   }
