@@ -33,7 +33,8 @@ tgslots/                        ← Bun monorepo root
 └── apps/
     ├── api/                    ← Elysia HTTP API (port 3001)
     ├── simulations/            ← CLI entry points (not a publishable package)
-    └── web-client/             ← Pixi multi-game frontend (Woodland Whisper + Ancient Dragon)
+    ├── web-client/             ← Pixi multi-game frontend (Woodland Whisper + Ancient Dragon)
+    └── marketing/              ← React 18 + Tailwind game presentation site (port 3003)
 ```
 
 ## Layer Architecture
@@ -42,6 +43,7 @@ tgslots/                        ← Bun monorepo root
 ┌──────────────────────────────────────────┐
 │  apps/api (Elysia, port 3001)            │  GameServer + IGameModule dispatcher
 │  apps/simulations / apps/web-client      │  CLI, worker spawning, Pixi frontend
+│  apps/marketing (React, port 3003)       │  Game presentation pages; iframe → web-client
 ├──────────────────────────────────────────┤
 │  @tgslots/slots-simulation-engine        │  Parallel runner, scoped metrics, reports
 ├──────────────────┬───────────────────────┤
@@ -185,9 +187,19 @@ src/
 - **GameRegistry declaration merging** for compile-time type safety across dispatcher, modules, and routes
 - Config-driven (Woodland Whisper JSON config; Ancient Dragon inline constants)
 
-## Architectural Gaps (as of 2026-05-10)
+## Marketing App — iframe Integration Contract
+
+`apps/marketing` embeds the Pixi game via a same-origin `<iframe>`. The contract:
+
+- Marketing dev server (port 3003) proxies `/web-client/*` → `http://localhost:3002/*` via Vite dev proxy.
+- Launch URL: `/web-client/?game=<slug>` — handled by `apps/web-client/src/main.ts:219-229`.
+- **No changes required to `apps/web-client`** for new games — the iframe contract is purely URL-based.
+- Prod: reverse proxy serves marketing at `/`, web-client at `/web-client/`.
+
+## Architectural Gaps (as of 2026-05-13)
 
 1. Test coverage is still concentrated in `math` and `slots-core` betting; game packages need more direct tests.
 2. No Telegram bot layer yet.
 3. No wallet/economy service.
 4. No CI pipeline is documented or present in the repo.
+5. "Play for Real" on the marketing site renders but is disabled — no auth/wallet integration yet.

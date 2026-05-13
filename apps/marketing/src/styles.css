@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --theme-primary: #d4a017;
+  --theme-accent: #2d7a2d;
+  --theme-bg: #060e04;
+  --theme-text: #ffe066;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-8 py-3 bg-gold text-forest font-cinzel font-bold uppercase tracking-widest text-sm
+           hover:bg-gold-glow transition-all duration-300
+           hover:drop-shadow-gold active:scale-95 cursor-pointer;
+  }
+
+  .btn-outline {
+    @apply px-8 py-3 border border-gold text-gold font-cinzel font-bold uppercase tracking-widest text-sm
+           hover:bg-gold hover:text-forest transition-all duration-300
+           hover:drop-shadow-gold active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .stat-cell {
+    @apply flex flex-col items-center justify-center py-6 px-4
+           border-r border-white/10 last:border-r-0;
+  }
+
+  .feature-card {
+    @apply p-6 border border-white/10 bg-white/[0.03] hover:border-gold/50
+           hover:bg-white/[0.07] transition-all duration-300;
+  }
+}

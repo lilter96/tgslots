@@ -29,6 +29,7 @@ tags:
 [[ancient-dragon]]
 [[woodland-whisper]]
 [[web-client]]
+[[marketing-app]]
 
 ## Development
 
@@ -56,6 +57,7 @@ tags:
 | App        | `apps/api`                         | Elysia HTTP API (port 3001) — GameServer dispatcher, IGameModule adapters |
 | App        | `apps/simulations`                 | Unified simulation CLI and worker entrypoints     |
 | App        | `apps/web-client`                  | Pixi multi-game frontend — both games selectable; plugin architecture via IGameClient |
+| App        | `apps/marketing`                   | React 18 + Tailwind game presentation pages; "Play Demo" iframe → web-client |
 
 ## Games Summary
 

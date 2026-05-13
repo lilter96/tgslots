@@ -13,9 +13,10 @@
     "build": "bun run --workspaces build",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "dev:all": "bun install && concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\"",
+    "dev:all": "bun install && concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\" \"bun --filter @tgslots/marketing dev\"",
     "dev:api": "bun --filter @tgslots/api dev",
     "dev:client": "bun --filter @tgslots/web-client dev",
+    "dev:marketing": "bun --filter @tgslots/marketing dev",
     "eslint:lint": "eslint .",
     "eslint:fix": "eslint --fix .",
     "prepare": "husky"
