@@ -37,6 +37,9 @@ const app = new Elysia()
     set.status = 500
     return { error: error instanceof Error ? error.message : 'Internal server error' }
   })
-  .listen(3001)
+  .listen({
+    port: Number(process.env.PORT) || 3001,
+    hostname: '0.0.0.0',
+  })
 
 console.log(`API running at http://${app.server?.hostname}:${app.server?.port}`)
