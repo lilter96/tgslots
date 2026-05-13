@@ -1,7 +1,7 @@
 FROM oven/bun:1.3.13-alpine AS build
 WORKDIR /app
 COPY . .
-RUN bun install --frozen-lockfile
+RUN bun install
 
 ARG VITE_GAME_CLIENT_URL
 ENV VITE_GAME_CLIENT_URL=$VITE_GAME_CLIENT_URL

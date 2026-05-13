@@ -6,7 +6,7 @@ COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 COPY apps/api ./apps/api
 
-RUN bun install --frozen-lockfile
+RUN bun install
 
 ENV NODE_ENV=production
 ENV PORT=3001
