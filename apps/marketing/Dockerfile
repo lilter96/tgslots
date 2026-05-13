@@ -10,4 +10,4 @@ RUN bun run --cwd apps/marketing build
 FROM caddy:2.8-alpine
 COPY --from=build /app/apps/marketing/dist /srv
 COPY apps/marketing/Caddyfile /etc/caddy/Caddyfile
-EXPOSE 3004
+EXPOSE 80

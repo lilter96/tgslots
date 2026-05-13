@@ -10,4 +10,4 @@ RUN bun run --cwd apps/web-client build
 FROM caddy:2.8-alpine
 COPY --from=build /app/apps/web-client/dist /srv
 COPY apps/web-client/Caddyfile /etc/caddy/Caddyfile
-EXPOSE 3002
+EXPOSE 80
