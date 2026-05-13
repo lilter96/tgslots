@@ -24,6 +24,19 @@ declare module '@tgslots/shared-contracts/game-registry' {
 export const woodlandWhisperClient: IGameClient<'woodland-whisper'> = {
   manifest,
   assets,
+  soundMapping: {
+    'spin:started': {
+      name: 'spin-start',
+      options: { volume: 0 },
+    },
+    'reel:stopped': 'reel-stop',
+    'win:awarded': {
+      name: 'win-small',
+      options: { volume: 0.8 },
+    },
+    'feature:announced': 'win-big',
+    'pick:card:revealed': 'reel-stop',
+  },
   async mount(ctx) {
     const runtime = new WoodlandWhisperRuntime()
     await runtime.init(ctx)

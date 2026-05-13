@@ -1,4 +1,5 @@
 import { Texture } from 'pixi.js'
+import { sound } from '@pixi/sound'
 import type { GameManifest, AssetManifest } from '@tgslots/shared-contracts'
 
 export interface GameAssets {
@@ -35,6 +36,12 @@ export class AssetRegistry {
       )
     }
 
+    if (assets.audio) {
+      for (const [name, url] of Object.entries(assets.audio)) {
+        sound.add(name, url)
+      }
+    }
+
     await Promise.all(jobs)
 
     return this._makeAccessor(manifest, textures)
@@ -45,6 +52,10 @@ export class AssetRegistry {
     if (!textures) return
     for (const texture of textures.values()) texture.destroy(true)
     this._store.delete(gameId)
+
+    // We don't have a clean way to know which sounds belong to which game in @pixi/sound global,
+    // but we can use sound.removeAll() if we want a clean slate.
+    // However, usually we might want to keep some global sounds.
   }
 
   private _makeAccessor(manifest: GameManifest, textures: Map<string, Texture>): GameAssets {

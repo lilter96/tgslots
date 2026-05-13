@@ -47,16 +47,19 @@ export class ReelSet extends Container {
   }
 
   public async stop(finalGrid: number[][]): Promise<void> {
-    const promises = this._reels.map((reel, i) => {
-      const finalSymbols = finalGrid[i] || []
-      return new Promise<void>((resolve) => {
-        setTimeout(async () => {
-          await reel.stop(finalSymbols)
-          resolve()
-        }, i * this._speedProfile.reelStopStaggerMs)
-      })
-    })
+    const promises = this._reels.map((_, i) => this.stopReel(i, finalGrid[i]!))
     await Promise.all(promises)
+  }
+
+  public async stopReel(index: number, symbols: number[]): Promise<void> {
+    const reel = this._reels[index]
+    if (!reel) return
+    await new Promise<void>((resolve) => {
+      setTimeout(async () => {
+        await reel.stop(symbols)
+        resolve()
+      }, index * this._speedProfile.reelStopStaggerMs)
+    })
   }
 
   get isSpinning(): boolean {

@@ -65,6 +65,9 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   async init(ctx: GameUIContext<'woodland-whisper'>): Promise<void> {
     this._ctx = ctx
 
+    // Start BGM
+    ctx.sound.playBGM('bgm-forest')
+
     // Background
     this._background = new BackgroundContainer({ assets: ctx.assets })
     ctx.scene.background.addChild(this._background)
@@ -232,11 +235,16 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   // ── Private presentation helpers ───────────────────────────────────────────
 
   private async _presentBase(result: WoodlandWhisperBaseResult): Promise<void> {
+    this._ctx.eventBus.emit('spin:started', {})
     this._reelSet.spin()
     await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
-    await this._reelSet.stop(transposed)
+    const stopPromises = transposed.map(async (symbols, i) => {
+      await this._reelSet.stopReel(i, symbols)
+      this._ctx.eventBus.emit('reel:stopped', { reelIndex: i, isLast: i === transposed.length - 1 })
+    })
+    await Promise.all(stopPromises)
 
     if (result.win > 0) {
       this._ctx.eventBus.emit('win:awarded', { amount: result.win, multiplierX: 0 })
@@ -256,11 +264,16 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   }
 
   private async _presentBuy(result: WoodlandWhisperBuyResult): Promise<void> {
+    this._ctx.eventBus.emit('spin:started', {})
     this._reelSet.spin()
     await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
-    await this._reelSet.stop(transposed)
+    const stopPromises = transposed.map(async (symbols, i) => {
+      await this._reelSet.stopReel(i, symbols)
+      this._ctx.eventBus.emit('reel:stopped', { reelIndex: i, isLast: i === transposed.length - 1 })
+    })
+    await Promise.all(stopPromises)
 
     if (result.win > 0) {
       this._ctx.eventBus.emit('win:awarded', { amount: result.win, multiplierX: 0 })
@@ -269,16 +282,22 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
       await this._showWinAnimation(result.hits, transposed, result.win)
     }
 
+    this._ctx.eventBus.emit('feature:announced', { type: 'bonus' })
     await this._overlay.announce('BONUS!', 1500)
     await this._runPickBonus()
   }
 
   private async _presentFree(result: WoodlandWhisperFreeResult): Promise<void> {
+    this._ctx.eventBus.emit('spin:started', {})
     this._reelSet.spin()
     await this._wait(this._spinSpeedProfile.reelSpinMs)
 
     const transposed = transposeGrid(result.grid)
-    await this._reelSet.stop(transposed)
+    const stopPromises = transposed.map(async (symbols, i) => {
+      await this._reelSet.stopReel(i, symbols)
+      this._ctx.eventBus.emit('reel:stopped', { reelIndex: i, isLast: i === transposed.length - 1 })
+    })
+    await Promise.all(stopPromises)
 
     if (result.win > 0) {
       this._ctx.eventBus.emit('win:awarded', { amount: result.win, multiplierX: 0 })
@@ -288,6 +307,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     }
 
     if (result.retriggeredPickBonus) {
+      this._ctx.eventBus.emit('feature:announced', { type: 'bonus' })
       await this._overlay.announce('BONUS!', 1500)
       await this._runPickBonus()
     }
@@ -330,6 +350,10 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
         : null
 
       this._pickUI.revealCard(pickResult.pick.userIndex, pickResult.pick.value)
+      this._ctx.eventBus.emit('pick:card:revealed', {
+        index: pickResult.pick.userIndex,
+        value: pickResult.pick.value,
+      })
 
       if (pickResult.pick.isMatch) {
         matched = true
@@ -337,6 +361,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
         this._pickUI.hide()
 
         if (awarded && awarded > 0) {
+          this._ctx.eventBus.emit('feature:announced', { type: 'free-spins' })
           await this._overlay.announceFreeSpinsAwarded(awarded, 1500)
           this._ctx.eventBus.emit('free-spins:updated', { remaining: awarded, awarded })
         }

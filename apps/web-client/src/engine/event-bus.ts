@@ -10,6 +10,12 @@ export interface GameEventMap {
   'pick-card-selected': { index: number }
   'buy-bonus:requested': Record<string, never>
   'error:api': { message: string }
+
+  // Audio specific events
+  'spin:started': Record<string, never>
+  'reel:stopped': { reelIndex: number; isLast: boolean }
+  'feature:announced': { type: 'bonus' | 'free-spins' }
+  'pick:card:revealed': { index: number; value: number }
 }
 
 export type GameEventType = keyof GameEventMap

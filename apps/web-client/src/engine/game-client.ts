@@ -9,6 +9,7 @@ import type { GameStateMachine } from './state-machine.js'
 import type { SessionManager } from './session-manager.js'
 import type { HUD } from './hud.js'
 import type { SpinSpeedProfile } from './spin-speed.js'
+import type { SoundMapping, SoundManager } from './sound-manager.js'
 
 export type { GameManifest, AssetManifest, GameAssets }
 
@@ -20,6 +21,7 @@ export interface GameUIContext<G extends GameId> {
   readonly fsm: GameStateMachine
   readonly session: SessionManager
   readonly hud: HUD
+  readonly sound: SoundManager
 }
 
 export interface GameRuntime<G extends GameId> {
@@ -35,5 +37,6 @@ export interface GameRuntime<G extends GameId> {
 export interface IGameClient<G extends GameId> {
   readonly manifest: GameManifest
   readonly assets: AssetManifest
+  readonly soundMapping?: SoundMapping
   mount(ctx: GameUIContext<G>): Promise<GameRuntime<G>>
 }

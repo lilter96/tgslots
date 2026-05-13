@@ -69,6 +69,10 @@ export class HUD extends Container {
   private _autoBtnCount: Text
   private _autoBtnHint: Text
 
+  private _soundBtn: Container
+  private _soundBtnBg: Graphics
+  private _soundBtnLabel: Text
+
   private _infoContainer: Container
   private _buttonPanel: Container
 
@@ -115,6 +119,13 @@ export class HUD extends Container {
     this._autoBtnHint = new Text({
       text: 'STOP',
       style: { fontFamily: FONT_DISPLAY, fill: '#ffcc80', fontSize: 10 },
+    })
+
+    this._soundBtn = new Container()
+    this._soundBtnBg = new Graphics()
+    this._soundBtnLabel = new Text({
+      text: 'SOUND: ON',
+      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 12, fontWeight: '700' },
     })
 
     this._infoContainer = new Container()
@@ -224,6 +235,20 @@ export class HUD extends Container {
       else this.emit('autoSpin')
     })
     this._buttonPanel.addChild(this._autoBtn)
+
+    this._soundBtnBg.roundRect(0, 0, 100, 30, 8)
+    this._soundBtnBg.fill(0x0d1a2a)
+    this._soundBtnBg.stroke({ width: 1.5, color: 0xd4a017 })
+    this._soundBtnLabel.anchor.set(0.5)
+    this._soundBtnLabel.x = 50
+    this._soundBtnLabel.y = 15
+    this._soundBtn.addChild(this._soundBtnBg, this._soundBtnLabel)
+    this._soundBtn.x = SPEED_W + BTN_GAP + AUTO_W + BTN_GAP + SPIN_D + BTN_GAP
+    this._soundBtn.y = (PANEL_H - 30) / 2
+    this._soundBtn.interactive = true
+    this._soundBtn.cursor = 'pointer'
+    this._soundBtn.on('pointerdown', () => this.emit('toggleSound'))
+    this._buttonPanel.addChild(this._soundBtn)
 
     const spinBg = new Graphics()
     spinBg.circle(SPIN_D / 2, SPIN_D / 2, SPIN_D / 2)
@@ -407,6 +432,11 @@ export class HUD extends Container {
     this._drawSpeedButton(this._turboBtnBg, mode === 'turbo', true)
     this._fastBtn.alpha = mode === 'turbo' ? 0.72 : 1
     this._turboBtn.alpha = mode === 'fast' ? 0.82 : 1
+  }
+
+  public syncSound(isMuted: boolean) {
+    this._soundBtnLabel.text = isMuted ? 'SOUND: OFF' : 'SOUND: ON'
+    this._soundBtnBg.tint = isMuted ? 0x5a1a1a : 0x0d1a2a
   }
 
   public updateTexts() {

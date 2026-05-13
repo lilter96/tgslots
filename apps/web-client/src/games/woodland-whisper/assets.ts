@@ -25,4 +25,11 @@ export const assets: AssetManifest = {
     ANNOUNCE_BONUS: { svg: ENVIRONMENT_SVG.ANNOUNCE_BONUS, width: 800, height: 200 },
     ANNOUNCE_FREE: { svg: ENVIRONMENT_SVG.ANNOUNCE_FREE, width: 800, height: 200 },
   },
+  audio: {
+    'bgm-forest': '/assets/sounds/woodland-whisper/bgm-forest.mp3',
+    'spin-start': '/assets/sounds/woodland-whisper/spin-start.mp3',
+    'reel-stop': '/assets/sounds/woodland-whisper/reel-stop.mp3',
+    'win-small': '/assets/sounds/woodland-whisper/win-small.mp3',
+    'win-big': '/assets/sounds/woodland-whisper/win-big.mp3',
+  },
 }

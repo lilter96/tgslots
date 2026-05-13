@@ -13,6 +13,7 @@ import { AssetRegistry } from './engine/asset-registry.js'
 import { GameDispatcher } from './engine/dispatcher.js'
 import { GameEventBus } from './engine/event-bus.js'
 import { PixiScene } from './engine/scene.js'
+import { SoundManager } from './engine/sound-manager.js'
 import { SpinOrchestrator } from './engine/spin-orchestrator.js'
 import type { OrchestratorActions } from './engine/spin-orchestrator.js'
 import type { GameRuntime } from './engine/game-client.js'
@@ -52,6 +53,7 @@ async function mountGame(gameId: string): Promise<void> {
   const eventBus = new GameEventBus()
   const assetRegistry = new AssetRegistry()
   const spinSpeed = new SpinSpeedController()
+  const soundManager = new SoundManager(eventBus)
 
   const assets = await assetRegistry.loadGame(client.manifest, client.assets)
 
@@ -70,8 +72,14 @@ async function mountGame(gameId: string): Promise<void> {
     fsm,
     session,
     hud,
+    sound: soundManager,
   } as unknown as Parameters<typeof client.mount>[0]
   const runtime = await client.mount(ctx)
+
+  // Configure sound mapping if the game provides one
+  if (client.soundMapping) {
+    soundManager.setMapping(client.soundMapping)
+  }
 
   let orchestrator: SpinOrchestrator<'woodland-whisper'> | SpinOrchestrator<'ancient-dragon'>
   if (gameId === 'ancient-dragon') {
@@ -181,6 +189,10 @@ async function mountGame(gameId: string): Promise<void> {
     spinSpeed.toggleTurbo()
     syncSpinSpeed()
   })
+  hud.on('toggleSound', () => {
+    soundManager.setMuted(!soundManager.isMuted)
+    hud.syncSound(soundManager.isMuted)
+  })
   hud.on('stopAutoSpin', () => {
     orchestrator.stopAutoSpin()
     syncAutoSpinState()
@@ -202,6 +214,7 @@ async function mountGame(gameId: string): Promise<void> {
 
   syncAutoSpinState()
   syncSpinSpeed()
+  hud.syncSound(soundManager.isMuted)
 
   console.log('Game initialized.')
 }

@@ -34,7 +34,32 @@
       "Bash(grep -v \"^$\")",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(cp -r /Users/terentiygatsukov/.claude/projects/D--MyProjects-tgslots--claude-worktrees-loving-banach-91f9c2/4a98d025-74fe-4f8e-b881-3eea21e5153e /Users/terentiygatsukov/.claude/projects/-Users-terentiygatsukov-Work-tgslots/)",
+      "Bash(cp /Users/terentiygatsukov/.claude/projects/D--MyProjects-tgslots--claude-worktrees-loving-banach-91f9c2/4a98d025-74fe-4f8e-b881-3eea21e5153e.jsonl /Users/terentiygatsukov/.claude/projects/-Users-terentiygatsukov-Work-tgslots/)",
+      "Bash(git -C /Users/terentiygatsukov/Work/tgslots show --stat 885351c)",
+      "Bash(bun --filter @tgslots/api run typecheck)",
+      "Bash(bun --filter '@tgslots/api' run typecheck)",
+      "Bash(npx tsc *)",
+      "Bash(xargs ls *)",
+      "Bash(node -e \"const m=require\\('/Users/terentiygatsukov/Work/tgslots/node_modules/pixi.js'\\); console.log\\(Object.keys\\(m\\).includes\\('Container'\\)\\)\")",
+      "Bash(xargs -I{} basename {})",
+      "Bash(git commit *)",
+      "Bash(bun --filter @tgslots/web-client typecheck)",
+      "Bash(bun --filter @tgslots/web-client test)",
+      "Bash(sed -n '60,90p' /tmp/bg-extract/woodland-whisper/backgrounds/bg-tablet.html)",
+      "Bash(sed -n '60,90p' /tmp/bg-extract/woodland-whisper/backgrounds/bg-desktop.html)",
+      "Bash(sed -n '175,200p' /tmp/bg-extract/woodland-whisper/backgrounds/bg-tablet.html)",
+      "Bash(sed -n '190,220p' /tmp/bg-extract/woodland-whisper/backgrounds/bg-desktop.html)",
+      "Bash(bun --filter @tgslots/web-client build)",
+      "Bash(bun --filter @tgslots/web-client lint)",
+      "Bash(grep -n -i -E \"\\(rtp|volatility|max.{0,3}win|release|theme|lore\\)\" /Users/terentiygatsukov/Work/tgslots/apps/simulations/woodland-whisper-worker.ts)",
+      "Bash(grep -rn -i -E \"max.{0,3}win|volatility|release.date\" /Users/terentiygatsukov/Work/tgslots/packages/games/woodland-whisper /Users/terentiygatsukov/Work/tgslots/memory)",
+      "Bash(bun *)",
+      "Bash(git -C /Users/terentiygatsukov/Work/tgslots status)",
+      "Bash(git -C /Users/terentiygatsukov/Work/tgslots log --oneline -3)",
+      "Bash(git *)"
     ]
-  }
+  },
+  "model": "opusplan"
 }
