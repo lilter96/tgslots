@@ -176,21 +176,39 @@ export class BackgroundContainer extends Container {
     const spec = WW_SCENES[v]
     this._spec = spec
 
-    // Destroy previous base sprite
+    // Destroy previous base sprite and its texture if it was a rasterized SVG
     if (this._baseSprite) {
-      this._baseSprite.destroy({ texture: true })
+      const tex = this._baseSprite.texture
+      this._baseSprite.destroy()
+      // Only destroy if it was a rasterized SVG (starts with 'ww-bg-')
+      if (tex.label?.startsWith('ww-bg-')) {
+        tex.destroy(true)
+      }
       this._baseSprite = null
     }
 
-    // Rasterize base SVG
-    const tex = await this._assets.rasterizeSvg(
-      `ww-bg-${v}`,
-      spec.svgString,
-      spec.viewBox.width,
-      spec.viewBox.height,
-    )
+    let tex: Texture
+    if (spec.bgTexture) {
+      tex = this._assets.getTexture(spec.bgTexture)
+    } else if (spec.svgString) {
+      tex = await this._assets.rasterizeSvg(
+        `ww-bg-${v}`,
+        spec.svgString,
+        spec.viewBox.width,
+        spec.viewBox.height,
+      )
+      tex.label = `ww-bg-${v}`
+    } else {
+      throw new Error(`Scene spec for ${v} missing both bgTexture and svgString`)
+    }
+
     this._baseSprite = new Sprite(tex)
-    this._baseSprite.anchor.set(0)
+    const { width: vw, height: vh } = spec.viewBox
+    const s = Math.max(vw / tex.width, vh / tex.height)
+    this._baseSprite.scale.set(s)
+    this._baseSprite.anchor.set(0.5)
+    this._baseSprite.x = vw / 2
+    this._baseSprite.y = vh / 2
     this.addChildAt(this._baseSprite, 0)
 
     this._rebuildOverlays(spec)
