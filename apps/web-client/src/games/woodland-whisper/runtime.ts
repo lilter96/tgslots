@@ -251,7 +251,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     }
 
     if (result.win > 0) {
-      await this._overlay.announceWin(result.win, 0)
+      await this._overlay.announceWin(result.win, this._ctx.session.lastWager)
     }
   }
 

@@ -2,6 +2,7 @@ export class SessionManager {
   private _balance: number
   private _betMultiplier: number = 1
   private _lastWin: number = 0
+  private _lastWager: number = 0
 
   constructor(initialBalance: number) {
     this._balance = initialBalance
@@ -19,6 +20,10 @@ export class SessionManager {
     return this._lastWin
   }
 
+  get lastWager(): number {
+    return this._lastWager
+  }
+
   public setBetMultiplier(multiplier: number) {
     if (multiplier < 1) return
     this._betMultiplier = multiplier
@@ -27,6 +32,7 @@ export class SessionManager {
   public deductWager(amount: number): boolean {
     if (this._balance < amount) return false
     this._balance = this._balance - amount
+    this._lastWager = amount
     return true
   }
 

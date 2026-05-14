@@ -178,7 +178,7 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
     }
 
     if (result.win > 0) {
-      await this._overlay.announceWin(result.win, 0)
+      await this._overlay.announceWin(result.win, this._ctx.session.lastWager)
     }
   }
 
