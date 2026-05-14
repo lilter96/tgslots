@@ -12,6 +12,7 @@ export const assets: AssetManifest = {
     CHEST: '/assets/images/woodland-whisper/chest-symbol.png',
     TIARA: '/assets/images/woodland-whisper/tiara-symbol.png',
     PINECONE: '/assets/images/woodland-whisper/pinecone-symbol.png',
+    REEL_FRAME: '/assets/images/woodland-whisper/reel-frame.png',
     A: '/assets/images/woodland-whisper/a-symbol.png',
     K: '/assets/images/woodland-whisper/k-symbol.png',
     Q: '/assets/images/woodland-whisper/q-symbol.png',

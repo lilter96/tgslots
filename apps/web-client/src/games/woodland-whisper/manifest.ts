@@ -4,8 +4,8 @@ export const manifest: GameManifest = {
   gameId: 'woodland-whisper',
   displayName: 'Woodland Whisper',
   grid: { reels: 5, rows: 3 },
-  reelNaturalWidth: 780,
-  reelNaturalHeight: 420,
+  reelNaturalWidth: 1344,
+  reelNaturalHeight: 768,
   symbolSize: 140,
   symbols: [
     { id: 0, name: 'WOMAN', kind: 'wild' },

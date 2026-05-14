@@ -1,4 +1,4 @@
-import { Graphics } from 'pixi.js'
+import { Graphics, Sprite } from 'pixi.js'
 import type { GameRuntime } from '../../engine/game-client.js'
 import type { GameUIContext } from '../../engine/game-client.js'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
@@ -24,7 +24,9 @@ import { manifest } from './manifest.js'
 import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
 import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
 
-const FRAME_PAD = 4
+// Outer bitmap / inner transparent opening ratios — tune visually if artwork changes
+const FRAME_OUTER_TO_INNER_X = 1.67
+const FRAME_OUTER_TO_INNER_Y = 1.67
 const PAYLINE_WIN_COLOR = 0xffd700
 const SCATTER_WIN_COLOR = 0xff44cc
 const SCATTER_ID = Symbols['COIN']!
@@ -32,7 +34,7 @@ const SCATTER_ID = Symbols['COIN']!
 const GRID_CONFIG = {
   reels: manifest.grid.reels,
   rows: manifest.grid.rows,
-  reelSpacing: 20,
+  reelSpacing: 0,
 }
 const REEL_CONFIG = {
   symbolWidth: manifest.symbolSize,
@@ -57,7 +59,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   private _buyBonusControl!: BuyBonusControl
   private _background!: BackgroundContainer
   private _mask!: Graphics
-  private _frame!: Graphics
+  private _frame!: Sprite
   private _layout?: UILayoutSnapshot
   private _pendingPickBonusState: WWPickBonusSerialized | null = null
   private _spinSpeedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
@@ -90,8 +92,9 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._reelSet.mask = this._mask
     ctx.scene.reels.addChild(this._reelSet)
 
-    // Frame (drawn over the reels, still inside scene.reels layer)
-    this._frame = new Graphics()
+    // Frame sprite (drawn over the reels, still inside scene.reels layer)
+    this._frame = new Sprite(ctx.assets.getTexture('REEL_FRAME'))
+    this._frame.anchor.set(0.5)
     ctx.scene.reels.addChild(this._frame)
 
     // Pick bonus UI
@@ -158,48 +161,37 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     void this._background.setVariant(variant)
     this._background.setViewport(W, H)
 
-    // Reel set
-    const reelScale = layout.reelBounds.width / manifest.reelNaturalWidth
-    this._reelSet.scale.set(reelScale)
-    this._reelSet.x = layout.reelBounds.x
-    this._reelSet.y = layout.reelBounds.y
+    // Frame — fills reelBounds exactly; reelBounds is sized for the full PNG dimensions
+    this._frame.x = layout.reelBounds.x + layout.reelBounds.width / 2
+    this._frame.y = layout.reelBounds.y + layout.reelBounds.height / 2
+    this._frame.width = layout.reelBounds.width
+    this._frame.height = layout.reelBounds.height
 
-    // Mask
+    // Inner opening — transparent area of the frame PNG
+    const innerWidth = layout.reelBounds.width / FRAME_OUTER_TO_INNER_X
+    const innerHeight = layout.reelBounds.height / FRAME_OUTER_TO_INNER_Y
+    const innerX = layout.reelBounds.x + (layout.reelBounds.width - innerWidth) / 2
+    const innerY = layout.reelBounds.y + (layout.reelBounds.height - innerHeight) / 2
+
+    // Reel set — fit inside inner opening, centered on both axes
+    const reelContentW = GRID_CONFIG.reels * REEL_CONFIG.symbolWidth
+    const reelContentH = GRID_CONFIG.rows * REEL_CONFIG.symbolHeight
+    const reelScale = Math.min(innerWidth / reelContentW, innerHeight / reelContentH)
+    const reelW = reelContentW * reelScale
+    const reelH = reelContentH * reelScale
+    this._reelSet.scale.set(reelScale)
+    this._reelSet.x = innerX + (innerWidth - reelW) / 2
+    this._reelSet.y = innerY + (innerHeight - reelH) / 2
+
+    // Mask — clips to actual reel content area
     this._mask.clear()
     this._mask.rect(
-      layout.reelBounds.x,
-      layout.reelBounds.y,
-      layout.reelBounds.width,
-      layout.reelBounds.height,
+      innerX + (innerWidth - reelW) / 2,
+      innerY + (innerHeight - reelH) / 2,
+      reelW,
+      reelH,
     )
     this._mask.fill(0xffffff)
-
-    // Frame — outer border + separators
-    this._frame.clear()
-    this._frame.rect(
-      layout.reelBounds.x - FRAME_PAD,
-      layout.reelBounds.y - FRAME_PAD,
-      layout.reelBounds.width + FRAME_PAD * 2,
-      layout.reelBounds.height + FRAME_PAD * 2,
-    )
-    this._frame.stroke({ color: 0xd4a017, width: 4, alpha: 1 })
-
-    for (let col = 1; col < GRID_CONFIG.reels; col++) {
-      const sepX =
-        layout.reelBounds.x +
-        (col * (REEL_CONFIG.symbolWidth + GRID_CONFIG.reelSpacing) - GRID_CONFIG.reelSpacing / 2) *
-          reelScale
-      this._frame.moveTo(sepX, layout.reelBounds.y)
-      this._frame.lineTo(sepX, layout.reelBounds.y + layout.reelBounds.height)
-    }
-    this._frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
-
-    for (let row = 1; row < REEL_CONFIG.visibleSymbols; row++) {
-      const sepY = layout.reelBounds.y + row * REEL_CONFIG.symbolHeight * reelScale
-      this._frame.moveTo(layout.reelBounds.x, sepY)
-      this._frame.lineTo(layout.reelBounds.x + layout.reelBounds.width, sepY)
-    }
-    this._frame.stroke({ color: 0xd4a017, width: 1, alpha: 0.4 })
 
     this._overlay.resize(layout)
     this._pickUI.resize(layout)
