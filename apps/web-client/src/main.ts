@@ -21,6 +21,8 @@ import { getResponsiveLayout } from './engine/layout.js'
 import { SpinSpeedController } from './engine/spin-speed.js'
 import { gameRegistry } from './games/registry.js'
 import { GamePicker } from './app/game-picker.js'
+import { GameLoader } from './app/game-loader.js'
+import type { AssetManifest } from '@tgslots/shared-contracts'
 import type { AutoSpinConfig } from './types.js'
 import { GameUIState } from './types.js'
 
@@ -33,10 +35,21 @@ import './games/ancient-dragon/index.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const BASE_URL: string = (import.meta as any).env?.VITE_API_URL ?? ''
 
+function resolveLoaderBackground(assets: AssetManifest): string | undefined {
+  return assets.images?.BACKGROUND_16_9 ?? assets.images?.BACKGROUND ?? assets.images?.HERO
+}
+
 async function mountGame(gameId: string): Promise<void> {
   const gameClient = gameRegistry[gameId]
   if (gameClient === undefined) return
   const client = gameClient
+
+  const loader = new GameLoader()
+  loader.theme({
+    theme: client.manifest.theme,
+    displayName: client.manifest.displayName,
+    backgroundUrl: resolveLoaderBackground(client.assets),
+  })
 
   const app = new Application()
   await app.init({
@@ -59,7 +72,9 @@ async function mountGame(gameId: string): Promise<void> {
   const spinSpeed = new SpinSpeedController()
   const soundManager = new SoundManager(eventBus)
 
-  const assets = await assetRegistry.loadGame(client.manifest, client.assets)
+  const assets = await assetRegistry.loadGame(client.manifest, client.assets, (loaded, total) =>
+    loader.setProgress(loaded, total),
+  )
 
   const hud = new HUD(session, fsm)
   scene.hud.addChild(hud)
@@ -221,6 +236,10 @@ async function mountGame(gameId: string): Promise<void> {
   hud.syncSound(soundManager.isMuted)
 
   console.log('Game initialized.')
+
+  await loader.awaitTap()
+  soundManager.unlock()
+  await loader.dismiss()
 }
 
 function showPicker(): void {

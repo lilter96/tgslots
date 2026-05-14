@@ -81,6 +81,10 @@ export class SoundManager {
     }
   }
 
+  unlock(): void {
+    void sound.context.audioContext.resume()
+  }
+
   stopBGM(): void {
     if (this._currentBgm) {
       sound.stop(this._currentBgm)

@@ -32,14 +32,6 @@ const REEL_CONFIG = {
   totalSymbols: 5,
 }
 
-function transposeGrid(grid: number[][]): number[][] {
-  const rows = grid.length
-  const cols = grid[0]?.length ?? 0
-  return Array.from({ length: cols }, (_, c) =>
-    Array.from({ length: rows }, (_, r) => grid[r]![c]!),
-  )
-}
-
 export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
   private _ctx!: GameUIContext<'ancient-dragon'>
   private _reelSet!: ReelSet
@@ -172,14 +164,13 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
     this._reelSet.spin()
     await this._wait(this._spinSpeedProfile.reelSpinMs)
 
-    const transposed = transposeGrid(result.grid)
-    await this._reelSet.stop(transposed)
+    await this._reelSet.stop(result.grid)
 
     if (result.win > 0) {
       this._ctx.eventBus.emit('win:awarded', { amount: result.win, multiplierX: 0 })
     }
     if (result.win > 0 || result.sc >= 2) {
-      await this._showWinAnimation(result.hits, transposed)
+      await this._showWinAnimation(result.hits, result.grid)
     }
 
     if (result.triggeredFreeSpins) {
@@ -195,14 +186,13 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
     this._reelSet.spin()
     await this._wait(this._spinSpeedProfile.reelSpinMs)
 
-    const transposed = transposeGrid(result.grid)
-    await this._reelSet.stop(transposed)
+    await this._reelSet.stop(result.grid)
 
     if (result.win > 0) {
       this._ctx.eventBus.emit('win:awarded', { amount: result.win, multiplierX: 0 })
     }
     if (result.win > 0 || result.sc >= 2) {
-      await this._showWinAnimation(result.hits, transposed)
+      await this._showWinAnimation(result.hits, result.grid)
     }
 
     if (result.retriggeredFreeSpins) {

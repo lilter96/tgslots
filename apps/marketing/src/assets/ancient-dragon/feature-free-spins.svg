@@ -1,0 +1,43 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="ad-glow">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="ad-coin" cx="38%" cy="32%" r="62%">
+      <stop offset="0%" stop-color="#ffe066"/>
+      <stop offset="55%" stop-color="#d4a017"/>
+      <stop offset="100%" stop-color="#6b0000"/>
+    </radialGradient>
+    <radialGradient id="ad-ember" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff4400" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#cc1a1a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Ember sparks -->
+  <g fill="#d4a017" filter="url(#ad-glow)" opacity="0.85">
+    <circle cx="32" cy="5"  r="1.8"/>
+    <circle cx="50" cy="14" r="1.4" opacity="0.7"/>
+    <circle cx="57" cy="34" r="1.4" opacity="0.65"/>
+    <circle cx="48" cy="54" r="1.4" opacity="0.65"/>
+    <circle cx="16" cy="54" r="1.4" opacity="0.65"/>
+    <circle cx="7"  cy="34" r="1.4" opacity="0.65"/>
+    <circle cx="14" cy="14" r="1.4" opacity="0.7"/>
+  </g>
+  <!-- Orbit ring (dragon-scale dashes) -->
+  <circle cx="32" cy="32" r="22" fill="none" stroke="#cc1a1a" stroke-width="1.2" stroke-dasharray="4 3.5" opacity="0.55"/>
+  <!-- Coin body -->
+  <circle cx="32" cy="32" r="17" fill="url(#ad-coin)" filter="url(#ad-glow)"/>
+  <!-- Coin rim highlight -->
+  <circle cx="32" cy="32" r="17" fill="none" stroke="#ffe066" stroke-width="1.5" opacity="0.75"/>
+  <!-- Inner groove -->
+  <circle cx="32" cy="32" r="13" fill="none" stroke="#6b0000" stroke-width="1" opacity="0.6"/>
+  <!-- Dragon claw mark (three lines) -->
+  <g stroke="#1a0000" stroke-width="1.2" stroke-linecap="round" opacity="0.55">
+    <line x1="26" y1="25" x2="31" y2="39"/>
+    <line x1="32" y1="23" x2="32" y2="39"/>
+    <line x1="38" y1="25" x2="33" y2="39"/>
+  </g>
+  <!-- "FS" label -->
+  <text x="32" y="38" text-anchor="middle" font-family="Cinzel, Georgia, serif" font-weight="700" font-size="13" fill="#060e04">FS</text>
+</svg>

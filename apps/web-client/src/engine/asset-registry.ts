@@ -18,7 +18,11 @@ export class AssetRegistry {
   // Trackers for cleanup
   private readonly _soundKeys = new Map<string, string[]>()
 
-  async loadGame(manifest: GameManifest, assets: AssetManifest): Promise<GameAssets> {
+  async loadGame(
+    manifest: GameManifest,
+    assets: AssetManifest,
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<GameAssets> {
     const { gameId } = manifest
 
     // 1. Prevent memory leaks from double-loading
@@ -42,9 +46,21 @@ export class AssetRegistry {
 
     // 3. Start Loading Jobs
     const jobs: Promise<void>[] = []
+    let jobTotal = 0
+    let jobDone = 0
+
+    const push = (p: Promise<void>) => {
+      jobTotal++
+      jobs.push(
+        p.then(() => {
+          jobDone++
+          onProgress?.(jobDone, jobTotal)
+        }),
+      )
+    }
 
     // Job: Load PNG Bundle
-    jobs.push(
+    push(
       Assets.loadBundle(gameId).then((loadedAssets) => {
         for (const [alias, texture] of Object.entries(loadedAssets)) {
           const t = texture as Texture
@@ -57,7 +73,7 @@ export class AssetRegistry {
 
     // Job: Rasterize Symbol SVGs
     for (const [name, svg] of Object.entries(assets.symbols ?? [])) {
-      jobs.push(
+      push(
         this.rasterizeSvg(name, svg, manifest.symbolSize, manifest.symbolSize).then((t) => {
           textures.set(name, t)
         }),
@@ -66,7 +82,7 @@ export class AssetRegistry {
 
     // Job: Rasterize Environment SVGs
     for (const [name, env] of Object.entries(assets.env)) {
-      jobs.push(
+      push(
         this.rasterizeSvg(name, env.svg, env.width, env.height).then((t) => {
           textures.set(name, t)
         }),
