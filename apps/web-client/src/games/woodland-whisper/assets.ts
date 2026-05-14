@@ -4,6 +4,8 @@ import { ENVIRONMENT_SVG } from '../../assets/symbols.js'
 export const assets: AssetManifest = {
   images: {
     BACKGROUND_16_9: '/assets/images/woodland-whisper/background-16-9.png',
+    BACKGROUND_9_16: '/assets/images/woodland-whisper/background-9-16.png',
+    BACKGROUND_4_3: '/assets/images/woodland-whisper/background-4-3.png',
     COIN: '/assets/images/woodland-whisper/coin-symbol.png',
     WOMAN: '/assets/images/woodland-whisper/woman-symbol.png',
     MUSHROOMS: '/assets/images/woodland-whisper/mushrooms-symbol.png',
