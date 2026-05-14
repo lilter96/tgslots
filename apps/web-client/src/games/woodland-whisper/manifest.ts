@@ -20,7 +20,6 @@ export const manifest: GameManifest = {
     { id: 9, name: '10', kind: 'regular' },
     { id: 10, name: '9', kind: 'regular' },
     { id: 11, name: 'COIN', kind: 'scatter' },
-    { id: 12, name: 'REPLACEMENT', kind: 'bonus' },
   ],
   theme: {
     primary: 0xd4a017,

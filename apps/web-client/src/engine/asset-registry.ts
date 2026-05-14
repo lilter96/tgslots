@@ -1,11 +1,13 @@
-import { Texture, Assets } from 'pixi.js'
+import { Assets, Texture } from 'pixi.js'
 import { sound } from '@pixi/sound'
-import type { GameManifest, AssetManifest } from '@tgslots/shared-contracts'
+import type { AssetManifest, GameManifest } from '@tgslots/shared-contracts'
 
 export interface GameAssets {
   readonly manifest: GameManifest // Access to symbol logic, paylines, etc.
   getSymbolTexture(symbolId: number): Texture
+
   getTexture(name: string): Texture
+
   rasterizeSvg(name: string, svg: string, w: number, h: number): Promise<Texture>
 }
 
@@ -54,7 +56,7 @@ export class AssetRegistry {
     )
 
     // Job: Rasterize Symbol SVGs
-    for (const [name, svg] of Object.entries(assets.symbols)) {
+    for (const [name, svg] of Object.entries(assets.symbols ?? [])) {
       jobs.push(
         this.rasterizeSvg(name, svg, manifest.symbolSize, manifest.symbolSize).then((t) => {
           textures.set(name, t)

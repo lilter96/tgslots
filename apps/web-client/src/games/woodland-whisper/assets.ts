@@ -1,23 +1,20 @@
 import type { AssetManifest } from '@tgslots/shared-contracts'
-import { SYMBOL_SVG, ENVIRONMENT_SVG } from '../../assets/symbols.js'
+import { ENVIRONMENT_SVG } from '../../assets/symbols.js'
 
 export const assets: AssetManifest = {
-  symbols: {
-    WOMAN: SYMBOL_SVG['WOMAN']!,
-    CHEST: SYMBOL_SVG['CHEST']!,
-    TIARA: SYMBOL_SVG['TIARA']!,
-    MUSHROOMS: SYMBOL_SVG['MUSHROOMS']!,
-    PINECONE: SYMBOL_SVG['PINECONE']!,
-    A: SYMBOL_SVG['A']!,
-    K: SYMBOL_SVG['K']!,
-    Q: SYMBOL_SVG['Q']!,
-    J: SYMBOL_SVG['J']!,
-    '10': SYMBOL_SVG['10']!,
-    '9': SYMBOL_SVG['9']!,
-    REPLACEMENT: SYMBOL_SVG['REPLACEMENT']!,
-  },
   images: {
     COIN: '/assets/images/woodland-whisper/coin-symbol.png',
+    WOMAN: '/assets/images/woodland-whisper/woman-symbol.png',
+    MUSHROOMS: '/assets/images/woodland-whisper/mushrooms-symbol.png',
+    CHEST: '/assets/images/woodland-whisper/chest-symbol.png',
+    TIARA: '/assets/images/woodland-whisper/tiara-symbol.png',
+    PINECONE: '/assets/images/woodland-whisper/pinecone-symbol.png',
+    A: '/assets/images/woodland-whisper/a-symbol.png',
+    K: '/assets/images/woodland-whisper/k-symbol.png',
+    Q: '/assets/images/woodland-whisper/q-symbol.png',
+    J: '/assets/images/woodland-whisper/j-symbol.png',
+    '9': '/assets/images/woodland-whisper/9-symbol.png',
+    '10': '/assets/images/woodland-whisper/10-symbol.png',
   },
   env: {
     FRAME: { svg: ENVIRONMENT_SVG.FRAME, width: 390, height: 340 },
