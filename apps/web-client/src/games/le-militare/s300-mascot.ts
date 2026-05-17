@@ -143,6 +143,40 @@ export class S300Mascot extends Container {
 
   // ─────────────────── Feature animation (S-300 deploy) ───────────────────
 
+  /**
+   * Returns the missile launch point in the mascot's local space.
+   * Based on the launcher being deployed (-90 deg).
+   */
+  getLaunchPoint(): { x: number; y: number } {
+    // Hinge is at (108, 274) in masterContainer.
+    // Tube length is 390. At -90 deg, tip is straight up.
+    // masterContainer may have a bob y (0-22 depending on state).
+    const mx = this.masterContainer.x
+    const my = this.masterContainer.y
+    const hingeX = 108
+    const hingeY = 274
+    const len = 390
+
+    // When deployed, the tip is (hingeX, hingeY - len) relative to masterContainer
+    return {
+      x: mx + hingeX,
+      y: my + hingeY - len,
+    }
+  }
+
+  /**
+   * Returns the wire connection point in the mascot's local space.
+   */
+  getConnectionPoint(): { x: number; y: number } {
+    // Connect to the hull underbody start at (82, 498) in masterContainer.
+    const mx = this.masterContainer.x
+    const my = this.masterContainer.y
+    return {
+      x: mx + 82,
+      y: my + 498,
+    }
+  }
+
   triggerS300Feature(): Promise<void> {
     if (this._isDeployed) return Promise.resolve()
     this._isDeployed = true
@@ -204,11 +238,25 @@ export class S300Mascot extends Container {
     })
   }
 
-  override destroy(options?: { children?: boolean }): void {
+  override destroy(options?: {
+    children?: boolean
+    texture?: boolean
+    baseTexture?: boolean
+  }): void {
     this._killIdle()
-    gsap.killTweensOf(this.masterContainer)
-    gsap.killTweensOf(this.launcherContainer)
-    gsap.killTweensOf(this.radarContainer)
+    const killAll = (c: Container) => {
+      if (!c) return
+      gsap.killTweensOf(c)
+      if (c.scale) gsap.killTweensOf(c.scale)
+      if (c.children && c.children.length > 0) {
+        const children = [...c.children]
+        children.forEach((child) => {
+          if (child instanceof Container) killAll(child)
+          else gsap.killTweensOf(child)
+        })
+      }
+    }
+    killAll(this)
     super.destroy(options)
   }
 

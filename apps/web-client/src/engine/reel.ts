@@ -129,6 +129,10 @@ export class Reel extends Container {
     return this._symbols[row] ?? null
   }
 
+  public clearMultipliers(): void {
+    this._symbols.forEach((s) => s.clearMultiplier())
+  }
+
   public setSymbols(symbols: number[]): void {
     const { symbolHeight } = this._config
     this._symbols.forEach((symbol, i) => {
@@ -210,6 +214,7 @@ export class Reel extends Container {
       if ((newToOld[newRow] ?? -1) >= 0) continue
       const sym = reusable[ri++]
       if (!sym) continue
+      sym.clearMultiplier() // Multiplier only applies to original symbols that survive
       const symbolId = newSymbols[newRow]
       if (symbolId !== undefined) sym.setTexture(this._assets.getSymbolTexture(symbolId))
       sym.alpha = 1
@@ -232,11 +237,37 @@ export class Reel extends Container {
       ),
     )
 
-    // Phase D: lock in clean final state (kills tweens, reorders _symbols logically)
+    // REORDER: Ensure the instance array matches the new grid positions
+    const nextSymbols: SymbolView[] = new Array(visibleSymbols)
+    for (let newRow = 0; newRow < visibleSymbols; newRow++) {
+      const item = fallItems.find((it) => it.toY === newRow * symbolHeight)
+      if (item) nextSymbols[newRow] = item.view
+    }
+    this._symbols = nextSymbols
+
+    // Phase D: lock in clean final state (kills tweens)
     this.setSymbols(newSymbols)
   }
 
   public syncSpinSpeed(profile: SpinSpeedProfile): void {
     this._speedProfile = profile
+  }
+
+  override destroy(options?: {
+    children?: boolean
+    texture?: boolean
+    baseTexture?: boolean
+  }): void {
+    if (this._spinTicker) {
+      Ticker.shared.remove(this._spinTicker)
+      this._spinTicker = undefined
+    }
+    gsap.killTweensOf(this)
+    this._symbols.forEach((s) => {
+      gsap.killTweensOf(s)
+      gsap.killTweensOf(s.scale)
+      s.destroy({ children: true })
+    })
+    super.destroy(options)
   }
 }

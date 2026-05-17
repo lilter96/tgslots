@@ -1,9 +1,11 @@
 import { Container, Sprite, Texture, BlurFilter, Graphics } from 'pixi.js'
+import { gsap } from 'gsap'
 
 export class SymbolView extends Container {
   private _sprite: Sprite
   private _blurFilter: BlurFilter
   private _highlightGfx: Graphics
+  private _multiplierContainer: Container
 
   constructor() {
     super()
@@ -19,6 +21,9 @@ export class SymbolView extends Container {
     this._highlightGfx = new Graphics()
     this._highlightGfx.visible = false
     this.addChild(this._highlightGfx)
+
+    this._multiplierContainer = new Container()
+    this.addChild(this._multiplierContainer)
   }
 
   public setTexture(texture: Texture) {
@@ -31,10 +36,26 @@ export class SymbolView extends Container {
   }
 
   public override setSize(width: number, height: number) {
+    const cx = width / 2
+    const cy = height / 2
     this._sprite.width = width * 0.8
     this._sprite.height = height * 0.8
-    this._sprite.x = width / 2
-    this._sprite.y = height / 2
+    this._sprite.x = cx
+    this._sprite.y = cy
+    this._multiplierContainer.x = cx
+    this._multiplierContainer.y = cy
+  }
+
+  public get multiplierContainer(): Container {
+    return this._multiplierContainer
+  }
+
+  public clearMultiplier(): void {
+    this._multiplierContainer.removeChildren().forEach((c) => {
+      gsap.killTweensOf(c)
+      gsap.killTweensOf(c.scale)
+      c.destroy({ children: true })
+    })
   }
 
   public highlight(color: number = 0xffd700): void {
@@ -49,25 +70,33 @@ export class SymbolView extends Container {
     this._highlightGfx.rect(x + 4, y + 4, w - 8, h - 8)
     this._highlightGfx.fill({ color, alpha: 0.15 })
 
-    import('gsap').then(({ gsap }) => {
-      gsap.killTweensOf(this._highlightGfx)
-      this._highlightGfx.alpha = 1
-      gsap.to(this._highlightGfx, {
-        alpha: 0.35,
-        duration: 0.45,
-        yoyo: true,
-        repeat: -1,
-        ease: 'sine.inOut',
-      })
+    gsap.killTweensOf(this._highlightGfx)
+    this._highlightGfx.alpha = 1
+    gsap.to(this._highlightGfx, {
+      alpha: 0.35,
+      duration: 0.45,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
     })
   }
 
   public clearHighlight(): void {
-    import('gsap').then(({ gsap }) => {
-      gsap.killTweensOf(this._highlightGfx)
-    })
+    gsap.killTweensOf(this._highlightGfx)
     this._highlightGfx.clear()
     this._highlightGfx.visible = false
     this._highlightGfx.alpha = 1
+  }
+
+  override destroy(options?: {
+    children?: boolean
+    texture?: boolean
+    baseTexture?: boolean
+  }): void {
+    gsap.killTweensOf(this)
+    gsap.killTweensOf(this.scale)
+    gsap.killTweensOf(this._highlightGfx)
+    this.clearMultiplier()
+    super.destroy(options)
   }
 }

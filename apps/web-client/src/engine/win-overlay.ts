@@ -264,4 +264,14 @@ export class WinOverlay extends Container {
         })
     })
   }
+
+  override destroy(options?: {
+    children?: boolean
+    texture?: boolean
+    baseTexture?: boolean
+  }): void {
+    gsap.killTweensOf(this)
+    gsap.killTweensOf(this.scale)
+    super.destroy(options)
+  }
 }

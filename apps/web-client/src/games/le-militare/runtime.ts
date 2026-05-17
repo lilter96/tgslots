@@ -24,6 +24,7 @@ const FRAME_PAD = 4
 const CLUSTER_WIN_COLOR = 0xd4af37
 const SCATTER_WIN_COLOR = 0xff4444
 const SCATTER_ID = Symbols['SCATTER']!
+const WILD_ID = Symbols['WILD']!
 
 const GRID_CONFIG = {
   reels: manifest.grid.reels,
@@ -120,6 +121,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     _action: keyof { spin: unknown; buybonus: unknown; freespin: unknown; state: unknown },
     result: LeMilitareResult,
   ): Promise<void> {
+    this._combatOpView.clearPersistentMultipliers()
     switch (result.type) {
       case 'BASE':
         await this._presentBase(result)
@@ -196,6 +198,30 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
 
     this._overlay.resize(layout)
     this._mascot.resize(layout)
+
+    const lp = this._mascot.getLaunchPoint()
+    const cp = this._mascot.getConnectionPoint()
+    const mScale = this._mascot.scale.x
+    // Global-ish mascot points (relative to mascot parent)
+    const glx = this._mascot.x + lp.x * mScale
+    const gly = this._mascot.y + lp.y * mScale
+    const gcx = this._mascot.x + cp.x * mScale
+    const gcy = this._mascot.y + cp.y * mScale
+
+    // Transform to CombatOpView local space
+    this._combatOpView.setMascotData(
+      (glx - this._combatOpView.x) / reelScale,
+      (gly - this._combatOpView.y) / reelScale,
+      (gcx - this._combatOpView.x) / reelScale,
+      (gcy - this._combatOpView.y) / reelScale,
+      GRID_CONFIG.reels,
+    )
+    this._combatOpView.drawWires(
+      REEL_CONFIG.symbolWidth,
+      GRID_CONFIG.reelSpacing,
+      REEL_CONFIG.visibleSymbols * REEL_CONFIG.symbolHeight,
+      1, // draw in design space, container scale handles the rest
+    )
   }
 
   destroy(): void {
@@ -280,6 +306,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private async _playCascadeSteps(
     result: LeMilitareBaseResult | LeMilitareFreeResult | LeMilitareBuyResult,
   ): Promise<void> {
+    this._reelSet.clearAllMultipliers()
+
     // For FREE spins, HUD shows the carry-over multiplier from earlier spins in the session
     let currentMultiplier =
       result.type === 'FREE' ? result.state.sessionMultiplierSum - result.multiplierSum : 0
@@ -297,14 +325,19 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
         await this._combatOpView.animateActivations(this._reelSet, step.activations)
       }
       if (step.shootdowns.length > 0) {
-        await this._combatOpView.animateShootdowns(this._reelSet, step.shootdowns, step.activations)
+        await this._combatOpView.animateShootdowns(
+          this._reelSet,
+          step.shootdowns,
+          step.activations,
+          WILD_ID,
+        )
         for (const sd of step.shootdowns) currentMultiplier += sd.multiplier
         this._multiplierHud.setValue(currentMultiplier)
       }
       // Snap grid to postCombatGrid (giant wilds + multiplier wilds now visible)
       if (step.activations.length > 0 || step.shootdowns.length > 0) {
         this._reelSet.setSymbols(transposeGrid(step.postCombatGrid))
-        await this._wait(380)
+        await this._wait(494)
       }
 
       // ── No cluster hits → terminal step ───────────────────────────────────
@@ -312,7 +345,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
 
       // ── Cluster win highlights ────────────────────────────────────────────
       // Group hits by symbol type so we highlight one symbol group at a time.
-      const hitsBySymbol = new Map<number, typeof step.hits>()
+      const hitsBySymbol = new Map<number, (typeof step.hits)[number][]>()
       for (const hit of step.hits) {
         const arr = hitsBySymbol.get(hit.symbolId) ?? []
         arr.push(hit)
@@ -364,7 +397,10 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     }
 
     // Retract launcher after all animations if it was deployed this spin
-    if (hasAnyCombatOp) void this._mascot.retractLauncher()
+    if (hasAnyCombatOp) {
+      this._combatOpView.deactivateAllWires()
+      void this._mascot.retractLauncher()
+    }
   }
 
   private _wait(ms: number): Promise<void> {

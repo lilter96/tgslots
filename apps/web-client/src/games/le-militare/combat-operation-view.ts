@@ -1,12 +1,12 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js'
+import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
 import type { ReelSet } from '../../engine/reel-set.js'
 import type { ShootdownEvent, ActivationEvent } from '@tgslots/le-militare'
 
-const BADGE_STYLE = new TextStyle({
+const BADGE_STYLE_OPTS = {
   fontFamily: 'serif',
   fontSize: 30,
-  fontWeight: '900',
+  fontWeight: '900' as const,
   fill: '#ffe066',
   stroke: '#8a6010',
   strokeThickness: 4,
@@ -16,17 +16,17 @@ const BADGE_STYLE = new TextStyle({
     distance: 2,
     alpha: 0.9,
   },
-})
+}
 
-const LABEL_STYLE = new TextStyle({
+const LABEL_STYLE_OPTS = {
   fontFamily: 'serif',
   fontSize: 20,
-  fontWeight: '900',
+  fontWeight: '900' as const,
   fill: '#ff4444',
   stroke: '#1a0000',
   strokeThickness: 3,
   letterSpacing: 3,
-})
+}
 
 // Quadratic Bezier position
 const bz = (t: number, p0: number, p1: number, p2: number): number =>
@@ -37,17 +37,142 @@ const bzd = (t: number, p0: number, p1: number, p2: number): number =>
   2 * (1 - t) * (p1 - p0) + 2 * t * (p2 - p1)
 
 const TRAIL_LEN = 22
-const MISSILE_FLIGHT_MS = 620
+const MISSILE_FLIGHT_MS = 806
 
 export class CombatOperationView extends Container {
   private _overlay: Graphics
+  private _wires: Graphics
   // Shared trail graphics node (recreated per missile)
   private _trailGraphics: Graphics | null = null
 
+  private _mascotLaunchX = 0
+  private _mascotLaunchY = 0
+  private _mascotConnX = 0
+  private _mascotConnY = 0
+  private _wireActiveStates: boolean[] = []
+
+  private _lastSymbolWidth = 0
+  private _lastReelSpacing = 0
+  private _lastTotalHeight = 0
+  private _lastScale = 1
+
   constructor() {
     super()
+    this._wires = new Graphics()
+    this.addChild(this._wires)
     this._overlay = new Graphics()
     this.addChild(this._overlay)
+  }
+
+  setMascotData(lx: number, ly: number, cx: number, cy: number, reelCount: number): void {
+    this._mascotLaunchX = lx
+    this._mascotLaunchY = ly
+    this._mascotConnX = cx
+    this._mascotConnY = cy
+    if (this._wireActiveStates.length !== reelCount) {
+      this._wireActiveStates = new Array(reelCount).fill(false)
+    }
+  }
+
+  clearPersistentMultipliers(): void {
+    this._wireActiveStates.fill(false)
+    this.drawWires(
+      this._lastSymbolWidth,
+      this._lastReelSpacing,
+      this._lastTotalHeight,
+      this._lastScale,
+    )
+  }
+
+  deactivateAllWires(): void {
+    this._wireActiveStates.fill(false)
+    this.drawWires(
+      this._lastSymbolWidth,
+      this._lastReelSpacing,
+      this._lastTotalHeight,
+      this._lastScale,
+    )
+  }
+
+  override destroy(options?: {
+    children?: boolean
+    texture?: boolean
+    baseTexture?: boolean
+  }): void {
+    const killAll = (c: Container) => {
+      if (!c) return
+      gsap.killTweensOf(c)
+      if (c.scale) gsap.killTweensOf(c.scale)
+      if (c.children && c.children.length > 0) {
+        // Use a copy of children to avoid issues with array modification during iteration
+        const children = [...c.children]
+        children.forEach((child) => {
+          if (child instanceof Container) killAll(child)
+          else gsap.killTweensOf(child)
+        })
+      }
+    }
+    killAll(this)
+    super.destroy(options)
+  }
+
+  drawWires(symbolWidth: number, reelSpacing: number, totalHeight: number, scale: number): void {
+    if (symbolWidth === 0) return
+    this._lastSymbolWidth = symbolWidth
+    this._lastReelSpacing = reelSpacing
+    this._lastTotalHeight = totalHeight
+    this._lastScale = scale
+
+    this._wires.clear()
+
+    const connX = this._mascotConnX
+    const connY = this._mascotConnY
+
+    for (let i = 0; i < this._wireActiveStates.length; i++) {
+      const rx = i * (symbolWidth + reelSpacing) + symbolWidth / 2
+      const ry = totalHeight
+
+      const isActive = this._wireActiveStates[i]
+      const cpX = (rx + connX) / 2
+      const cpY = Math.max(ry, connY) + 60 * scale
+
+      // ── Layered "Cartoon" Rendering ─────────────────────────────────────
+
+      // 1. Shadow / Outline (thickest, dark)
+      this._wires.moveTo(rx, ry)
+      this._wires.quadraticCurveTo(cpX, cpY, connX, connY)
+      this._wires.stroke({ color: 0x151a0d, width: 8 * scale, alpha: 0.8 })
+
+      // 2. Main Cable Core (medium)
+      const coreColor = isActive ? 0xcc1a1a : 0x2e3d18
+      this._wires.moveTo(rx, ry)
+      this._wires.quadraticCurveTo(cpX, cpY, connX, connY)
+      this._wires.stroke({ color: coreColor, width: 5 * scale })
+
+      // 3. Specular Highlight (thin, top-light feel)
+      const hiColor = isActive ? 0xff6666 : 0x4a5c2a
+      this._wires.moveTo(rx, ry)
+      this._wires.quadraticCurveTo(cpX, cpY, connX, connY)
+      this._wires.stroke({ color: hiColor, width: 1.5 * scale, alpha: 0.4 })
+
+      // 4. Vibrant "Target Designation" Glow
+      if (isActive) {
+        // Neon red/white core
+        this._wires.moveTo(rx, ry)
+        this._wires.quadraticCurveTo(cpX, cpY, connX, connY)
+        this._wires.stroke({ color: 0xff0000, width: 2 * scale })
+
+        // Outer neon aura
+        this._wires.moveTo(rx, ry)
+        this._wires.quadraticCurveTo(cpX, cpY, connX, connY)
+        this._wires.stroke({ color: 0xff4444, width: 12 * scale, alpha: 0.25 })
+
+        // Extra center "energy" highlight
+        this._wires.moveTo(rx, ry)
+        this._wires.quadraticCurveTo(cpX, cpY, connX, connY)
+        this._wires.stroke({ color: 0xffffff, width: 0.8 * scale, alpha: 0.6 })
+      }
+    }
   }
 
   async animateActivations(
@@ -59,15 +184,24 @@ export class CombatOperationView extends Container {
     const { symbolWidth, symbolHeight, visibleSymbols } = reelSet.reelConfig
     const { reelSpacing } = reelSet.gridConfig
     const totalHeight = symbolHeight * visibleSymbols
+    const scale = symbolWidth / 120
 
     for (const activation of activations) {
+      // 1. Activate wire
+      this._wireActiveStates[activation.reel] = true
+      this.drawWires(symbolWidth, reelSpacing, totalHeight, scale)
+
+      // Small delay for the "lock on" feel
+      await new Promise((r) => setTimeout(r, 195))
+
+      // 2. Original activation flash
       const x = activation.reel * (symbolWidth + reelSpacing)
 
       this._overlay.clear()
       this._overlay.rect(x, 0, symbolWidth, totalHeight).fill({ color: 0xc41e1e, alpha: 1 })
       this._overlay.alpha = 0
 
-      const label = new Text({ text: 'S-300', style: LABEL_STYLE })
+      const label = new Text({ text: 'LOCK-ON', style: LABEL_STYLE_OPTS })
       label.anchor.set(0.5)
       label.x = x + symbolWidth / 2
       label.y = totalHeight / 2
@@ -78,22 +212,28 @@ export class CombatOperationView extends Container {
       await new Promise<void>((resolve) => {
         const tl = gsap.timeline({
           onComplete: () => {
+            if (this.destroyed) {
+              resolve()
+              return
+            }
             this._overlay.clear()
             this.removeChild(label)
-            label.destroy()
+            gsap.killTweensOf(label)
+            gsap.killTweensOf(label.scale)
+            label.destroy({ children: true })
             resolve()
           },
         })
-        tl.to(this._overlay, { alpha: 0.7, duration: 0.08, ease: 'none' })
-          .to(this._overlay, { alpha: 0.1, duration: 0.08, ease: 'none' })
-          .to(this._overlay, { alpha: 0.8, duration: 0.08, ease: 'none' })
-          .to(this._overlay, { alpha: 0.1, duration: 0.08, ease: 'none' })
-          .to(this._overlay, { alpha: 0.9, duration: 0.1, ease: 'none' })
-          .to(label, { alpha: 1, duration: 0.12, ease: 'power2.out' }, '-=0.1')
-          .to(label.scale, { x: 1.1, y: 1.1, duration: 0.12, ease: 'back.out(2)' }, '<')
-          .to(label.scale, { x: 1.0, y: 1.0, duration: 0.08 })
-          .to(this._overlay, { alpha: 0, duration: 0.25, ease: 'power1.in' })
-          .to(label, { alpha: 0, y: label.y - 20, duration: 0.25, ease: 'power1.in' }, '<')
+        tl.to(this._overlay, { alpha: 0.7, duration: 0.1, ease: 'none' })
+          .to(this._overlay, { alpha: 0.1, duration: 0.1, ease: 'none' })
+          .to(this._overlay, { alpha: 0.8, duration: 0.1, ease: 'none' })
+          .to(this._overlay, { alpha: 0.1, duration: 0.1, ease: 'none' })
+          .to(this._overlay, { alpha: 0.9, duration: 0.13, ease: 'none' })
+          .to(label, { alpha: 1, duration: 0.16, ease: 'power2.out' }, '-=0.1')
+          .to(label.scale, { x: 1.1, y: 1.1, duration: 0.16, ease: 'back.out(2)' }, '<')
+          .to(label.scale, { x: 1.0, y: 1.0, duration: 0.1 })
+          .to(this._overlay, { alpha: 0, duration: 0.32, ease: 'power1.in' })
+          .to(label, { alpha: 0, y: label.y - 20, duration: 0.32, ease: 'power1.in' }, '<')
       })
     }
   }
@@ -101,34 +241,45 @@ export class CombatOperationView extends Container {
   async animateShootdowns(
     reelSet: ReelSet,
     shootdowns: readonly ShootdownEvent[],
-    activations: readonly ActivationEvent[],
+    _activations: readonly ActivationEvent[],
+    wildId: number,
   ): Promise<void> {
     if (shootdowns.length === 0) return
 
     const { symbolWidth, symbolHeight, visibleSymbols } = reelSet.reelConfig
     const { reelSpacing } = reelSet.gridConfig
-    const totalHeight = symbolHeight * visibleSymbols
 
-    // Derive launch reel from activations, fall back to the shootdown's own reel
-    const launchReel = activations.length > 0 ? activations[0]!.reel : shootdowns[0]!.reel
-    const launchX = launchReel * (symbolWidth + reelSpacing) + symbolWidth / 2
-    // Launch from below the grid (S-300 fires upward then arcs)
-    const launchY = totalHeight + symbolHeight * 0.4
+    // Launch from mascot launch point
+    const lx = this._mascotLaunchX
+    const ly = this._mascotLaunchY
 
-    // Fire all missiles in parallel
-    const promises = shootdowns.map((sd) =>
-      this._fireMissile(
-        launchX,
-        launchY,
+    // Fire missiles one by one
+    for (let i = 0; i < shootdowns.length; i++) {
+      const sd = shootdowns[i]!
+      await this._fireMissile(
+        lx,
+        ly,
         sd.reel * (symbolWidth + reelSpacing) + symbolWidth / 2,
         sd.row * symbolHeight + symbolHeight / 2,
         sd.multiplier,
         symbolWidth,
         symbolHeight,
-      ),
-    )
+        reelSet,
+        sd.reel,
+        sd.row,
+        wildId,
+      )
 
-    await Promise.all(promises)
+      // Check if this was the last shootdown on this reel in this step
+      const reelRemaining = shootdowns.slice(i + 1).some((other) => other.reel === sd.reel)
+      if (!reelRemaining) {
+        this._wireActiveStates[sd.reel] = false
+        this.drawWires(symbolWidth, reelSpacing, symbolHeight * visibleSymbols, symbolWidth / 120)
+      }
+
+      // Small pause between missiles
+      await new Promise((r) => setTimeout(r, 130))
+    }
   }
 
   private async _fireMissile(
@@ -139,11 +290,15 @@ export class CombatOperationView extends Container {
     multiplier: number,
     sw: number,
     sh: number,
+    reelSet: ReelSet,
+    reel: number,
+    row: number,
+    wildId: number,
   ): Promise<void> {
     // Control point: near-vertical launch, arc toward target
     // Rises steeply, then hooks toward the plane
     const cpX = lx + (tx - lx) * 0.15
-    const cpY = -sh * 0.8
+    const cpY = Math.min(ly, ty) - sh * 2
 
     // --- Build missile container ---
     const missile = new Container()
@@ -198,22 +353,34 @@ export class CombatOperationView extends Container {
     this.removeChild(missile)
     missile.destroy({ children: true })
 
+    // IMPACT TRANSFORMATION: Replace plane with WILD immediately
+    reelSet.setSymbolAt(reel, row, wildId)
+
     // Fade out trail
-    await new Promise<void>((r) => {
-      gsap.to(trailG, {
-        alpha: 0,
-        duration: 0.18,
-        ease: 'power2.in',
-        onComplete: () => {
-          this.removeChild(trailG)
-          trailG.destroy()
-          r()
-        },
+    void (async () => {
+      await new Promise<void>((r) => {
+        gsap.to(trailG, {
+          alpha: 0,
+          duration: 0.18,
+          ease: 'power2.in',
+          onComplete: () => {
+            if (this.destroyed) {
+              r()
+              return
+            }
+            this.removeChild(trailG)
+            trailG.destroy()
+            r()
+          },
+        })
       })
-    })
+    })()
 
     // --- Impact explosion + badge ---
-    await Promise.all([this._explode(tx, ty, sw), this._badge(tx, ty, multiplier, sh)])
+    await Promise.all([
+      this._explode(tx, ty, sw),
+      this._badge(tx, ty, multiplier, sh, reelSet, reel, row),
+    ])
   }
 
   /** Draw the missile as Pixi Graphics children on the given container (tip points in -y). */
@@ -392,13 +559,21 @@ export class CombatOperationView extends Container {
     })
   }
 
-  private async _badge(cx: number, cy: number, multiplier: number, sh: number): Promise<void> {
+  private async _badge(
+    cx: number,
+    cy: number,
+    multiplier: number,
+    sh: number,
+    reelSet: ReelSet,
+    reel: number,
+    row: number,
+  ): Promise<void> {
     const badge = new Container()
     const bg = new Graphics()
     bg.roundRect(-38, -22, 76, 44, 11)
     bg.fill({ color: 0x0a0a0a, alpha: 0.92 })
     bg.stroke({ color: 0xd4af37, width: 2.5 })
-    const txt = new Text({ text: `×${multiplier}`, style: BADGE_STYLE })
+    const txt = new Text({ text: `×${multiplier}`, style: BADGE_STYLE_OPTS })
     txt.anchor.set(0.5)
     badge.addChild(bg)
     badge.addChild(txt)
@@ -419,14 +594,41 @@ export class CombatOperationView extends Container {
           gsap.to(badge.scale, { x: 1.0, y: 1.0, duration: 0.1 })
         },
       })
+
+      // Move to persistent layer inside the SymbolView after reveal
       gsap.to(badge, {
-        y: cy - sh * 0.8,
-        alpha: 0,
-        duration: 0.55,
-        delay: 0.52,
-        ease: 'power1.in',
+        y: cy - sh * 0.1,
+        duration: 0.65,
+        delay: 0.78,
+        ease: 'power2.out',
         onComplete: () => {
-          if (this.children.includes(badge)) this.removeChild(badge)
+          if (this.destroyed) {
+            resolve()
+            return
+          }
+          const sticky = new Container()
+          // Re-draw simpler badge for persistence
+          const sbg = new Graphics()
+          sbg.roundRect(-30, -16, 60, 32, 8)
+          sbg.fill({ color: 0x0a0a0a, alpha: 0.8 })
+          sbg.stroke({ color: 0xd4af37, width: 2 })
+          const stxt = new Text({
+            text: `×${multiplier}`,
+            style: { ...BADGE_STYLE_OPTS, fontSize: 22 },
+          })
+          stxt.anchor.set(0.5)
+          sticky.addChild(sbg, stxt)
+          sticky.scale.set(0.85)
+
+          // Attach to SymbolView's multiplierContainer
+          const sym = reelSet.getReel(reel).getSymbolAt(row)
+          if (sym) {
+            sym.multiplierContainer.addChild(sticky)
+          }
+
+          this.removeChild(badge)
+          gsap.killTweensOf(badge)
+          gsap.killTweensOf(badge.scale)
           badge.destroy({ children: true })
           resolve()
         },

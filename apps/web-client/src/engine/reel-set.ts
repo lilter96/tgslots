@@ -9,6 +9,7 @@ export class ReelSet extends Container {
   private _reels: Reel[] = []
   private _gridConfig: UIGridConfig
   private _reelConfig: UIReelConfig
+  private _assets: GameAssets
   private _speedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
 
   constructor(
@@ -21,6 +22,7 @@ export class ReelSet extends Container {
     super()
     this._gridConfig = gridConfig
     this._reelConfig = reelConfig
+    this._assets = assets
     this._init(initialGrid, assets, symbolCount)
   }
 
@@ -78,6 +80,10 @@ export class ReelSet extends Container {
     return this._reels[index]!
   }
 
+  public clearAllMultipliers(): void {
+    this._reels.forEach((r) => r.clearMultipliers())
+  }
+
   public highlightCell(col: number, row: number, color: number): void {
     this._reels[col]?.getSymbolAt(row)?.highlight(color)
   }
@@ -95,6 +101,16 @@ export class ReelSet extends Container {
       const symbols = grid[colIndex]
       if (symbols) reel.setSymbols(symbols)
     })
+  }
+
+  public setSymbolAt(reelIdx: number, rowIdx: number, symbolId: number): void {
+    const reel = this._reels[reelIdx]
+    if (reel) {
+      const symbol = reel.getSymbolAt(rowIdx)
+      if (symbol) {
+        symbol.setTexture(this._assets.getSymbolTexture(symbolId))
+      }
+    }
   }
 
   /**
@@ -122,5 +138,14 @@ export class ReelSet extends Container {
     for (const reel of this._reels) {
       reel.syncSpinSpeed(profile)
     }
+  }
+
+  override destroy(options?: {
+    children?: boolean
+    texture?: boolean
+    baseTexture?: boolean
+  }): void {
+    this._reels.forEach((r) => r.destroy({ children: true }))
+    super.destroy(options)
   }
 }

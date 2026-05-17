@@ -6,8 +6,7 @@ const STYLE = new TextStyle({
   fontSize: 24,
   fontWeight: '900',
   fill: '#d4af37',
-  stroke: '#1a2e1f',
-  strokeThickness: 3,
+  stroke: { color: '#1a2e1f', width: 3 },
 })
 
 export class MultiplierHud extends Container {
@@ -28,8 +27,7 @@ export class MultiplierHud extends Container {
         fontSize: 12,
         fontWeight: '900',
         fill: '#b0b0b0',
-        stroke: '#1a2e1f',
-        strokeThickness: 2,
+        stroke: { color: '#1a2e1f', width: 2 },
       },
     })
     this._label.anchor.set(0.5)
@@ -66,5 +64,14 @@ export class MultiplierHud extends Container {
 
     this._currentValue = targetValue
     this._value.text = `×${targetValue}`
+  }
+
+  override destroy(options?: {
+    children?: boolean
+    texture?: boolean
+    baseTexture?: boolean
+  }): void {
+    gsap.killTweensOf(this.scale)
+    super.destroy(options)
   }
 }
