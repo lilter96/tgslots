@@ -7,6 +7,12 @@ import type { ScatterDefinition } from '../paylines/types.js'
 export interface GameWithClustersConfig extends BasicSlotGameConfig, GameWithPayTableConfig {
   readonly wildSymbol?: string
   readonly scatterDefinition?: ScatterDefinition
+  /**
+   * When true, a WILD cell that is claimed by a winning cluster cannot be traversed
+   * by any subsequent symbol's BFS sweep. This prevents one WILD from boosting
+   * clusters of two different symbol types simultaneously.
+   */
+  readonly disallowMixedWilds?: boolean
 }
 
 export interface ClusterSlotEngine {
@@ -17,6 +23,7 @@ export interface ClusterSlotEngine {
   readonly rowCount: number
   readonly gridArea: number
   readonly scatterId: SymbolId | null
+  readonly disallowMixedWilds: boolean
 }
 
 /** Builds a cluster-pays engine. All hot-path structures are pre-allocated. */
@@ -33,5 +40,6 @@ export function createClusterSlotEngine(config: GameWithClustersConfig): Cluster
     rowCount: config.rowCount,
     gridArea,
     scatterId: config.scatterDefinition ? config.scatterDefinition.symbolId : null,
+    disallowMixedWilds: config.disallowMixedWilds ?? false,
   }
 }

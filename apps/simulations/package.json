@@ -12,7 +12,8 @@
     "@tgslots/slots-core": "workspace:*",
     "@tgslots/slots-simulation-engine": "workspace:*",
     "@tgslots/woodland-whisper": "workspace:*",
-    "@tgslots/ancient-dragon": "workspace:*"
+    "@tgslots/ancient-dragon": "workspace:*",
+    "@tgslots/le-militare": "workspace:*"
   },
   "devDependencies": {
     "typescript": "~5.9.2"

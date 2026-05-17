@@ -13,6 +13,7 @@
   "dependencies": {
     "@pixi/sound": "^6.0.1",
     "@tgslots/ancient-dragon": "workspace:*",
+    "@tgslots/le-militare": "workspace:*",
     "@tgslots/shared-contracts": "workspace:*",
     "@tgslots/slots-core": "workspace:*",
     "@tgslots/woodland-whisper": "workspace:*",

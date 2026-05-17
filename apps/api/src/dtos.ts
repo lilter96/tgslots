@@ -120,3 +120,35 @@ export const StateResponseSchema = t.Object({
 export const ErrorResponseSchema = t.Object({
   error: t.String(),
 })
+
+// --- Le Militare Schemas ---
+
+export const LMFreeSpinStateSchema = t.Object({
+  triggeringMultiplier: t.Number(),
+  spinsRemaining: t.Number(),
+  totalWin: t.Number(),
+  armedReels: t.Array(t.Number()),
+  multiplierSum: t.Number(),
+})
+
+export const LeMilitareStateSchema = t.Object({
+  lastGrid: t.Nullable(GridSchema),
+  freeSpins: t.Nullable(LMFreeSpinStateSchema),
+})
+
+export const LeMilitareSpinResponseSchema = t.Object({
+  sessionId: t.String(),
+  result: t.Any(),
+  state: LeMilitareStateSchema,
+})
+
+export const LeMilitareActionResponseSchema = t.Object({
+  sessionId: t.String(),
+  result: t.Any(),
+  state: LeMilitareStateSchema,
+})
+
+export const LeMilitareStateResponseSchema = t.Object({
+  sessionId: t.String(),
+  state: LeMilitareStateSchema,
+})

@@ -121,6 +121,10 @@ export class Reel extends Container {
     return this._spinning
   }
 
+  get config(): UIReelConfig {
+    return this._config
+  }
+
   public getSymbolAt(row: number): SymbolView | null {
     return this._symbols[row] ?? null
   }
@@ -129,14 +133,107 @@ export class Reel extends Container {
     const { symbolHeight } = this._config
     this._symbols.forEach((symbol, i) => {
       gsap.killTweensOf(symbol)
+      gsap.killTweensOf(symbol.scale)
       const symbolId = symbols[i % symbols.length]
       if (symbolId !== undefined) {
         symbol.setTexture(this._assets.getSymbolTexture(symbolId))
       }
       symbol.y = i * symbolHeight
+      symbol.alpha = 1
+      symbol.scale.set(1)
       symbol.setBlur(0)
     })
     this._spinning = false
+  }
+
+  /**
+   * Cascade animation: fade out vanished rows, then animate survivors sliding down and
+   * new symbols falling in from above. Ends with a setSymbols() to guarantee clean state.
+   */
+  public async cascade(vanishedRows: number[], newSymbols: number[]): Promise<void> {
+    if (vanishedRows.length === 0) {
+      this.setSymbols(newSymbols)
+      return
+    }
+
+    const { symbolHeight, visibleSymbols } = this._config
+    const vanishedSet = new Set(vanishedRows)
+
+    // Phase A: fade + shrink the symbols that won
+    const vanishTweens: Promise<void>[] = []
+    for (const row of vanishedRows) {
+      const sym = this._symbols[row]
+      if (!sym) continue
+      gsap.killTweensOf(sym)
+      gsap.killTweensOf(sym.scale)
+      vanishTweens.push(
+        new Promise<void>((resolve) => {
+          gsap.to(sym, { alpha: 0, duration: 0.22, ease: 'power2.in', onComplete: resolve })
+          gsap.to(sym.scale, { x: 0.65, y: 0.65, duration: 0.22, ease: 'power2.in' })
+        }),
+      )
+    }
+    await Promise.all(vanishTweens)
+
+    // Phase B: compute gravity — survivors compress downward, vacated top rows are new fills
+    // survivors[0] = bottom-most survivor oldRow, survivors[1] = next, …
+    const survivors: number[] = []
+    for (let row = visibleSymbols - 1; row >= 0; row--) {
+      if (!vanishedSet.has(row)) survivors.push(row)
+    }
+
+    // newToOld[newRow] = oldRow (or -1 for a new fill symbol)
+    const newToOld: number[] = new Array(visibleSymbols).fill(-1)
+    let si = 0
+    for (let newRow = visibleSymbols - 1; newRow >= 0 && si < survivors.length; newRow--) {
+      newToOld[newRow] = survivors[si++]!
+    }
+
+    // Reusable views are those that were vanished (we'll recycle them for new fills)
+    const reusable = vanishedRows.map((r) => this._symbols[r]).filter((s): s is SymbolView => !!s)
+    let ri = 0
+
+    const fallItems: { view: SymbolView; fromY: number; toY: number }[] = []
+
+    // Survivors: slide from oldRow → newRow
+    for (let newRow = 0; newRow < visibleSymbols; newRow++) {
+      const oldRow = newToOld[newRow]
+      if (oldRow === undefined || oldRow < 0) continue
+      const sym = this._symbols[oldRow]!
+      fallItems.push({ view: sym, fromY: oldRow * symbolHeight, toY: newRow * symbolHeight })
+    }
+
+    // New fills: stack them above the top, one slot each, then animate down
+    const newFillCount = vanishedRows.length
+    let fillSlot = 0
+    for (let newRow = 0; newRow < visibleSymbols; newRow++) {
+      if ((newToOld[newRow] ?? -1) >= 0) continue
+      const sym = reusable[ri++]
+      if (!sym) continue
+      const symbolId = newSymbols[newRow]
+      if (symbolId !== undefined) sym.setTexture(this._assets.getSymbolTexture(symbolId))
+      sym.alpha = 1
+      sym.scale.set(1)
+      const fromY = -(newFillCount - fillSlot) * symbolHeight
+      sym.y = fromY
+      fallItems.push({ view: sym, fromY, toY: newRow * symbolHeight })
+      fillSlot++
+    }
+
+    // Phase C: animate all views to their final y positions
+    await Promise.all(
+      fallItems.map(
+        ({ view, fromY, toY }) =>
+          new Promise<void>((resolve) => {
+            view.y = fromY
+            gsap.killTweensOf(view)
+            gsap.to(view, { y: toY, duration: 0.42, ease: 'bounce.out', onComplete: resolve })
+          }),
+      ),
+    )
+
+    // Phase D: lock in clean final state (kills tweens, reorders _symbols logically)
+    this.setSymbols(newSymbols)
   }
 
   public syncSpinSpeed(profile: SpinSpeedProfile): void {

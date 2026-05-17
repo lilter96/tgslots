@@ -1,0 +1,64 @@
+{
+  "metadata": {
+    "bet": 1,
+    "source": "parsheet",
+    "notes": "6x5, cluster pays, cascade/tumble, Combat Operation (S300 floods reel + shoots PLANE→multiplier-wild), free spins via SCATTER (>=4 triggers), persistent multiplier across free spins in session"
+  },
+  "comparisons": [
+    {
+      "id": "total-rtp",
+      "label": "Total RTP",
+      "expected": 0.962,
+      "source": { "kind": "summary", "key": "rtp" },
+      "tolerance": { "type": "absolute", "value": 0.015 },
+      "format": "percent"
+    },
+    {
+      "id": "basic-game-win-cycle",
+      "label": "Base Game Win Cycle",
+      "expected": 3.5,
+      "source": { "kind": "scope", "scope": ["base-game"], "metric": "hits", "field": "cycle" },
+      "tolerance": { "type": "relative", "value": 0.1 },
+      "format": "number"
+    },
+    {
+      "id": "free-spin-trigger-cycle",
+      "label": "Free Spin Trigger Cycle",
+      "expected": 120,
+      "source": {
+        "kind": "scope",
+        "scope": ["features", "free-spins"],
+        "metric": "triggers",
+        "field": "cycle"
+      },
+      "tolerance": { "type": "relative", "value": 0.15 },
+      "format": "number"
+    },
+    {
+      "id": "basic-game-rtp",
+      "label": "Base Game RTP",
+      "expected": 0.70,
+      "source": {
+        "kind": "scope",
+        "scope": ["base-game"],
+        "metric": "win",
+        "field": "ratio"
+      },
+      "tolerance": { "type": "absolute", "value": 0.05 },
+      "format": "percent"
+    },
+    {
+      "id": "feature-rtp",
+      "label": "Feature (Free Spins) RTP",
+      "expected": 0.262,
+      "source": {
+        "kind": "scope",
+        "scope": ["features", "free-spins"],
+        "metric": "feature-rtp",
+        "field": "ratio"
+      },
+      "tolerance": { "type": "absolute", "value": 0.05 },
+      "format": "percent"
+    }
+  ]
+}

@@ -15,7 +15,14 @@ export interface ThemePalette {
   readonly text: number
 }
 
-export type FeatureTag = 'free-spins' | 'pick-bonus' | 'buy-bonus' | 'mystery'
+export type FeatureTag =
+  | 'free-spins'
+  | 'pick-bonus'
+  | 'buy-bonus'
+  | 'mystery'
+  | 'cluster-pays'
+  | 'cascade'
+  | 'combat-operation'
 
 export interface WinTier {
   readonly thresholdX: number

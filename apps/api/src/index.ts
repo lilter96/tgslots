@@ -9,6 +9,8 @@ import { AncientDragonModule } from './modules/ancient-dragon.module.js'
 import { createRoutes } from './routes.js'
 import { woodlandWhisperRoutes } from './routes/woodland-whisper.routes.js'
 import { ancientDragonRoutes } from './routes/ancient-dragon.routes.js'
+import { leMilitareRoutes } from './routes/le-militare.routes.js'
+import { LeMilitareModule } from './modules/le-militare.module.js'
 
 const sessions = new InMemorySessionManager()
 const rng = jsRng()
@@ -16,6 +18,7 @@ const server = new GameServer(sessions, rng)
 
 server.register(new WoodlandWhisperModule())
 server.register(new AncientDragonModule())
+server.register(new LeMilitareModule())
 
 const app = new Elysia()
   .use(cors())
@@ -33,6 +36,7 @@ const app = new Elysia()
   .use(createRoutes(server))
   .use(woodlandWhisperRoutes(server))
   .use(ancientDragonRoutes(server))
+  .use(leMilitareRoutes(server))
   .onError(({ error, set }) => {
     set.status = 500
     return { error: error instanceof Error ? error.message : 'Internal server error' }

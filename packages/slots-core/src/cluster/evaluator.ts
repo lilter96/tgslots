@@ -17,8 +17,10 @@ import { EMPTY_SYMBOL, type SymbolId } from '../symbol-registry.js'
  * region cannot pay as `S`). Components of size ≥ `paytable.minPayCount` and
  * with a non-zero payout are emitted as `ClusterHit`s.
  *
- * Wild cells may belong to multiple hits (one per neighbour symbol type).
- * Scatter cells are never traversable.
+ * When `engine.disallowMixedWilds` is true, a wild that is claimed by one
+ * winning cluster is excluded from every subsequent symbol's BFS sweep.
+ * This prevents one wild cell from boosting clusters of different symbol types.
+ * When false (default), wild cells may belong to multiple hits.
  */
 export function evaluateClusters(
   grid: EvalGrid,
@@ -33,6 +35,10 @@ export function evaluateClusters(
   // Reusable scratch buffers.
   const visited = new Uint8Array(gridArea)
   const queue = new Int32Array(gridArea)
+
+  // When disallowMixedWilds, wilds claimed by a winning cluster are marked here
+  // and excluded from every subsequent symbol sweep.
+  const usedWilds: Uint8Array | null = engine.disallowMixedWilds ? new Uint8Array(gridArea) : null
 
   // Track which symbol ids we've already swept.
   const symbolSwept = new Uint8Array(symbols.count)
@@ -63,6 +69,7 @@ export function evaluateClusters(
         minPayCount,
         toName,
         hits,
+        usedWilds,
       )
     }
   }
@@ -87,6 +94,7 @@ function sweepSymbolClusters(
   minPayCount: number,
   toName: readonly string[],
   hits: ClusterHit[],
+  usedWilds: Uint8Array | null,
 ): void {
   visited.fill(0)
 
@@ -98,6 +106,7 @@ function sweepSymbolClusters(
 
       // Collected positions for this component.
       const positions: number[] = []
+      const wildPositions: number[] = []
       let realCount = 0
 
       let head = 0
@@ -112,14 +121,18 @@ function sweepSymbolClusters(
         const cellSym = grid.getSymbol(r, c)
 
         positions.push(pos)
-        if (cellSym === targetSym) realCount++
+        if (cellSym === targetSym) {
+          realCount++
+        } else if (cellSym === wildId) {
+          wildPositions.push(pos)
+        }
 
         // 4-connected neighbours.
         if (c > 0) {
           const nPos = pos - 1
           if (!visited[nPos]) {
             const nSym = grid.getSymbol(r, c - 1)
-            if (isTraversable(nSym, targetSym, wildId, scatterId)) {
+            if (isTraversable(nSym, targetSym, wildId, scatterId, nPos, usedWilds)) {
               visited[nPos] = 1
               queue[tail++] = nPos
             }
@@ -129,7 +142,7 @@ function sweepSymbolClusters(
           const nPos = pos + 1
           if (!visited[nPos]) {
             const nSym = grid.getSymbol(r, c + 1)
-            if (isTraversable(nSym, targetSym, wildId, scatterId)) {
+            if (isTraversable(nSym, targetSym, wildId, scatterId, nPos, usedWilds)) {
               visited[nPos] = 1
               queue[tail++] = nPos
             }
@@ -139,7 +152,7 @@ function sweepSymbolClusters(
           const nPos = pos - rowCount
           if (!visited[nPos]) {
             const nSym = grid.getSymbol(r - 1, c)
-            if (isTraversable(nSym, targetSym, wildId, scatterId)) {
+            if (isTraversable(nSym, targetSym, wildId, scatterId, nPos, usedWilds)) {
               visited[nPos] = 1
               queue[tail++] = nPos
             }
@@ -149,7 +162,7 @@ function sweepSymbolClusters(
           const nPos = pos + rowCount
           if (!visited[nPos]) {
             const nSym = grid.getSymbol(r + 1, c)
-            if (isTraversable(nSym, targetSym, wildId, scatterId)) {
+            if (isTraversable(nSym, targetSym, wildId, scatterId, nPos, usedWilds)) {
               visited[nPos] = 1
               queue[tail++] = nPos
             }
@@ -165,6 +178,11 @@ function sweepSymbolClusters(
       if (size < minPayCount) continue
       const basePayout = symbolPayouts[size] ?? 0
       if (basePayout <= 0) continue
+
+      // Claim wilds so subsequent symbol sweeps cannot traverse them.
+      if (usedWilds) {
+        for (let i = 0; i < wildPositions.length; i++) usedWilds[wildPositions[i]!] = 1
+      }
 
       hits.push({
         symbolId: targetSym,
@@ -183,8 +201,12 @@ function isTraversable(
   targetSym: SymbolId,
   wildId: SymbolId,
   scatterId: SymbolId | null,
+  pos: number,
+  usedWilds: Uint8Array | null,
 ): boolean {
   if (cellSym === EMPTY_SYMBOL) return false
   if (scatterId !== null && cellSym === scatterId) return false
-  return cellSym === targetSym || cellSym === wildId
+  if (cellSym === targetSym) return true
+  if (cellSym === wildId) return usedWilds === null || usedWilds[pos] === 0
+  return false
 }

@@ -66,6 +66,14 @@ export class ReelSet extends Container {
     return this._reels.some((r) => r.isSpinning)
   }
 
+  get gridConfig(): UIGridConfig {
+    return this._gridConfig
+  }
+
+  get reelConfig(): UIReelConfig {
+    return this._reelConfig
+  }
+
   public getReel(index: number): Reel {
     return this._reels[index]!
   }
@@ -87,6 +95,26 @@ export class ReelSet extends Container {
       const symbols = grid[colIndex]
       if (symbols) reel.setSymbols(symbols)
     })
+  }
+
+  /**
+   * Run cascade animation across all reels simultaneously.
+   * vanishedPositions: encoded as reel * rowCount + row (from backend CombatCascadeStep).
+   * newGrid: column-major [reel][row] — the grid after gravity+refill (next step's preCombatGrid).
+   */
+  public async cascadeGrid(
+    vanishedPositions: readonly number[],
+    newGrid: number[][],
+    rowCount: number,
+  ): Promise<void> {
+    await Promise.all(
+      this._reels.map((reel, reelIdx) => {
+        const vanishedRows = vanishedPositions
+          .filter((pos) => Math.floor(pos / rowCount) === reelIdx)
+          .map((pos) => pos % rowCount)
+        return reel.cascade(vanishedRows, newGrid[reelIdx] ?? [])
+      }),
+    )
   }
 
   public syncSpinSpeed(profile: SpinSpeedProfile): void {

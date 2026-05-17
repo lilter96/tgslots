@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="8" fill="#1a2e1f"/>
+  <!-- Star scatter symbol -->
+  <polygon points="32,8 35,22 49,22 38,30 42,44 32,36 22,44 26,30 15,22 29,22"
+    fill="#d4af37" opacity="0.9"/>
+  <!-- ×N multiplier badge -->
+  <circle cx="48" cy="48" r="12" fill="#c41e1e"/>
+  <text x="48" y="53" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="bold" fill="#ffffff">×N</text>
+</svg>
