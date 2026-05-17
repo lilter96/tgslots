@@ -2,65 +2,33 @@ import { Array1 } from '@tgslots/math/functional/array1'
 import { Sampler, SamplingPlan } from '@tgslots/math/probability'
 import type { Rng } from '@tgslots/math/rng/types'
 import {
-  MutableCascadeGrid,
-  evaluateClusters,
   collectVanishPositions,
   EMPTY_SYMBOL,
+  evaluateClusters,
+  MutableCascadeGrid,
 } from '@tgslots/slots-core'
-import type { ClusterHit } from '@tgslots/slots-core'
 import { Wager } from '@tgslots/slots-core/betting'
 import { engine } from './engine.js'
 import {
-  WILD_ID,
-  PLANE_ID,
-  S300_ID,
-  SCATTER_ID,
-  REEL_COUNT,
-  ROW_COUNT,
-  MULTIPLIER_POOL_WEIGHTS,
-  MIN_SCATTERS,
   FREE_SPIN_AWARDS,
-  MAX_CASCADE_STEPS,
   INT_STRIPS_BASE,
   INT_STRIPS_FREE,
+  MAX_CASCADE_STEPS,
+  MIN_SCATTERS,
+  MULTIPLIER_POOL_WEIGHTS,
+  PLANE_ID,
+  REEL_COUNT,
+  ROW_COUNT,
+  S300_ID,
+  SCATTER_ID,
+  WILD_ID,
 } from './constants.js'
-
-// ─── Result Types ─────────────────────────────────────────────────────────
-
-export interface ShootdownEvent {
-  readonly reel: number
-  readonly row: number
-  readonly multiplier: number
-}
-
-export interface ActivationEvent {
-  readonly reel: number
-  readonly convertedCells: number
-}
-
-export interface CombatCascadeStep {
-  readonly preCombatGrid: number[][]
-  readonly postCombatGrid: number[][]
-  readonly hits: readonly ClusterHit[]
-  readonly vanishedPositions: readonly number[]
-  readonly stickyWildPositions: readonly number[]
-  readonly stepWin: number
-  readonly activations: readonly ActivationEvent[]
-  readonly shootdowns: readonly ShootdownEvent[]
-}
-
-export interface LeMilitareSpinResult {
-  readonly initialGrid: number[][]
-  readonly steps: CombatCascadeStep[]
-  readonly scatterCount: number
-  readonly baseClusterWin: number
-  readonly multiplierSum: number
-  readonly finalWin: number
-  readonly triggeredFreeSpins: boolean
-  readonly freeSpinsAwarded: number
-  readonly endArmedReels: readonly number[]
-  readonly endMultiplierSum: number
-}
+import type {
+  ActivationEvent,
+  CombatCascadeStep,
+  LeMilitareSpinResult,
+  ShootdownEvent,
+} from './types.ts'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

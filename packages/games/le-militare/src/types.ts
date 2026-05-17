@@ -1,0 +1,36 @@
+import type { ClusterHit } from '@tgslots/slots-core'
+
+export interface ShootdownEvent {
+  readonly reel: number
+  readonly row: number
+  readonly multiplier: number
+}
+
+export interface ActivationEvent {
+  readonly reel: number
+  readonly convertedCells: number
+}
+
+export interface CombatCascadeStep {
+  readonly preCombatGrid: number[][]
+  readonly postCombatGrid: number[][]
+  readonly hits: readonly ClusterHit[]
+  readonly vanishedPositions: readonly number[]
+  readonly stickyWildPositions: readonly number[]
+  readonly stepWin: number
+  readonly activations: readonly ActivationEvent[]
+  readonly shootdowns: readonly ShootdownEvent[]
+}
+
+export interface LeMilitareSpinResult {
+  readonly initialGrid: number[][]
+  readonly steps: CombatCascadeStep[]
+  readonly scatterCount: number
+  readonly baseClusterWin: number
+  readonly multiplierSum: number
+  readonly finalWin: number
+  readonly triggeredFreeSpins: boolean
+  readonly freeSpinsAwarded: number
+  readonly endArmedReels: readonly number[]
+  readonly endMultiplierSum: number
+}

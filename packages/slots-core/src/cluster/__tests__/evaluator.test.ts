@@ -1,257 +1,270 @@
-import { describe, it, expect } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { createClusterSlotEngine } from '../cluster-engine'
 import { evaluateClusters } from '../evaluator'
 import { MutableCascadeGrid } from '../../cascade/cascade-grid'
+import { EMPTY_SYMBOL } from '../../symbol-registry.ts'
 
-describe('Cluster Evaluator', () => {
+describe('Cluster Evaluator - Advanced Suite', () => {
+  function createFullPaytable(base: Record<string, number>, max: number) {
+    const res: Record<string, number> = { ...base }
+    const maxKey = Math.max(...Object.keys(base).map(Number))
+    const maxVal = base[maxKey.toString()]!
+    for (let i = maxKey + 1; i <= max; i++) {
+      res[i.toString()] = maxVal
+    }
+    return res
+  }
+
   const engine = createClusterSlotEngine({
-    reelCount: 3,
-    rowCount: 3,
+    reelCount: 5,
+    rowCount: 5,
     paytable: {
-      RIFLE: { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7 },
-      BULLET: { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7 },
+      RIFLE: createFullPaytable(
+        { '3': 10, '4': 20, '5': 50, '6': 100, '7': 200, '8': 500, '9': 1000 },
+        25,
+      ),
+      BULLET: createFullPaytable(
+        { '3': 5, '4': 10, '5': 25, '6': 50, '7': 100, '8': 250, '9': 500 },
+        25,
+      ),
     },
     wildSymbol: 'WILD',
+    scatterDefinition: { symbolId: 11, payouts: [] },
   })
 
-  const { toId } = engine.symbols
-  const RIFLE = toId.get('RIFLE')!
-  const BULLET = toId.get('BULLET')!
-  const WILD = toId.get('WILD')!
+  const strictEngine = createClusterSlotEngine({
+    reelCount: 5,
+    rowCount: 5,
+    paytable: {
+      RIFLE: createFullPaytable({ '3': 10, '4': 20, '5': 50 }, 25),
+      BULLET: createFullPaytable({ '3': 5, '4': 10, '5': 25 }, 25),
+    },
+    wildSymbol: 'WILD',
+    disallowMixedWilds: true,
+  })
 
-  function createCleanGrid(reels: number, rows: number): MutableCascadeGrid {
-    const grid = new MutableCascadeGrid(reels, rows)
-    for (let r = 0; r < reels; r++) {
-      for (let c = 0; c < rows; c++) {
-        grid.setSymbol(r, c, -100) // Non-existent symbol
+  function buildGrid(asciiLayout: string[], targetEngine = engine): MutableCascadeGrid {
+    const { reelCount, rowCount } = targetEngine
+    const grid = new MutableCascadeGrid(reelCount, rowCount)
+    const { toId } = targetEngine.symbols
+
+    for (let r = 0; r < reelCount; r++) {
+      for (let c = 0; c < rowCount; c++) {
+        grid.setSymbol(r, c, EMPTY_SYMBOL)
+      }
+    }
+
+    const inputRows = asciiLayout.length
+    const parsedRows = asciiLayout.map((row) => row.replace(/\s/g, ''))
+
+    for (let row = 0; row < inputRows; row++) {
+      const inputCols = parsedRows[row]!.length
+      for (let reel = 0; reel < inputCols; reel++) {
+        if (reel >= reelCount || row >= rowCount) continue
+
+        const char = parsedRows[row]![reel]!
+        let symId = EMPTY_SYMBOL
+
+        if (char === 'R') symId = toId.get('RIFLE')!
+        else if (char === 'B') symId = toId.get('BULLET')!
+        else if (char === 'W') symId = toId.get('WILD')!
+        else if (char === 'S') symId = targetEngine.scatterId ?? 11
+        else if (char === 'G') symId = toId.get('GRENADE')!
+        else if (char === 'M') symId = toId.get('MEDKIT')!
+        else if (char === '.') symId = EMPTY_SYMBOL
+
+        grid.setSymbol(reel, row, symId)
       }
     }
     return grid
   }
 
-  it('should not combine different symbols into one cluster even if connected by wild', () => {
-    const grid = createCleanGrid(3, 3)
-    // Row 0: R, W, B
-    // Row 1: R, B, B
-    // Row 2: R, R, B
-    grid.setSymbol(0, 0, RIFLE)
-    grid.setSymbol(1, 0, WILD)
-    grid.setSymbol(2, 0, BULLET)
-    grid.setSymbol(0, 1, RIFLE)
-    grid.setSymbol(1, 1, BULLET)
-    grid.setSymbol(2, 1, BULLET)
-    grid.setSymbol(0, 2, RIFLE)
-    grid.setSymbol(1, 2, RIFLE)
-    grid.setSymbol(2, 2, BULLET)
-
-    const result = evaluateClusters(grid, engine)
-
-    expect(result.hits.length).toBe(2)
-
-    const rifleHit = result.hits.find((h) => h.symbolId === RIFLE)
-    const bulletHit = result.hits.find((h) => h.symbolId === BULLET)
-
-    expect(rifleHit).toBeDefined()
-    expect(bulletHit).toBeDefined()
-
-    // RIFLE positions: (0,0)->0, (0,1)->1, (0,2)->2, (1,2)->5. WILD at (1,0)->3.
-    expect(rifleHit!.size).toBe(5)
-    expect(rifleHit!.positions.slice().sort()).toEqual([0, 1, 2, 3, 5].sort())
-
-    // BULLET positions: (2,0)->6, (1,1)->4, (2,1)->7, (2,2)->8. WILD at (1,0)->3.
-    expect(bulletHit!.size).toBe(5)
-    expect(bulletHit!.positions.slice().sort()).toEqual([3, 4, 6, 7, 8].sort())
-  })
-
-  it('should not pay for pure-wild clusters', () => {
-    const grid = new MutableCascadeGrid(3, 3)
-    for (let i = 0; i < 9; i++) grid.setSymbol(Math.floor(i / 3), i % 3, WILD)
-    const result = evaluateClusters(grid, engine)
-    expect(result.hits.length).toBe(0)
-    expect(result.totalWin).toBe(0)
-  })
-
-  it('should respect minPayCount', () => {
-    const grid = createCleanGrid(3, 3)
-    grid.setSymbol(0, 0, RIFLE)
-    grid.setSymbol(1, 0, RIFLE)
-    const result = evaluateClusters(grid, engine)
-    expect(result.hits.length).toBe(0)
-  })
-
-  it('should collect scattered symbols of the same type if not connected', () => {
-    const grid = createCleanGrid(3, 3)
-    grid.setSymbol(0, 0, RIFLE)
-    grid.setSymbol(2, 0, RIFLE)
-    grid.setSymbol(0, 2, RIFLE)
-    grid.setSymbol(2, 2, RIFLE)
-    const result = evaluateClusters(grid, engine)
-    expect(result.hits.length).toBe(0)
-  })
-
-  it('should ignore scatter symbols during cluster evaluation', () => {
-    const SCATTER = 11
-    const localEngine = createClusterSlotEngine({
-      reelCount: 3,
-      rowCount: 3,
-      paytable: { RIFLE: { '3': 1 } },
-      wildSymbol: 'WILD',
-      scatterDefinition: { symbolId: SCATTER, payouts: [] },
+  describe('1. Connectivity & Geometry', () => {
+    it('strict 4-way connect: diagonals should NOT form a cluster', () => {
+      const grid = buildGrid(['R . .', '. R .', '. . R'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(0)
     })
-    const grid = createCleanGrid(3, 3)
-    grid.setSymbol(0, 0, RIFLE)
-    grid.setSymbol(1, 0, SCATTER)
-    grid.setSymbol(2, 0, RIFLE)
-    grid.setSymbol(1, 1, RIFLE)
-    const result = evaluateClusters(grid, localEngine)
-    expect(result.hits.length).toBe(0)
-  })
 
-  it('should correctly handle a large snake-like cluster', () => {
-    const grid = createCleanGrid(3, 3)
-    grid.setSymbol(0, 0, RIFLE)
-    grid.setSymbol(1, 0, RIFLE)
-    grid.setSymbol(2, 0, RIFLE)
-    grid.setSymbol(2, 1, RIFLE)
-    grid.setSymbol(0, 2, RIFLE)
-    grid.setSymbol(1, 2, RIFLE)
-    grid.setSymbol(2, 2, RIFLE)
-    const result = evaluateClusters(grid, engine)
-    expect(result.hits.length).toBe(1)
-    expect(result.hits[0]!.size).toBe(7)
-  })
-
-  it('should correctly report multiple hits of the same symbol if disconnected', () => {
-    const largeEngine = createClusterSlotEngine({
-      reelCount: 4,
-      rowCount: 4,
-      paytable: { RIFLE: { '3': 10 } },
-      wildSymbol: 'WILD',
+    it('the donut shape: hollow cluster should connect perfectly', () => {
+      const grid = buildGrid(['R R R', 'R B R', 'R R R'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(1)
+      expect(result.hits[0]!.symbolName).toBe('RIFLE')
+      expect(result.hits[0]!.size).toBe(8)
     })
-    const LARGE_RIFLE = largeEngine.symbols.toId.get('RIFLE')!
-    const largeGrid = new MutableCascadeGrid(4, 4)
-    for (let i = 0; i < 16; i++) largeGrid.setSymbol(Math.floor(i / 4), i % 4, -1)
-    largeGrid.setSymbol(0, 0, LARGE_RIFLE)
-    largeGrid.setSymbol(1, 0, LARGE_RIFLE)
-    largeGrid.setSymbol(2, 0, LARGE_RIFLE)
-    largeGrid.setSymbol(0, 3, LARGE_RIFLE)
-    largeGrid.setSymbol(1, 3, LARGE_RIFLE)
-    largeGrid.setSymbol(2, 3, LARGE_RIFLE)
-    const result = evaluateClusters(largeGrid, largeEngine)
-    expect(result.hits.length).toBe(2)
-    expect(result.totalWin).toBe(20)
-  })
 
-  it('should correctly handle overlapping clusters sharing a wild', () => {
-    const grid = createCleanGrid(3, 3)
-    // Row 0: R, R, R
-    // Row 1: ., W, .
-    // Row 2: B, B, B
-    grid.setSymbol(0, 0, RIFLE)
-    grid.setSymbol(1, 0, RIFLE)
-    grid.setSymbol(2, 0, RIFLE)
-    grid.setSymbol(1, 1, WILD)
-    grid.setSymbol(0, 2, BULLET)
-    grid.setSymbol(1, 2, BULLET)
-    grid.setSymbol(2, 2, BULLET)
-    const result = evaluateClusters(grid, engine)
-    expect(result.hits.length).toBe(2)
-    const rHit = result.hits.find((h) => h.symbolId === RIFLE)!
-    const bHit = result.hits.find((h) => h.symbolId === BULLET)!
-    expect(rHit.size).toBe(4)
-    expect(bHit.size).toBe(4)
-    expect(rHit.positions).toContain(4) // WILD pos
-    expect(bHit.positions).toContain(4) // WILD pos
-  })
-
-  it('should never include different non-wild symbols in the same ClusterHit', () => {
-    const localEngine = createClusterSlotEngine({
-      reelCount: 6,
-      rowCount: 5,
-      paytable: { RIFLE: { '5': 1 }, BULLET: { '5': 1 } },
-      wildSymbol: 'WILD',
+    it('the snake shape: long winding cluster touching all corners', () => {
+      const grid = buildGrid(['R R R R R', '. . . . R', 'R R R R R', 'R . . . .', 'R R R R R'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(1)
+      expect(result.hits[0]!.size).toBe(17)
     })
-    const { toId } = localEngine.symbols
-    const L_RIFLE = toId.get('RIFLE')!
-    const L_BULLET = toId.get('BULLET')!
-    const L_WILD = toId.get('WILD')!
-    const grid = createCleanGrid(6, 5)
-    for (let reel = 0; reel < 6; reel++) {
-      for (let row = 0; row < 5; row++) {
-        const rnd = Math.random()
-        if (rnd < 0.2) grid.setSymbol(reel, row, L_WILD)
-        else if (rnd < 0.5) grid.setSymbol(reel, row, L_RIFLE)
-        else grid.setSymbol(reel, row, L_BULLET)
+
+    it('multiple disjoint clusters of the SAME symbol must be separate hits', () => {
+      const grid = buildGrid(['R R . R R', 'R R . R R'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(2)
+      expect(result.hits[0]!.symbolName).toBe('RIFLE')
+      expect(result.hits[1]!.symbolName).toBe('RIFLE')
+      expect(result.hits[0]!.size).toBe(4)
+      expect(result.hits[1]!.size).toBe(4)
+      expect(result.totalWin).toBe(40)
+    })
+  })
+
+  describe('2. Advanced Wild Interactions', () => {
+    it('wild bridge: single wild connects disjoint parts of the same symbol', () => {
+      const grid = buildGrid(['R R W R R'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(1)
+      expect(result.hits[0]!.size).toBe(5)
+    })
+
+    it('wild crossroads: wild at intersection serves multiple symbols (default behavior)', () => {
+      const grid = buildGrid(['. R .', 'B W B', '. R .'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(2)
+
+      const rHit = result.hits.find((h) => h.symbolName === 'RIFLE')!
+      const bHit = result.hits.find((h) => h.symbolName === 'BULLET')!
+
+      expect(rHit.size).toBe(3)
+      expect(bHit.size).toBe(3)
+    })
+
+    it('pure wild grid should yield NOTHING', () => {
+      const grid = buildGrid(['W W W', 'W W W', 'W W W'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(0)
+    })
+  })
+
+  describe('3. disallowMixedWilds Engine Rule', () => {
+    it('first evaluated symbol claims the wild, second fails if below min size', () => {
+      const grid = buildGrid(['R W B', 'R W B', 'R . B'], strictEngine)
+
+      const result = evaluateClusters(grid, strictEngine)
+
+      expect(result.hits.length).toBe(2)
+      const rHit = result.hits.find((h) => h.symbolName === 'RIFLE')!
+      const bHit = result.hits.find((h) => h.symbolName === 'BULLET')!
+
+      expect(rHit.size).toBe(5)
+      expect(bHit.size).toBe(3)
+    })
+
+    it('a losing cluster must NOT consume a wild', () => {
+      const grid = buildGrid(['R W B B'], strictEngine)
+
+      const result = evaluateClusters(grid, strictEngine)
+
+      expect(result.hits.length).toBe(1)
+      expect(result.hits[0]!.symbolName).toBe('BULLET')
+      expect(result.hits[0]!.size).toBe(3)
+    })
+  })
+
+  describe('4. Edge Cases & Boundary Safety', () => {
+    it('ignores completely empty fields', () => {
+      const grid = buildGrid(['. . .', '. . .', '. . .'])
+      expect(evaluateClusters(grid, engine).hits.length).toBe(0)
+    })
+
+    it('scatter symbol does not bridge clusters', () => {
+      const grid = buildGrid(['R R S R R'])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(0)
+    })
+
+    it('massive payout fallback: size exceeding paytable gets highest available', () => {
+      const grid = buildGrid([
+        'R R R R R',
+        'R R R R R',
+        'R R R R R', // 15 RIFLE symbols
+      ])
+      const result = evaluateClusters(grid, engine)
+      expect(result.hits.length).toBe(1)
+      expect(result.hits[0]!.size).toBe(15)
+      expect(result.hits[0]!.basePayout).toBe(1000)
+    })
+  })
+
+  describe('5. MASTERCLASS: Hardcore Logic & Engine Weakpoints', () => {
+    it('MASTER TEST 1: The 1D-to-2D Array Boundary Illusion', () => {
+      const grid = buildGrid(
+        [
+          '. R . . .', // (1, 0) - index 5
+          '. R . . .', // (1, 1) - index 6
+          '. . . . .',
+          'R . . . .', // (0, 3) - index 3
+          'R . . . .', // (0, 4) - index 4
+        ],
+        engine,
+      )
+
+      const result = evaluateClusters(grid, engine)
+
+      expect(result.hits.length).toBe(0)
+    })
+
+    it('MASTER TEST 2: The Scan-Order Theft (Strict Wilds)', () => {
+      const grid = buildGrid(
+        [
+          '. B B . .',
+          'R W . . .', // W (1,1). R (0,1).
+          'R B B . .', // W (1,0) + (1,2).
+          '. . . . .',
+          '. . . . .',
+        ],
+        strictEngine,
+      )
+
+      const result = evaluateClusters(grid, strictEngine)
+
+      expect(result.hits.length).toBe(1) // Выиграл только R!
+      expect(result.hits[0]!.symbolName).toBe('RIFLE')
+      expect(result.hits[0]!.size).toBe(3) // 2 'R' + 1 'W'
+
+      const bulletHit = result.hits.find((h) => h.symbolName === 'BULLET')
+      expect(bulletHit).toBeUndefined()
+    })
+
+    it('MASTER TEST 3: The Omni-Directional Wild Core (Default Behavior)', () => {
+      const omniEngine = createClusterSlotEngine({
+        reelCount: 5,
+        rowCount: 5,
+        paytable: {
+          RIFLE: { '4': 100 },
+          BULLET: { '4': 100 },
+          GRENADE: { '4': 100 },
+          MEDKIT: { '4': 100 },
+        },
+        wildSymbol: 'WILD',
+      })
+
+      const grid = buildGrid(
+        [
+          '. . R . .',
+          '. B R R G',
+          'B B W G G', // <--- Center (2,2)
+          '. . M M .',
+          '. . M . .',
+        ],
+        omniEngine,
+      )
+
+      const result = evaluateClusters(grid, omniEngine)
+
+      expect(result.hits.length).toBe(4)
+
+      const symbolsWon = result.hits.map((h) => h.symbolName).sort()
+      expect(symbolsWon).toEqual(['BULLET', 'GRENADE', 'MEDKIT', 'RIFLE'])
+
+      for (const hit of result.hits) {
+        expect(hit.size).toBe(4)
+        expect(hit.positions).toContain(12)
       }
-    }
-    const result = evaluateClusters(grid, localEngine)
-    for (const hit of result.hits) {
-      const targetSym = hit.symbolId
-      for (const pos of hit.positions) {
-        const sym = grid.getSymbol(Math.floor(pos / 5), pos % 5)
-        expect(sym === targetSym || sym === L_WILD).toBe(true)
-      }
-    }
-  })
-
-  it('should ignore special symbols S300 and SCATTER', () => {
-    const S300 = 10
-    const SCATTER = 11
-    const localEngine = createClusterSlotEngine({
-      reelCount: 6,
-      rowCount: 5,
-      paytable: { RIFLE: { '5': 1 } },
-      wildSymbol: 'WILD',
-      scatterDefinition: { symbolId: SCATTER, payouts: [] },
     })
-    const grid = createCleanGrid(6, 5)
-    grid.setSymbol(0, 0, RIFLE)
-    grid.setSymbol(1, 0, RIFLE)
-    grid.setSymbol(0, 1, S300)
-    grid.setSymbol(1, 1, SCATTER)
-    grid.setSymbol(0, 2, RIFLE)
-    grid.setSymbol(1, 2, RIFLE)
-    grid.setSymbol(2, 2, RIFLE)
-    const result = evaluateClusters(grid, localEngine)
-    expect(result.hits.length).toBe(0)
-  })
-
-  it('should correctly calculate total win when multiple symbols share a wild', () => {
-    const localEngine = createClusterSlotEngine({
-      reelCount: 3,
-      rowCount: 1,
-      paytable: { RIFLE: { '2': 10 }, BULLET: { '2': 5 } },
-      wildSymbol: 'WILD',
-    })
-    const { toId } = localEngine.symbols
-    const L_RIFLE = toId.get('RIFLE')!
-    const L_BULLET = toId.get('BULLET')!
-    const L_WILD = toId.get('WILD')!
-    const grid = createCleanGrid(3, 1)
-    grid.setSymbol(0, 0, L_RIFLE)
-    grid.setSymbol(1, 0, L_WILD)
-    grid.setSymbol(2, 0, L_BULLET)
-    const result = evaluateClusters(grid, localEngine)
-    expect(result.hits.length).toBe(2)
-    expect(result.totalWin).toBe(15)
-  })
-
-  it('should handle very large clusters filling the entire grid', () => {
-    const grid = createCleanGrid(6, 5)
-    for (let reel = 0; reel < 6; reel++) {
-      for (let row = 0; row < 5; row++) {
-        grid.setSymbol(reel, row, RIFLE)
-      }
-    }
-    const localEngine = createClusterSlotEngine({
-      reelCount: 6,
-      rowCount: 5,
-      paytable: { RIFLE: { '30': 1000 } },
-      wildSymbol: 'WILD',
-    })
-    const result = evaluateClusters(grid, localEngine)
-    expect(result.hits.length).toBe(1)
-    expect(result.hits[0]!.size).toBe(30)
-    expect(result.totalWin).toBe(1000)
   })
 })
