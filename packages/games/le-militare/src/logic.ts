@@ -43,6 +43,7 @@ export interface CombatCascadeStep {
   readonly postCombatGrid: number[][]
   readonly hits: readonly ClusterHit[]
   readonly vanishedPositions: readonly number[]
+  readonly stickyWildPositions: readonly number[]
   readonly stepWin: number
   readonly activations: readonly ActivationEvent[]
   readonly shootdowns: readonly ShootdownEvent[]
@@ -103,40 +104,80 @@ export const multiplierSampler: Sampler<number> = Sampler.fromWeighted(
   Array1.unsafeFromArray(MULTIPLIER_POOL_WEIGHTS) as Array1<readonly [number, number]>,
 )
 
-// ─── Strip Samplers ───────────────────────────────────────────────────────
+// ─── Contiguous Strip Chunk Sampler ───────────────────────────────────────
+// Pulls a contiguous slice of `length` symbols from a random start position
+// on the strip, wrapping via modulo. This preserves JSON-strip co-placement
+// rules (e.g. S300 and PLANE never adjacent) in both initial grids and refills.
 
-function makeStripSamplers(strips: readonly Uint8Array[]): readonly Sampler<number>[] {
-  return strips.map((strip) => {
-    const n = strip.length - 2 // strip is padded with 2 wrap-around entries
-    return new Sampler<number>(SamplingPlan.draw(0, n), (rng: Rng) => {
-      const pos = rng(0, n)
-      return strip[pos]!
-    })
+export function makeStripChunkSampler(
+  strip: Uint8Array,
+  length: number,
+): Sampler<readonly number[]> {
+  if (length === 0) return Sampler.pure([])
+  const n = strip.length - 2 // actual strip length (strip has 2 wrap-around padding entries)
+  // Draw a start position via a typed Sampler<number>, then map to the chunk.
+  // This avoids the plan-type mismatch that arises from constructing Sampler<T[]>
+  // directly with a SamplingPlan<number> (strict noUncheckedIndexedAccess).
+  return new Sampler<number>(SamplingPlan.draw(0, n), (rng: Rng) => rng(0, n)).map((pos) => {
+    const chunk: number[] = new Array(length)
+    for (let i = 0; i < length; i++) {
+      chunk[i] = strip[(pos + i) % n]!
+    }
+    return chunk
   })
 }
 
-const BASE_STRIP_SAMPLERS = makeStripSamplers(INT_STRIPS_BASE)
-const FREE_STRIP_SAMPLERS = makeStripSamplers(INT_STRIPS_FREE)
-
 // ─── Initial Grid Sampler ─────────────────────────────────────────────────
 
-function buildGridSampler(stripSamplers: readonly Sampler<number>[]): Sampler<MutableCascadeGrid> {
+function buildGridSampler(strips: readonly Uint8Array[]): Sampler<MutableCascadeGrid> {
   return Sampler.traverse(
     Array.from({ length: REEL_COUNT }, (_, r) => r),
-    (reel) =>
-      Sampler.traverse(
-        Array.from({ length: ROW_COUNT }, () => null),
-        () => stripSamplers[reel]!,
-      ),
-  ).map((reelSymbols) => {
+    (reel) => makeStripChunkSampler(strips[reel]!, ROW_COUNT),
+  ).map((reelChunks) => {
     const grid = new MutableCascadeGrid(REEL_COUNT, ROW_COUNT)
     for (let reel = 0; reel < REEL_COUNT; reel++) {
+      const chunk = reelChunks[reel]!
       for (let row = 0; row < ROW_COUNT; row++) {
-        grid.setSymbol(reel, row, reelSymbols[reel]![row]!)
+        grid.setSymbol(reel, row, chunk[row]!)
       }
     }
     return grid
   })
+}
+
+// ─── Sticky Wild Helpers ──────────────────────────────────────────────────
+// stickyGrid[reel][row] === true means that cell holds a shootdown-converted
+// WILD that must survive cluster vanishing for the rest of the spin.
+
+function compactStickyGrid(stickyGrid: boolean[][], grid: MutableCascadeGrid): void {
+  // Mirror the same compaction logic as MutableCascadeGrid.applyGravity so
+  // sticky flags track which cell the wild ends up in after gravity.
+  for (let reel = 0; reel < REEL_COUNT; reel++) {
+    const sticky = stickyGrid[reel]!
+    let writeRow = ROW_COUNT - 1
+    for (let row = ROW_COUNT - 1; row >= 0; row--) {
+      if (grid.getSymbol(reel, row) !== EMPTY_SYMBOL) {
+        sticky[writeRow] = sticky[row]!
+        if (writeRow !== row) sticky[row] = false
+        writeRow--
+      }
+    }
+    for (let row = writeRow; row >= 0; row--) {
+      sticky[row] = false
+    }
+  }
+}
+
+function encodeStickyPositions(stickyGrid: boolean[][]): readonly number[] {
+  const positions: number[] = []
+  for (let reel = 0; reel < REEL_COUNT; reel++) {
+    for (let row = 0; row < ROW_COUNT; row++) {
+      if (stickyGrid[reel]![row]) {
+        positions.push(reel * ROW_COUNT + row)
+      }
+    }
+  }
+  return positions
 }
 
 // ─── Combat Operation ─────────────────────────────────────────────────────
@@ -144,6 +185,7 @@ function buildGridSampler(stripSamplers: readonly Sampler<number>[]): Sampler<Mu
 function runCombatOperationSampler(
   grid: MutableCascadeGrid,
   armedReels: Set<number>,
+  stickyGrid: boolean[][],
 ): Sampler<{
   activations: readonly ActivationEvent[]
   shootdowns: readonly ShootdownEvent[]
@@ -161,11 +203,7 @@ function runCombatOperationSampler(
     }
   }
 
-  if (newArmedReels.length === 0) {
-    return Sampler.pure({ activations: [], shootdowns: [], multiplierDelta: 0 })
-  }
-
-  // Collect all PLANE positions (will be shot down)
+  // Collect all PLANE positions (will be shot down by any armed reel)
   const planePositions: readonly { reel: number; row: number }[] = (() => {
     const positions: { reel: number; row: number }[] = []
     for (let reel = 0; reel < REEL_COUNT; reel++) {
@@ -178,6 +216,14 @@ function runCombatOperationSampler(
     return positions
   })()
 
+  // Skip the entire combat operation only when there are no armed reels at all
+  // (no carry-over and no new activations) and no new activations to process.
+  // If armed reels already exist they MUST be re-wilded even when no planes are
+  // present, so we proceed to the re-wild pass below.
+  if (newArmedReels.length === 0 && armedReels.size === 0) {
+    return Sampler.pure({ activations: [], shootdowns: [], multiplierDelta: 0 })
+  }
+
   // For each PLANE, draw a random multiplier from the weighted pool
   const shootdownSampler: Sampler<readonly ShootdownEvent[]> =
     planePositions.length === 0
@@ -189,20 +235,29 @@ function runCombatOperationSampler(
   return shootdownSampler.map((shootdowns) => {
     let multiplierDelta = 0
 
-    // Apply shootdowns: replace each PLANE with WILD
+    // Apply shootdowns: replace each PLANE with WILD and mark as sticky (FIX 1.3)
     for (const sd of shootdowns) {
       grid.setSymbol(sd.reel, sd.row, WILD_ID)
+      stickyGrid[sd.reel]![sd.row] = true
       multiplierDelta += sd.multiplier
     }
 
-    // Convert each newly-armed reel to Giant Wild (all cells → WILD)
+    // Activate newly armed reels
     const activations: ActivationEvent[] = []
     for (const reel of newArmedReels) {
-      for (let row = 0; row < ROW_COUNT; row++) {
-        grid.setSymbol(reel, row, WILD_ID)
-      }
       armedReels.add(reel)
       activations.push({ reel, convertedCells: ROW_COUNT })
+    }
+
+    // FIX 1.2: re-wild ALL armed reels (new + pre-existing carry-overs).
+    // Cascade refill may have deposited non-wild symbols onto armed reels;
+    // this pass ensures every armed reel stays fully wild every step.
+    // Armed-reel cells are never sticky — the whole reel is wild unconditionally.
+    for (const reel of armedReels) {
+      for (let row = 0; row < ROW_COUNT; row++) {
+        grid.setSymbol(reel, row, WILD_ID)
+        stickyGrid[reel]![row] = false
+      }
     }
 
     return { activations, shootdowns, multiplierDelta }
@@ -213,24 +268,32 @@ function runCombatOperationSampler(
 
 function refillGravitySampler(
   grid: MutableCascadeGrid,
-  stripSamplers: readonly Sampler<number>[],
+  strips: readonly Uint8Array[],
+  emptiesPerReel: readonly number[],
 ): Sampler<void> {
-  const drawSamplers: Sampler<number>[] = []
+  const reelsWithEmpties: number[] = []
   for (let reel = 0; reel < REEL_COUNT; reel++) {
-    let empties = 0
-    for (let row = 0; row < ROW_COUNT; row++) {
-      if (grid.getSymbol(reel, row) === EMPTY_SYMBOL) empties++
-    }
-    for (let i = 0; i < empties; i++) drawSamplers.push(stripSamplers[reel]!)
+    if (emptiesPerReel[reel]! > 0) reelsWithEmpties.push(reel)
   }
 
-  if (drawSamplers.length === 0) {
+  if (reelsWithEmpties.length === 0) {
     return Sampler.pure(undefined)
   }
 
-  return Sampler.sequence(drawSamplers).map((draws) => {
-    let idx = 0
-    grid.applyGravity(() => draws[idx++]!)
+  return Sampler.traverse(reelsWithEmpties, (reel) =>
+    makeStripChunkSampler(strips[reel]!, emptiesPerReel[reel]!),
+  ).map((chunks) => {
+    const drawsByReel = new Array<readonly number[]>(REEL_COUNT)
+    reelsWithEmpties.forEach((reel, i) => {
+      drawsByReel[reel] = chunks[i]!
+    })
+    const posPerReel = new Array<number>(REEL_COUNT).fill(0)
+    grid.applyGravity((reel) => {
+      const chunk = drawsByReel[reel]!
+      const pos = posPerReel[reel] ?? 0
+      posPerReel[reel] = pos + 1
+      return chunk[pos]!
+    })
   })
 }
 
@@ -238,19 +301,31 @@ function refillGravitySampler(
 
 function combatCascadeLoopSampler(
   grid: MutableCascadeGrid,
-  stripSamplers: readonly Sampler<number>[],
+  strips: readonly Uint8Array[],
   armedReels: Set<number>,
+  stickyGrid: boolean[][],
   multSum: number,
+  accScatterCount: number,
   accSteps: CombatCascadeStep[],
   remaining: number,
-): Sampler<{ steps: CombatCascadeStep[]; finalArmedReels: Set<number>; finalMultSum: number }> {
+): Sampler<{
+  steps: CombatCascadeStep[]
+  finalArmedReels: Set<number>
+  finalMultSum: number
+  finalScatterCount: number
+}> {
   if (remaining <= 0) {
-    return Sampler.pure({ steps: accSteps, finalArmedReels: armedReels, finalMultSum: multSum })
+    return Sampler.pure({
+      steps: accSteps,
+      finalArmedReels: armedReels,
+      finalMultSum: multSum,
+      finalScatterCount: accScatterCount,
+    })
   }
 
   const preCombatSnapshot = snapshotGrid(grid)
 
-  return runCombatOperationSampler(grid, armedReels).flatMap(
+  return runCombatOperationSampler(grid, armedReels, stickyGrid).flatMap(
     ({ activations, shootdowns, multiplierDelta }) => {
       const postCombatSnapshot = snapshotGrid(grid)
       const newMultSum = multSum + multiplierDelta
@@ -263,6 +338,7 @@ function combatCascadeLoopSampler(
           postCombatGrid: postCombatSnapshot,
           hits: [],
           vanishedPositions: [],
+          stickyWildPositions: encodeStickyPositions(stickyGrid),
           stepWin: 0,
           activations,
           shootdowns,
@@ -271,32 +347,69 @@ function combatCascadeLoopSampler(
           steps: accSteps,
           finalArmedReels: armedReels,
           finalMultSum: newMultSum,
+          finalScatterCount: accScatterCount,
         })
       }
 
       const vanished = collectVanishPositions(evaluation.hits, grid, engine)
-      grid.clearAt(vanished)
+
+      // FIX 1.3: exclude sticky-wild positions from the vanish set so they
+      // survive the cluster and remain on the grid.
+      const filteredVanished = (vanished as number[]).filter((pos) => {
+        const reel = Math.floor(pos / ROW_COUNT)
+        const row = pos % ROW_COUNT
+        return !stickyGrid[reel]![row]
+      })
+
+      grid.clearAt(filteredVanished)
+
+      // Compact sticky-grid flags to match where surviving symbols will land
+      // after gravity — must run after clearAt but before applyGravity.
+      compactStickyGrid(stickyGrid, grid)
+
+      // Compute empties per reel now (post-clearAt, pre-gravity) for both
+      // the refill sampler and for post-refill scatter counting.
+      const emptiesPerReel: number[] = new Array(REEL_COUNT).fill(0)
+      for (let reel = 0; reel < REEL_COUNT; reel++) {
+        for (let row = 0; row < ROW_COUNT; row++) {
+          if (grid.getSymbol(reel, row) === EMPTY_SYMBOL)
+            emptiesPerReel[reel] = (emptiesPerReel[reel] ?? 0) + 1
+        }
+      }
 
       accSteps.push({
         preCombatGrid: preCombatSnapshot,
         postCombatGrid: postCombatSnapshot,
         hits: evaluation.hits,
-        vanishedPositions: vanished,
+        vanishedPositions: filteredVanished,
+        stickyWildPositions: encodeStickyPositions(stickyGrid),
         stepWin: evaluation.totalWin,
         activations,
         shootdowns,
       })
 
-      return refillGravitySampler(grid, stripSamplers).flatMap(() =>
-        combatCascadeLoopSampler(
+      return refillGravitySampler(grid, strips, emptiesPerReel).flatMap(() => {
+        // FIX 1.4: count scatters that landed in the newly refilled cells.
+        // After applyGravity, new fills occupy rows 0..(emptiesPerReel[reel]-1)
+        // for each reel (gravity compacts surviving symbols to the bottom).
+        let newScatters = 0
+        for (let reel = 0; reel < REEL_COUNT; reel++) {
+          for (let row = 0; row < emptiesPerReel[reel]!; row++) {
+            if (grid.getSymbol(reel, row) === SCATTER_ID) newScatters++
+          }
+        }
+
+        return combatCascadeLoopSampler(
           grid,
-          stripSamplers,
+          strips,
           armedReels,
+          stickyGrid,
           newMultSum,
+          accScatterCount + newScatters,
           accSteps,
           remaining - 1,
-        ),
-      )
+        )
+      })
     },
   )
 }
@@ -309,38 +422,52 @@ function createSpinSampler(
   carryArmedReels: ReadonlySet<number>,
   carryMultiplierSum: number,
 ): Sampler<LeMilitareSpinResult> {
-  const stripSamplers = isFreeSpin ? FREE_STRIP_SAMPLERS : BASE_STRIP_SAMPLERS
-  const gridSampler = buildGridSampler(stripSamplers)
+  const strips = isFreeSpin ? INT_STRIPS_FREE : INT_STRIPS_BASE
+  const gridSampler = buildGridSampler(strips)
 
   return gridSampler.flatMap((grid) => {
-    // Count scatters on the INITIAL grid before Combat Operation alters anything
-    const scatterCount = countScatters(grid)
+    // FIX 1.2: paint carry-armed reels to WILD on the initial grid before
+    // cluster evaluation. Without this, carry-over reels land with strip
+    // symbols on the first step of the free spin.
+    for (const reel of carryArmedReels) {
+      for (let row = 0; row < ROW_COUNT; row++) {
+        grid.setSymbol(reel, row, WILD_ID)
+      }
+    }
+
+    // Count scatters on the initial grid before any combat operation alters it.
+    const initialScatterCount = countScatters(grid)
     const initialSnapshot = snapshotGrid(grid)
 
-    // Carry armed reels and multiplier sum from previous free spins in this session
     const armedReels = new Set<number>(carryArmedReels)
+    const stickyGrid: boolean[][] = Array.from({ length: REEL_COUNT }, () =>
+      new Array(ROW_COUNT).fill(false),
+    )
     const steps: CombatCascadeStep[] = []
 
     return combatCascadeLoopSampler(
       grid,
-      stripSamplers,
+      strips,
       armedReels,
+      stickyGrid,
       carryMultiplierSum,
+      initialScatterCount,
       steps,
       MAX_CASCADE_STEPS,
-    ).map(({ finalArmedReels, finalMultSum }) => {
+    ).map(({ finalArmedReels, finalMultSum, finalScatterCount }) => {
       const baseClusterWin = steps.reduce((sum, s) => sum + s.stepWin, 0)
       const multiplierSum = finalMultSum - carryMultiplierSum
       const effectiveMultiplier = Math.max(1, finalMultSum)
       const finalWin = baseClusterWin * effectiveMultiplier * wager.multiplier
 
-      const triggered = scatterCount >= MIN_SCATTERS
-      const spinsAwarded = triggered ? freeSpinsAwarded(scatterCount) : 0
+      // FIX 1.4: use the accumulated scatter count (includes cascade refill scatters)
+      const triggered = finalScatterCount >= MIN_SCATTERS
+      const spinsAwarded = triggered ? freeSpinsAwarded(finalScatterCount) : 0
 
       return {
         initialGrid: initialSnapshot,
         steps,
-        scatterCount,
+        scatterCount: finalScatterCount,
         baseClusterWin,
         multiplierSum,
         finalWin,

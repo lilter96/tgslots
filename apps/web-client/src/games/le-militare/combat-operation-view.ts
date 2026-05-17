@@ -1,7 +1,20 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
-import type { ReelSet } from '../../engine/reel-set.js'
 import type { ShootdownEvent, ActivationEvent } from '@tgslots/le-militare'
+import { ANIMATION_CONFIG } from './animation-config.js'
+
+export interface SymbolTransformEvent {
+  reel: number
+  row: number
+  newSymbolId: number
+}
+
+export interface MultiplierStickEvent {
+  reel: number
+  row: number
+  multiplier: number
+  badge: Container
+}
 
 const BADGE_STYLE_OPTS = {
   fontFamily: 'serif',
@@ -36,8 +49,14 @@ const bz = (t: number, p0: number, p1: number, p2: number): number =>
 const bzd = (t: number, p0: number, p1: number, p2: number): number =>
   2 * (1 - t) * (p1 - p0) + 2 * t * (p2 - p1)
 
-const TRAIL_LEN = 22
-const MISSILE_FLIGHT_MS = 806
+const {
+  TRAIL_LEN,
+  MISSILE_FLIGHT_MS,
+  LOCK_ON_DELAY_MS,
+  INTER_MISSILE_PAUSE_MS,
+  BADGE_DRIFT_DELAY_S,
+  BADGE_DRIFT_DURATION_S,
+} = ANIMATION_CONFIG
 
 export class CombatOperationView extends Container {
   private _overlay: Graphics
@@ -52,6 +71,7 @@ export class CombatOperationView extends Container {
   private _wireActiveStates: boolean[] = []
 
   private _lastSymbolWidth = 0
+  private _lastSymbolHeight = 0
   private _lastReelSpacing = 0
   private _lastTotalHeight = 0
   private _lastScale = 1
@@ -81,6 +101,7 @@ export class CombatOperationView extends Container {
       this._lastReelSpacing,
       this._lastTotalHeight,
       this._lastScale,
+      this._lastSymbolHeight,
     )
   }
 
@@ -91,6 +112,7 @@ export class CombatOperationView extends Container {
       this._lastReelSpacing,
       this._lastTotalHeight,
       this._lastScale,
+      this._lastSymbolHeight,
     )
   }
 
@@ -116,12 +138,19 @@ export class CombatOperationView extends Container {
     super.destroy(options)
   }
 
-  drawWires(symbolWidth: number, reelSpacing: number, totalHeight: number, scale: number): void {
+  drawWires(
+    symbolWidth: number,
+    reelSpacing: number,
+    totalHeight: number,
+    scale: number,
+    symbolHeight = 0,
+  ): void {
     if (symbolWidth === 0) return
     this._lastSymbolWidth = symbolWidth
     this._lastReelSpacing = reelSpacing
     this._lastTotalHeight = totalHeight
     this._lastScale = scale
+    if (symbolHeight > 0) this._lastSymbolHeight = symbolHeight
 
     this._wires.clear()
 
@@ -175,24 +204,21 @@ export class CombatOperationView extends Container {
     }
   }
 
-  async animateActivations(
-    reelSet: ReelSet,
-    activations: readonly ActivationEvent[],
-  ): Promise<void> {
+  async animateActivations(activations: readonly ActivationEvent[]): Promise<void> {
     if (activations.length === 0) return
 
-    const { symbolWidth, symbolHeight, visibleSymbols } = reelSet.reelConfig
-    const { reelSpacing } = reelSet.gridConfig
-    const totalHeight = symbolHeight * visibleSymbols
-    const scale = symbolWidth / 120
+    const symbolWidth = this._lastSymbolWidth
+    const totalHeight = this._lastTotalHeight
+    const reelSpacing = this._lastReelSpacing
+    const scale = this._lastScale
 
     for (const activation of activations) {
       // 1. Activate wire
       this._wireActiveStates[activation.reel] = true
-      this.drawWires(symbolWidth, reelSpacing, totalHeight, scale)
+      this.drawWires(symbolWidth, reelSpacing, totalHeight, scale, this._lastSymbolHeight)
 
       // Small delay for the "lock on" feel
-      await new Promise((r) => setTimeout(r, 195))
+      await new Promise((r) => setTimeout(r, LOCK_ON_DELAY_MS))
 
       // 2. Original activation flash
       const x = activation.reel * (symbolWidth + reelSpacing)
@@ -239,15 +265,15 @@ export class CombatOperationView extends Container {
   }
 
   async animateShootdowns(
-    reelSet: ReelSet,
     shootdowns: readonly ShootdownEvent[],
     _activations: readonly ActivationEvent[],
     wildId: number,
   ): Promise<void> {
     if (shootdowns.length === 0) return
 
-    const { symbolWidth, symbolHeight, visibleSymbols } = reelSet.reelConfig
-    const { reelSpacing } = reelSet.gridConfig
+    const symbolWidth = this._lastSymbolWidth
+    const symbolHeight = this._lastSymbolHeight
+    const reelSpacing = this._lastReelSpacing
 
     // Launch from mascot launch point
     const lx = this._mascotLaunchX
@@ -264,7 +290,6 @@ export class CombatOperationView extends Container {
         sd.multiplier,
         symbolWidth,
         symbolHeight,
-        reelSet,
         sd.reel,
         sd.row,
         wildId,
@@ -274,11 +299,17 @@ export class CombatOperationView extends Container {
       const reelRemaining = shootdowns.slice(i + 1).some((other) => other.reel === sd.reel)
       if (!reelRemaining) {
         this._wireActiveStates[sd.reel] = false
-        this.drawWires(symbolWidth, reelSpacing, symbolHeight * visibleSymbols, symbolWidth / 120)
+        this.drawWires(
+          symbolWidth,
+          reelSpacing,
+          this._lastTotalHeight,
+          this._lastScale,
+          symbolHeight,
+        )
       }
 
       // Small pause between missiles
-      await new Promise((r) => setTimeout(r, 130))
+      await new Promise((r) => setTimeout(r, INTER_MISSILE_PAUSE_MS))
     }
   }
 
@@ -290,7 +321,6 @@ export class CombatOperationView extends Container {
     multiplier: number,
     sw: number,
     sh: number,
-    reelSet: ReelSet,
     reel: number,
     row: number,
     wildId: number,
@@ -353,8 +383,8 @@ export class CombatOperationView extends Container {
     this.removeChild(missile)
     missile.destroy({ children: true })
 
-    // IMPACT TRANSFORMATION: Replace plane with WILD immediately
-    reelSet.setSymbolAt(reel, row, wildId)
+    // IMPACT TRANSFORMATION: Replace plane with WILD via event
+    this.emit('symbol:transform', { reel, row, newSymbolId: wildId } as SymbolTransformEvent)
 
     // Fade out trail
     void (async () => {
@@ -377,10 +407,7 @@ export class CombatOperationView extends Container {
     })()
 
     // --- Impact explosion + badge ---
-    await Promise.all([
-      this._explode(tx, ty, sw),
-      this._badge(tx, ty, multiplier, sh, reelSet, reel, row),
-    ])
+    await Promise.all([this._explode(tx, ty, sw), this._badge(tx, ty, multiplier, sh, reel, row)])
   }
 
   /** Draw the missile as Pixi Graphics children on the given container (tip points in -y). */
@@ -564,7 +591,6 @@ export class CombatOperationView extends Container {
     cy: number,
     multiplier: number,
     sh: number,
-    reelSet: ReelSet,
     reel: number,
     row: number,
   ): Promise<void> {
@@ -595,41 +621,22 @@ export class CombatOperationView extends Container {
         },
       })
 
-      // Move to persistent layer inside the SymbolView after reveal
+      // Drift badge then hand off to runtime via event for sticky placement
       gsap.to(badge, {
         y: cy - sh * 0.1,
-        duration: 0.65,
-        delay: 0.78,
+        duration: BADGE_DRIFT_DURATION_S,
+        delay: BADGE_DRIFT_DELAY_S,
         ease: 'power2.out',
         onComplete: () => {
           if (this.destroyed) {
+            badge.destroy({ children: true })
             resolve()
             return
           }
-          const sticky = new Container()
-          // Re-draw simpler badge for persistence
-          const sbg = new Graphics()
-          sbg.roundRect(-30, -16, 60, 32, 8)
-          sbg.fill({ color: 0x0a0a0a, alpha: 0.8 })
-          sbg.stroke({ color: 0xd4af37, width: 2 })
-          const stxt = new Text({
-            text: `×${multiplier}`,
-            style: { ...BADGE_STYLE_OPTS, fontSize: 22 },
-          })
-          stxt.anchor.set(0.5)
-          sticky.addChild(sbg, stxt)
-          sticky.scale.set(0.85)
-
-          // Attach to SymbolView's multiplierContainer
-          const sym = reelSet.getReel(reel).getSymbolAt(row)
-          if (sym) {
-            sym.multiplierContainer.addChild(sticky)
-          }
-
           this.removeChild(badge)
           gsap.killTweensOf(badge)
           gsap.killTweensOf(badge.scale)
-          badge.destroy({ children: true })
+          this.emit('multiplier:stick', { reel, row, multiplier, badge } as MultiplierStickEvent)
           resolve()
         },
       })

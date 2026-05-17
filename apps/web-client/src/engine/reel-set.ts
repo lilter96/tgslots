@@ -108,7 +108,7 @@ export class ReelSet extends Container {
     if (reel) {
       const symbol = reel.getSymbolAt(rowIdx)
       if (symbol) {
-        symbol.setTexture(this._assets.getSymbolTexture(symbolId))
+        symbol.setTexture(this._assets.getSymbolTextureSafe(symbolId, 0))
       }
     }
   }

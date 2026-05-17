@@ -13,9 +13,14 @@ import type {
 } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
 import { manifest } from './manifest.js'
+import { ANIMATION_CONFIG } from './animation-config.js'
 import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
 import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
-import { CombatOperationView } from './combat-operation-view.js'
+import {
+  CombatOperationView,
+  type SymbolTransformEvent,
+  type MultiplierStickEvent,
+} from './combat-operation-view.js'
 import { MultiplierHud } from './multiplier-hud.js'
 import { BuyBonusControl } from './buy-bonus-control.js'
 import { S300Mascot } from './s300-mascot.js'
@@ -93,6 +98,18 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
 
     this._combatOpView = new CombatOperationView()
     ctx.scene.reels.addChild(this._combatOpView)
+
+    this._combatOpView.on('symbol:transform', (e: SymbolTransformEvent) => {
+      this._reelSet.setSymbolAt(e.reel, e.row, e.newSymbolId)
+    })
+    this._combatOpView.on('multiplier:stick', (e: MultiplierStickEvent) => {
+      const sym = this._reelSet.getReel(e.reel).getSymbolAt(e.row)
+      if (sym) {
+        sym.multiplierContainer.addChild(e.badge)
+      } else {
+        e.badge.destroy({ children: true })
+      }
+    })
 
     this._multiplierHud = new MultiplierHud()
     ctx.scene.overlays.addChild(this._multiplierHud)
@@ -221,17 +238,22 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       GRID_CONFIG.reelSpacing,
       REEL_CONFIG.visibleSymbols * REEL_CONFIG.symbolHeight,
       1, // draw in design space, container scale handles the rest
+      REEL_CONFIG.symbolHeight,
     )
   }
 
   destroy(): void {
+    // FIX 2.4: destroy combat-op view before reel set so in-flight badge/missile tweens
+    // targeting SymbolViews are killed before those views are torn down.
+    this._combatOpView.removeAllListeners('symbol:transform')
+    this._combatOpView.removeAllListeners('multiplier:stick')
+    this._combatOpView.destroy({ children: true })
+    this._multiplierHud.destroy({ children: true })
     this._reelSet.destroy({ children: true })
     this._overlay.destroy({ children: true })
     this._bgSprite.destroy()
     this._mask.destroy()
     this._frame.destroy()
-    this._combatOpView.destroy({ children: true })
-    this._multiplierHud.destroy({ children: true })
     this._buyBonusControl?.destroy({ children: true })
     this._mascot.destroy({ children: true })
   }
@@ -311,6 +333,9 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // For FREE spins, HUD shows the carry-over multiplier from earlier spins in the session
     let currentMultiplier =
       result.type === 'FREE' ? result.state.sessionMultiplierSum - result.multiplierSum : 0
+    // FIX 2.3: push carry value immediately so HUD is correct even when the first
+    // step has no shootdowns (otherwise the HUD lags until the first multiplier event).
+    this._multiplierHud.setValue(currentMultiplier)
 
     const hasAnyCombatOp = result.steps.some((s) => s.activations.length > 0)
 
@@ -322,22 +347,17 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       // shootdowns fire in parallel for all planes on this step).
       if (step.activations.length > 0) {
         void this._mascot.triggerS300Feature()
-        await this._combatOpView.animateActivations(this._reelSet, step.activations)
+        await this._combatOpView.animateActivations(step.activations)
       }
       if (step.shootdowns.length > 0) {
-        await this._combatOpView.animateShootdowns(
-          this._reelSet,
-          step.shootdowns,
-          step.activations,
-          WILD_ID,
-        )
+        await this._combatOpView.animateShootdowns(step.shootdowns, step.activations, WILD_ID)
         for (const sd of step.shootdowns) currentMultiplier += sd.multiplier
         this._multiplierHud.setValue(currentMultiplier)
       }
       // Snap grid to postCombatGrid (giant wilds + multiplier wilds now visible)
       if (step.activations.length > 0 || step.shootdowns.length > 0) {
         this._reelSet.setSymbols(transposeGrid(step.postCombatGrid))
-        await this._wait(494)
+        await this._wait(ANIMATION_CONFIG.POST_COMBAT_SETTLE_MS)
       }
 
       // ── No cluster hits → terminal step ───────────────────────────────────

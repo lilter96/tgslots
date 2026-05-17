@@ -5,6 +5,8 @@ import type { AssetManifest, GameManifest } from '@tgslots/shared-contracts'
 export interface GameAssets {
   readonly manifest: GameManifest // Access to symbol logic, paylines, etc.
   getSymbolTexture(symbolId: number): Texture
+  hasSymbol(symbolId: number): boolean
+  getSymbolTextureSafe(symbolId: number, fallbackId: number): Texture
 
   getTexture(name: string): Texture
 
@@ -177,6 +179,36 @@ export class AssetRegistry {
         if (!meta) throw new Error(`Symbol ${symbolId} missing in manifest`)
         const t = textures.get(meta.name)
         if (!t) throw new Error(`Texture missing: ${meta.name}`)
+        return t
+      },
+
+      hasSymbol(symbolId: number): boolean {
+        const meta = manifest.symbols[symbolId]
+        if (!meta) return false
+        return textures.has(meta.name)
+      },
+
+      getSymbolTextureSafe(symbolId: number, fallbackId: number): Texture {
+        const meta = manifest.symbols[symbolId]
+        if (!meta) {
+          console.error(
+            `[AssetRegistry] Symbol ${symbolId} missing in manifest — using fallback ${fallbackId}`,
+          )
+          const fallbackMeta = manifest.symbols[fallbackId]
+          const fallbackTex = fallbackMeta ? textures.get(fallbackMeta.name) : undefined
+          if (!fallbackTex) throw new Error(`Fallback symbol ${fallbackId} also missing`)
+          return fallbackTex
+        }
+        const t = textures.get(meta.name)
+        if (!t) {
+          console.error(
+            `[AssetRegistry] Texture missing for symbol ${symbolId} (${meta.name}) — using fallback ${fallbackId}`,
+          )
+          const fallbackMeta = manifest.symbols[fallbackId]
+          const fallbackTex = fallbackMeta ? textures.get(fallbackMeta.name) : undefined
+          if (!fallbackTex) throw new Error(`Fallback symbol ${fallbackId} also missing`)
+          return fallbackTex
+        }
         return t
       },
 

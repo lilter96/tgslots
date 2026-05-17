@@ -39,7 +39,7 @@ export class Reel extends Container {
 
       const symbolId = initialSymbolIds[i % initialSymbolIds.length]
       if (symbolId !== undefined) {
-        symbolView.setTexture(this._assets.getSymbolTexture(symbolId))
+        symbolView.setTexture(this._assets.getSymbolTextureSafe(symbolId, 0))
       }
 
       this._symbols.push(symbolView)
@@ -69,7 +69,7 @@ export class Reel extends Container {
 
         if (newY < prevY - symbolHeight / 2) {
           const randomId = Math.floor(Math.random() * this._symbolCount)
-          symbol.setTexture(this._assets.getSymbolTexture(randomId))
+          symbol.setTexture(this._assets.getSymbolTextureSafe(randomId, 0))
         }
       }
     }
@@ -93,7 +93,7 @@ export class Reel extends Container {
       gsap.killTweensOf(symbol)
       const symbolId = finalSymbols[i]
       if (symbolId !== undefined) {
-        symbol.setTexture(this._assets.getSymbolTexture(symbolId))
+        symbol.setTexture(this._assets.getSymbolTextureSafe(symbolId, 0))
       }
       symbol.y = i * symbolHeight - symbolHeight * 0.25
     })
@@ -140,7 +140,7 @@ export class Reel extends Container {
       gsap.killTweensOf(symbol.scale)
       const symbolId = symbols[i % symbols.length]
       if (symbolId !== undefined) {
-        symbol.setTexture(this._assets.getSymbolTexture(symbolId))
+        symbol.setTexture(this._assets.getSymbolTextureSafe(symbolId, 0))
       }
       symbol.y = i * symbolHeight
       symbol.alpha = 1
@@ -216,7 +216,7 @@ export class Reel extends Container {
       if (!sym) continue
       sym.clearMultiplier() // Multiplier only applies to original symbols that survive
       const symbolId = newSymbols[newRow]
-      if (symbolId !== undefined) sym.setTexture(this._assets.getSymbolTexture(symbolId))
+      if (symbolId !== undefined) sym.setTexture(this._assets.getSymbolTextureSafe(symbolId, 0))
       sym.alpha = 1
       sym.scale.set(1)
       const fromY = -(newFillCount - fillSlot) * symbolHeight
