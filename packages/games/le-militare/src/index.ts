@@ -20,7 +20,7 @@ export type {
   CombatCascadeStep,
   ShootdownEvent,
   ActivationEvent,
-} from './logic.js'
+} from './types.js'
 
 export const SIM_CONFIG = {
   name: 'LE MILITARE',

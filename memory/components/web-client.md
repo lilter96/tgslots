@@ -43,7 +43,24 @@ src/games/
     manifest.ts, assets.ts
     runtime.ts                     ← AncientDragonRuntime (mystery INNER reveal, free spins)
     __tests__/
+  le-militare/
+    index.ts, manifest.ts, assets.ts
+    runtime.ts                     ← LeMilitareRuntime (~330 lines; delegates to helpers, ReelFrame, combat/, mascot/)
+    multiplier-hud.ts, buy-bonus-control.ts, animation-config.ts
+    helpers/                       ← pure helpers: grid-transform, cluster-grouping, free-spins-math,
+                                       mascot-projection, tween-utils, buy-bonus-rules, present-plan
+    reel-frame/reel-frame.ts       ← ReelFrame extends Graphics; update(layout, reelScale)
+    mascot/                        ← S300Mascot composition root + palette, design, draw-chassis,
+                                       draw-radar, draw-launcher, tweens, geometry
+    combat/                        ← CombatOperationView composition root + wire-renderer,
+                                       activation-animator, missile, explosion, badge, events
+    __tests__/                     ← grid-transform, cluster-grouping, free-spins-math,
+                                       buy-bonus-rules, present-plan, runtime tests
 ```
+
+**Le Militare `PresentPlan` pattern**: `derivePresentPlan(result: LeMilitareResult)` returns a `{ preAnnounce?, retriggerAnnounce? }` struct that drives the single `_present(result, plan)` method — eliminates three near-duplicate `_presentBase/_presentFree/_presentBuy` methods (OCP fix).
+
+**Le Militare coordinate transform**: `helpers/mascot-projection.ts` encapsulates the 8-line bespoke math that converts mascot-parent-space launch/connection points into `CombatOperationView` local design-space coordinates. Called from `LeMilitareRuntime.resize()`.
 
 **`IGameClient<G>`** (from `@tgslots/shared-contracts`):
 - `manifest: GameManifest` — grid, symbols, theme, features, natural dimensions

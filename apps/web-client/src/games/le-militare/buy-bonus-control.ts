@@ -2,17 +2,12 @@ import { Container, Graphics, Text } from 'pixi.js'
 import type { DestroyOptions } from 'pixi.js'
 import type { GameEventBus } from '../../engine/event-bus.js'
 import type { GameStateMachine } from '../../engine/state-machine.js'
-import { GameUIState } from '../../types.js'
+import type { GameUIState } from '../../types.js'
+import { isBuyBonusEnabled, formatBuyBonusCostLabel } from './helpers/buy-bonus-rules.js'
 
 const CONTROL_W = 120
 const CONTROL_H = 60
 const TITLE_TEXT = 'BUY BONUS'
-
-export interface BuyBonusControlState {
-  readonly uiState: GameUIState
-  readonly isAutoSpin: boolean
-  readonly freeSpinsRemaining: number
-}
 
 export class BuyBonusControl extends Container {
   private readonly _background = new Graphics()
@@ -35,7 +30,7 @@ export class BuyBonusControl extends Container {
     super()
 
     this._subtitle = new Text({
-      text: `${costMultiplier}x BET`,
+      text: formatBuyBonusCostLabel(costMultiplier),
       style: {
         fontFamily: 'serif',
         fill: '#d4af37',
@@ -48,9 +43,7 @@ export class BuyBonusControl extends Container {
     this._sync(fsm.state)
 
     this._unsubs.push(
-      fsm.addListener((state) => {
-        this._sync(state)
-      }),
+      fsm.addListener((state) => this._sync(state)),
       eventBus.on('auto-spin:updated', ({ active }) => {
         this._isAutoSpin = active
         this._sync(fsm.state)
@@ -87,8 +80,11 @@ export class BuyBonusControl extends Container {
   }
 
   private _sync(uiState: GameUIState): void {
-    const enabled =
-      uiState === GameUIState.IDLE && !this._isAutoSpin && this._freeSpinsRemaining <= 0
+    const enabled = isBuyBonusEnabled({
+      uiState,
+      isAutoSpin: this._isAutoSpin,
+      freeSpinsRemaining: this._freeSpinsRemaining,
+    })
 
     this.alpha = enabled ? 1 : 0.45
     this.eventMode = enabled ? 'static' : 'none'

@@ -90,7 +90,7 @@ export const assets: AssetManifest = {
     ANNOUNCE_BONUS: { svg: LM_ENV_SVG.ANNOUNCE_BONUS, width: 800, height: 200 },
   },
   audio: {
-    'win-small': '/assets/sounds/woodland-whisper/win-small.mp3',
-    'win-big': '/assets/sounds/woodland-whisper/win-big.mp3',
+    'win-small': '/assets/sounds/le-militare/win-small.mp3',
+    'win-big': '/assets/sounds/le-militare/win-big.mp3',
   },
 }

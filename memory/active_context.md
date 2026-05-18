@@ -8,11 +8,12 @@ tags:
 - "context"
 up: 
 - "[[index]]"
-current_task: "task_038_marketing_app"
+current_task: "task_040_le_militare_refactor"
 ---
 # Active Context
 
 ## Recent Changes
+- **Completed Le Militare SOLID refactor** ([[task_040_le_militare_refactor]]). Decomposed three god-files (runtime.ts 429→~330 lines, s300-mascot.ts 676 lines → deleted, combat-operation-view.ts 645 lines → deleted) into focused submodules: `helpers/` (grid-transform, cluster-grouping, free-spins-math, mascot-projection, tween-utils, buy-bonus-rules, present-plan), `reel-frame/`, `mascot/` (palette, design, draw-chassis, draw-radar, draw-launcher, tweens, geometry), `combat/` (wire-renderer, activation-animator, missile, explosion, badge, events). Collapsed 3 duplicate `_present*` methods via `PresentPlan`. Fixed audio paths in assets.ts. 105 tests pass (up from 97).
 - Implemented cascade animations and Combat Operation visuals for Le Militare in the web-client.
 - Added Multiplier HUD and Buy Bonus control for Le Militare.
 - **Built `apps/marketing` — React 18 + Tailwind CSS 3 + Vite 6 game presentation app** ([[task_038_marketing_app]]). New workspace `@tgslots/marketing` (port 3003). Implements a Hacksaw-style one-pager for Woodland Whisper: full-bleed SVG hero, stats bar (RTP 88.04%, 30 paylines, High volatility est., 5 000× max-win est.), lore section, feature grid with 4 custom 64×64 SVG icons. "Play Demo" mounts the existing Pixi client via `fixed inset-0` iframe (Vite dev proxy `/web-client` → port 3002). Generic `GamePresentation` type and registry make adding future games a one-file task. Added `dev:marketing` script to root `package.json`; `bun install` resolves the new workspace. Typecheck clean.

@@ -8,7 +8,7 @@ import type {
 import { Wager } from '@tgslots/slots-core/betting'
 import { MIN_SCATTERS, FREE_SPIN_AWARDS } from './constants.js'
 import { LE_MILITARE_SAMPLER, BUY_BONUS_SAMPLER } from './logic.js'
-import type { LeMilitareSpinResult } from './logic.js'
+import type { LeMilitareSpinResult } from './types.js'
 
 // ─── State ────────────────────────────────────────────────────────────────
 

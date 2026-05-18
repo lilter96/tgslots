@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "echo 'Nothing to build for simulations'",
+    "typecheck": "tsc --noEmit",
     "sim": "bun run main.ts"
   },
   "dependencies": {

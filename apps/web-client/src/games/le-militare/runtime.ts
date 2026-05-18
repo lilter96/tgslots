@@ -5,27 +5,27 @@ import type { UILayoutSnapshot } from '../../engine/layout.js'
 import { ReelSet } from '../../engine/reel-set.js'
 import { WinOverlay } from '../../engine/win-overlay.js'
 import { Symbols } from '@tgslots/le-militare'
-import type {
-  LeMilitareBaseResult,
-  LeMilitareFreeResult,
-  LeMilitareBuyResult,
-  LeMilitareResult,
-} from '@tgslots/le-militare'
+import type { LeMilitareResult } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
 import { manifest } from './manifest.js'
 import { ANIMATION_CONFIG } from './animation-config.js'
+import { transposeGrid, decodePosition } from './helpers/grid-transform.js'
+import { groupHitsBySymbol } from './helpers/cluster-grouping.js'
+import { deriveFreeCarryOverMultiplier } from './helpers/free-spins-math.js'
+import { projectMascotPointsToCombatLocal } from './helpers/mascot-projection.js'
+import { derivePresentPlan, type PresentPlan } from './helpers/present-plan.js'
 import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
 import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
 import {
   CombatOperationView,
   type SymbolTransformEvent,
   type MultiplierStickEvent,
-} from './combat-operation-view.js'
+} from './combat/index.js'
 import { MultiplierHud } from './multiplier-hud.js'
 import { BuyBonusControl } from './buy-bonus-control.js'
-import { S300Mascot } from './s300-mascot.js'
+import { S300Mascot } from './mascot/index.js'
+import { ReelFrame } from './reel-frame/reel-frame.js'
 
-const FRAME_PAD = 4
 const CLUSTER_WIN_COLOR = 0xd4af37
 const SCATTER_WIN_COLOR = 0xff4444
 const SCATTER_ID = Symbols['SCATTER']!
@@ -43,20 +43,6 @@ const REEL_CONFIG = {
   totalSymbols: 7,
 }
 
-// Grid from server is row-major [row][reel]; ReelSet expects column-major [reel][row]
-function transposeGrid(grid: number[][]): number[][] {
-  const rows = grid.length
-  const cols = grid[0]?.length ?? 0
-  return Array.from({ length: cols }, (_, c) =>
-    Array.from({ length: rows }, (_, r) => grid[r]![c]!),
-  )
-}
-
-// ClusterHit positions are encoded as `reel * rowCount + row`
-function decodePosition(encoded: number, rowCount: number): { reel: number; row: number } {
-  return { reel: Math.floor(encoded / rowCount), row: encoded % rowCount }
-}
-
 export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private _ctx!: GameUIContext<'le-militare'>
   private _reelSet!: ReelSet
@@ -64,7 +50,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private _bgSprite!: Sprite
   private _bgTex!: Texture
   private _mask!: Graphics
-  private _frame!: Graphics
+  private _frame!: ReelFrame
   private _layout?: UILayoutSnapshot
   private _spinSpeedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
   private _combatOpView!: CombatOperationView
@@ -117,7 +103,12 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._buyBonusControl = new BuyBonusControl(ctx.eventBus, ctx.fsm, 100)
     ctx.hud.slot('control-right').addChild(this._buyBonusControl)
 
-    this._frame = new Graphics()
+    this._frame = new ReelFrame({
+      reels: GRID_CONFIG.reels,
+      rows: GRID_CONFIG.rows,
+      symbolSize: REEL_CONFIG.symbolWidth,
+      reelSpacing: GRID_CONFIG.reelSpacing,
+    })
     ctx.scene.reels.addChild(this._frame)
 
     this._mascot = new S300Mascot()
@@ -139,17 +130,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     result: LeMilitareResult,
   ): Promise<void> {
     this._combatOpView.clearPersistentMultipliers()
-    switch (result.type) {
-      case 'BASE':
-        await this._presentBase(result)
-        break
-      case 'FREE':
-        await this._presentFree(result)
-        break
-      case 'BUY':
-        await this._presentBuy(result)
-        break
-    }
+    await this._present(result, derivePresentPlan(result))
   }
 
   resize(layout: UILayoutSnapshot): void {
@@ -184,53 +165,29 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       )
       .fill(0xffffff)
 
-    this._frame.clear()
-    this._frame
-      .rect(
-        layout.reelBounds.x - FRAME_PAD,
-        layout.reelBounds.y - FRAME_PAD,
-        layout.reelBounds.width + FRAME_PAD * 2,
-        layout.reelBounds.height + FRAME_PAD * 2,
-      )
-      .stroke({ color: 0xc41e1e, width: 4, alpha: 1 })
-
-    for (let col = 1; col < GRID_CONFIG.reels; col++) {
-      const sepX =
-        layout.reelBounds.x +
-        (col * (REEL_CONFIG.symbolWidth + GRID_CONFIG.reelSpacing) - GRID_CONFIG.reelSpacing / 2) *
-          reelScale
-      this._frame
-        .moveTo(sepX, layout.reelBounds.y)
-        .lineTo(sepX, layout.reelBounds.y + layout.reelBounds.height)
-        .stroke({ color: 0xc41e1e, width: 1, alpha: 0.4 })
-    }
-
-    for (let row = 1; row < REEL_CONFIG.visibleSymbols; row++) {
-      const sepY = layout.reelBounds.y + row * REEL_CONFIG.symbolHeight * reelScale
-      this._frame
-        .moveTo(layout.reelBounds.x, sepY)
-        .lineTo(layout.reelBounds.x + layout.reelBounds.width, sepY)
-        .stroke({ color: 0xc41e1e, width: 1, alpha: 0.4 })
-    }
+    this._frame.update(layout, reelScale)
 
     this._overlay.resize(layout)
     this._mascot.resize(layout)
 
     const lp = this._mascot.getLaunchPoint()
     const cp = this._mascot.getConnectionPoint()
-    const mScale = this._mascot.scale.x
-    // Global-ish mascot points (relative to mascot parent)
-    const glx = this._mascot.x + lp.x * mScale
-    const gly = this._mascot.y + lp.y * mScale
-    const gcx = this._mascot.x + cp.x * mScale
-    const gcy = this._mascot.y + cp.y * mScale
+    const proj = projectMascotPointsToCombatLocal({
+      mascotX: this._mascot.x,
+      mascotY: this._mascot.y,
+      mascotScale: this._mascot.scale.x,
+      launchPoint: lp,
+      connectionPoint: cp,
+      combatViewX: this._combatOpView.x,
+      combatViewY: this._combatOpView.y,
+      reelScale,
+    })
 
-    // Transform to CombatOpView local space
     this._combatOpView.setMascotData(
-      (glx - this._combatOpView.x) / reelScale,
-      (gly - this._combatOpView.y) / reelScale,
-      (gcx - this._combatOpView.x) / reelScale,
-      (gcy - this._combatOpView.y) / reelScale,
+      proj.launchLocalX,
+      proj.launchLocalY,
+      proj.connectionLocalX,
+      proj.connectionLocalY,
       GRID_CONFIG.reels,
     )
     this._combatOpView.drawWires(
@@ -264,15 +221,18 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._overlay.syncSpinSpeed(profile)
   }
 
-  private async _presentBase(result: LeMilitareBaseResult): Promise<void> {
+  private async _present(result: LeMilitareResult, plan: PresentPlan): Promise<void> {
+    if (plan.preAnnounce) {
+      await this._overlay.announce(plan.preAnnounce.text, plan.preAnnounce.ms)
+    }
     this._reelSet.spin()
     await this._wait(this._spinSpeedProfile.reelSpinMs)
     await this._reelSet.stop(transposeGrid(result.steps[0]?.preCombatGrid ?? []))
 
     await this._playCascadeSteps(result)
 
-    if (result.triggeredFreeSpins) {
-      await this._overlay.announce('FREE SPINS!', 1500)
+    if (plan.retriggerAnnounce) {
+      await this._overlay.announce(plan.retriggerAnnounce.text, plan.retriggerAnnounce.ms)
     }
 
     if (result.win > 0) {
@@ -284,55 +244,11 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     }
   }
 
-  private async _presentFree(result: LeMilitareFreeResult): Promise<void> {
-    this._reelSet.spin()
-    await this._wait(this._spinSpeedProfile.reelSpinMs)
-    await this._reelSet.stop(transposeGrid(result.steps[0]?.preCombatGrid ?? []))
-
-    await this._playCascadeSteps(result)
-
-    if (result.retriggered) {
-      await this._overlay.announce('FREE SPINS!', 1200)
-    }
-
-    if (result.win > 0) {
-      this._ctx.eventBus.emit('win:awarded', {
-        amount: result.win,
-        multiplierX: result.multiplierSum,
-      })
-      await this._overlay.announceWin(result.win, this._ctx.session.lastWager)
-    }
-  }
-
-  private async _presentBuy(result: LeMilitareBuyResult): Promise<void> {
-    await this._overlay.announce('COMBAT OPERATION', 1200)
-    this._reelSet.spin()
-    await this._wait(this._spinSpeedProfile.reelSpinMs)
-    await this._reelSet.stop(transposeGrid(result.steps[0]?.preCombatGrid ?? []))
-
-    await this._playCascadeSteps(result)
-
-    if (result.triggeredFreeSpins) {
-      await this._overlay.announce('FREE SPINS!', 1500)
-    }
-
-    if (result.win > 0) {
-      this._ctx.eventBus.emit('win:awarded', {
-        amount: result.win,
-        multiplierX: result.multiplierSum,
-      })
-      await this._overlay.announceWin(result.win, this._ctx.session.lastWager)
-    }
-  }
-
-  private async _playCascadeSteps(
-    result: LeMilitareBaseResult | LeMilitareFreeResult | LeMilitareBuyResult,
-  ): Promise<void> {
+  private async _playCascadeSteps(result: LeMilitareResult): Promise<void> {
     this._reelSet.clearAllMultipliers()
 
     // For FREE spins, HUD shows the carry-over multiplier from earlier spins in the session
-    let currentMultiplier =
-      result.type === 'FREE' ? result.state.sessionMultiplierSum - result.multiplierSum : 0
+    let currentMultiplier = deriveFreeCarryOverMultiplier(result)
     // FIX 2.3: push carry value immediately so HUD is correct even when the first
     // step has no shootdowns (otherwise the HUD lags until the first multiplier event).
     this._multiplierHud.setValue(currentMultiplier)
@@ -365,12 +281,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
 
       // ── Cluster win highlights ────────────────────────────────────────────
       // Group hits by symbol type so we highlight one symbol group at a time.
-      const hitsBySymbol = new Map<number, (typeof step.hits)[number][]>()
-      for (const hit of step.hits) {
-        const arr = hitsBySymbol.get(hit.symbolId) ?? []
-        arr.push(hit)
-        hitsBySymbol.set(hit.symbolId, arr)
-      }
+      const hitsBySymbol = groupHitsBySymbol(step.hits)
 
       for (const [, hits] of hitsBySymbol) {
         for (const hit of hits) {

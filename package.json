@@ -11,7 +11,7 @@
     "setup": "bun install && bun run build",
     "validate": "bun run typecheck && bun run eslint:lint && bun test",
     "build": "bun run --workspaces build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && bun run --workspaces typecheck",
     "test": "bun test",
     "dev:all": "bun install && concurrently \"bun --filter @tgslots/api dev\" \"bun --filter @tgslots/web-client dev\" \"bun --filter @tgslots/marketing dev\"",
     "dev:api": "bun --filter @tgslots/api dev",
