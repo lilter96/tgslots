@@ -23,7 +23,11 @@ export class GameDispatcher<G extends GameId> {
   }
 
   get sessionId(): string | null {
-    return localStorage.getItem(this._sessionKey)
+    try {
+      return localStorage.getItem(this._sessionKey)
+    } catch {
+      return null
+    }
   }
 
   async dispatch<A extends ActionType<G>>(
@@ -31,14 +35,23 @@ export class GameDispatcher<G extends GameId> {
     payload: ActionPayload<G, A>,
   ): Promise<ActionResponse<G>> {
     const sessionId = this.sessionId
-    const body: Record<string, unknown> = { payload }
-    if (sessionId) body['sessionId'] = sessionId
+    const body: { payload: ActionPayload<G, A>; sessionId?: string } = { payload }
+    if (sessionId) body.sessionId = sessionId
 
-    const res = await fetch(`${this._baseUrl}/game/${this._gameId}/${String(action)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30_000)
+
+    let res: Response
+    try {
+      res = await fetch(`${this._baseUrl}/game/${this._gameId}/${String(action)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     // Session expired or server restarted — clear the stale id and retry to create a new session
     if (res.status === 404 && sessionId) {
@@ -51,17 +64,25 @@ export class GameDispatcher<G extends GameId> {
       throw new ApiError(
         res.status,
         typeof errBody === 'object' && errBody !== null && 'error' in errBody
-          ? String((errBody as { error: unknown }).error)
+          ? String((errBody as { error: string }).error)
           : `HTTP ${res.status}`,
       )
     }
 
     const data = (await res.json()) as ActionResponse<G>
-    localStorage.setItem(this._sessionKey, data.sessionId)
+    try {
+      localStorage.setItem(this._sessionKey, data.sessionId)
+    } catch {
+      // localStorage unavailable (private browsing, etc.) — session is still valid in memory
+    }
     return data
   }
 
   clearSession(): void {
-    localStorage.removeItem(this._sessionKey)
+    try {
+      localStorage.removeItem(this._sessionKey)
+    } catch {
+      // localStorage unavailable
+    }
   }
 }

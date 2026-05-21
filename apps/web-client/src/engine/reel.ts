@@ -241,7 +241,7 @@ export class Reel extends Container {
     const nextSymbols: SymbolView[] = new Array(visibleSymbols)
     for (let newRow = 0; newRow < visibleSymbols; newRow++) {
       const item = fallItems.find((it) => it.toY === newRow * symbolHeight)
-      if (item) nextSymbols[newRow] = item.view
+      nextSymbols[newRow] = item?.view ?? this._symbols[newRow]!
     }
     this._symbols = nextSymbols
 

@@ -61,7 +61,7 @@ export interface NormalizedParsheetConfig {
     bet?: number
     source?: string
     notes?: string
-    [key: string]: unknown
+    [key: string]: string | number | boolean | null | undefined
   }
   comparisons: ComparisonTarget[]
 }

@@ -13,11 +13,12 @@ Object.defineProperty(globalThis, 'localStorage', {
   configurable: true,
 })
 
-function makeFetch(body: unknown, status = 200): typeof fetch {
+function makeFetch(body: string | number | boolean | null | object, status = 200): typeof fetch {
   return (async () =>
     new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
+      // eslint-disable-next-line @typescript-eslint/no-restricted-types
     }) as Response) as unknown as typeof fetch
 }
 
@@ -63,7 +64,7 @@ describe('GameDispatcher', () => {
 
   it('sends existing sessionId in request body', async () => {
     storageMap.set('tgslots:session:woodland-whisper', 'prior-sess')
-    let capturedBody: Record<string, unknown> = {}
+    let capturedBody: { payload?: object; sessionId?: string } = {}
     globalThis.fetch = (async (_url, opts) => {
       capturedBody = JSON.parse((opts as RequestInit).body as string)
       return new Response(JSON.stringify({ sessionId: 'prior-sess', state: {} }), {
@@ -78,7 +79,7 @@ describe('GameDispatcher', () => {
   })
 
   it('does not include sessionId in body when none is stored', async () => {
-    let capturedBody: Record<string, unknown> = {}
+    let capturedBody: { payload?: object; sessionId?: string } = {}
     globalThis.fetch = (async (_url, opts) => {
       capturedBody = JSON.parse((opts as RequestInit).body as string)
       return new Response(JSON.stringify({ sessionId: 'new', state: {} }), {
@@ -113,7 +114,10 @@ describe('GameDispatcher', () => {
     let callCount = 0
     globalThis.fetch = (async (_url, opts) => {
       callCount++
-      const body = JSON.parse((opts as RequestInit).body as string) as Record<string, unknown>
+      const body = JSON.parse((opts as RequestInit).body as string) as {
+        payload?: object
+        sessionId?: string
+      }
       if (callCount === 1) {
         expect(body['sessionId']).toBe('stale-sess')
         return new Response(JSON.stringify({ error: 'Session not found or expired' }), {

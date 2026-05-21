@@ -50,6 +50,7 @@ describe('RTP regression — seeded smoke rounds', () => {
       while (sm.state.freeSpins && sm.state.freeSpins.spinsRemaining > 0) {
         if (sessionSpins >= FREE_SPIN_CAP) {
           // Force-clear the session so the next base spin can proceed
+          // eslint-disable-next-line @typescript-eslint/no-restricted-types
           ;(sm.state as { freeSpins: null | unknown }).freeSpins = null
           break
         }

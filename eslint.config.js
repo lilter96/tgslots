@@ -16,6 +16,15 @@ export default tseslint.config(
     rules: {
       'prettier/prettier': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-restricted-types': [
+        'error',
+        {
+          types: {
+            unknown: 'Avoid `unknown`. Use a specific type instead.',
+            never: 'Avoid `never`. Use `void` for absent sides of Either/Result types.',
+          },
+        },
+      ],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-console': 'off',
     },

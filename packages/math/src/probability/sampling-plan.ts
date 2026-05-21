@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-restricted-types -- Free Monad trampoline uses unknown as an existential type for heterogeneous intermediate values; no safe alternative */
 import type { Rng } from '../rng'
 
 /**

@@ -8,5 +8,7 @@ import type { LeMilitareResult } from '@tgslots/le-militare'
  */
 export function deriveFreeCarryOverMultiplier(result: LeMilitareResult): number {
   if (result.type !== 'FREE') return 0
-  return result.state.sessionMultiplierSum - result.multiplierSum
+  if (!result.state) return 0
+  const carry = result.state.sessionMultiplierSum - result.multiplierSum
+  return Number.isFinite(carry) ? Math.max(0, carry) : 0
 }

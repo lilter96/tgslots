@@ -1,6 +1,7 @@
 import type { WoodlandWhisperResult } from '@tgslots/woodland-whisper'
 import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
 import type { IGameClient } from '../../engine/game-client.js'
+import type { EmptyPayload } from '@tgslots/shared-contracts'
 import { manifest } from './manifest.js'
 import { assets } from './assets.js'
 import { WoodlandWhisperRuntime } from './runtime.js'
@@ -13,9 +14,9 @@ declare module '@tgslots/shared-contracts/game-registry' {
       actions: {
         spin: { multiplier: number }
         buybonus: { multiplier: number }
-        freespin: Record<string, never>
+        freespin: EmptyPayload
         pick: { userIndex: number }
-        state: Record<string, never>
+        state: EmptyPayload
       }
     }
   }

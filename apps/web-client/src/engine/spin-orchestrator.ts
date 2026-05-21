@@ -20,6 +20,7 @@ export class SpinOrchestrator<G extends GameId> {
   private _autoState: { config: AutoSpinConfig; remaining: number } | null = null
   private _freeSpinsRemaining = 0
   private _wonThisCycle = false
+  private _bonusTriggeredThisCycle = false
 
   constructor(
     private readonly _fsm: GameStateMachine,
@@ -35,6 +36,9 @@ export class SpinOrchestrator<G extends GameId> {
       this._wonThisCycle = true
     })
     eventBus.on('free-spins:updated', ({ remaining }) => {
+      if (remaining > 0 && this._freeSpinsRemaining === 0) {
+        this._bonusTriggeredThisCycle = true
+      }
       this._freeSpinsRemaining = remaining
     })
   }
@@ -64,6 +68,7 @@ export class SpinOrchestrator<G extends GameId> {
 
   async spin(betMultiplier: number): Promise<void> {
     if (this._fsm.state !== GameUIState.IDLE) return
+    if (this._autoState && !this._autoState.config.spins) return // manual spin during unlimited auto-spin
 
     const cost = this._actions.spinCost(betMultiplier)
     if (!this._session.deductWager(cost)) {
@@ -72,6 +77,7 @@ export class SpinOrchestrator<G extends GameId> {
     }
 
     this._wonThisCycle = false
+    this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
     const response = await this._actions.doSpin(betMultiplier)
@@ -95,6 +101,7 @@ export class SpinOrchestrator<G extends GameId> {
     if (!this._session.deductWager(cost)) return
 
     this._wonThisCycle = false
+    this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
     const response = await this._actions.doBuyBonus(betMultiplier)
@@ -136,8 +143,15 @@ export class SpinOrchestrator<G extends GameId> {
       } else {
         this._fsm.transitionTo(GameUIState.IDLE)
       }
-    } else if (s === GameUIState.WIN_SHOW || s === GameUIState.FEATURE_TRANSITION) {
+    } else if (s === GameUIState.WIN_SHOW) {
       this._fsm.transitionTo(GameUIState.IDLE)
+    } else if (s === GameUIState.FEATURE_TRANSITION) {
+      if (this._wonThisCycle) {
+        this._fsm.transitionTo(GameUIState.WIN_SHOW)
+        this._fsm.transitionTo(GameUIState.IDLE)
+      } else {
+        this._fsm.transitionTo(GameUIState.IDLE)
+      }
     }
   }
 
@@ -149,6 +163,7 @@ export class SpinOrchestrator<G extends GameId> {
 
     const shouldStop =
       (config.stopOnWin && this._wonThisCycle) ||
+      (config.stopOnBonus && this._bonusTriggeredThisCycle) ||
       (config.spins > 0 && this._autoState.remaining <= 0)
 
     if (shouldStop) {

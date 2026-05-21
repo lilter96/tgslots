@@ -4,9 +4,10 @@ import type {
   LeMilitareBaseResult,
   LeMilitareFreeResult,
   LeMilitareBuyResult,
+  CombatCascadeStep,
 } from '@tgslots/le-militare'
 
-const EMPTY_STEPS: never[] = []
+const EMPTY_STEPS: CombatCascadeStep[] = []
 
 function makeBase(triggeredFreeSpins: boolean): LeMilitareBaseResult {
   return {
@@ -16,6 +17,7 @@ function makeBase(triggeredFreeSpins: boolean): LeMilitareBaseResult {
     scatterCount: 0,
     steps: EMPTY_STEPS,
     triggeredFreeSpins,
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
   } as unknown as LeMilitareBaseResult
 }
 
@@ -27,6 +29,7 @@ function makeFree(retriggered: boolean): LeMilitareFreeResult {
     scatterCount: 0,
     steps: EMPTY_STEPS,
     retriggered,
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
   } as unknown as LeMilitareFreeResult
 }
 
@@ -38,6 +41,7 @@ function makeBuy(): LeMilitareBuyResult {
     scatterCount: 0,
     steps: EMPTY_STEPS,
     triggeredFreeSpins: true,
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
   } as unknown as LeMilitareBuyResult
 }
 

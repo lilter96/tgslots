@@ -4,9 +4,10 @@ import type { GameRuntime, GameUIContext } from '../../engine/game-client.js'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
 import { ReelSet } from '../../engine/reel-set.js'
 import { WinOverlay } from '../../engine/win-overlay.js'
-import { Symbols } from '@tgslots/le-militare'
+import { Symbols, BUY_BONUS_COST_MULTIPLIER } from '@tgslots/le-militare'
 import type { LeMilitareResult } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
+import type { ActionType } from '@tgslots/shared-contracts'
 import { manifest } from './manifest.js'
 import { ANIMATION_CONFIG } from './animation-config.js'
 import { transposeGrid, decodePosition } from './helpers/grid-transform.js'
@@ -16,11 +17,9 @@ import { projectMascotPointsToCombatLocal } from './helpers/mascot-projection.js
 import { derivePresentPlan, type PresentPlan } from './helpers/present-plan.js'
 import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
 import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
-import {
-  CombatOperationView,
-  type SymbolTransformEvent,
-  type MultiplierStickEvent,
-} from './combat/index.js'
+import { CombatOperationView } from './combat/index.js'
+import './events.js'
+import type { CombatLayout } from './combat/combat-layout.js'
 import { MultiplierHud } from './multiplier-hud.js'
 import { BuyBonusControl } from './buy-bonus-control.js'
 import { S300Mascot } from './mascot/index.js'
@@ -57,6 +56,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private _multiplierHud!: MultiplierHud
   private _buyBonusControl?: BuyBonusControl
   private _mascot!: S300Mascot
+  private _destroyed = false
+  private readonly _unsubs: Array<() => void> = []
 
   async init(ctx: GameUIContext<'le-militare'>): Promise<void> {
     this._ctx = ctx
@@ -82,25 +83,27 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._reelSet.mask = this._mask
     ctx.scene.reels.addChild(this._reelSet)
 
-    this._combatOpView = new CombatOperationView()
+    this._combatOpView = new CombatOperationView(ctx.eventBus)
     ctx.scene.reels.addChild(this._combatOpView)
 
-    this._combatOpView.on('symbol:transform', (e: SymbolTransformEvent) => {
-      this._reelSet.setSymbolAt(e.reel, e.row, e.newSymbolId)
-    })
-    this._combatOpView.on('multiplier:stick', (e: MultiplierStickEvent) => {
-      const sym = this._reelSet.getReel(e.reel).getSymbolAt(e.row)
-      if (sym) {
-        sym.multiplierContainer.addChild(e.badge)
-      } else {
-        e.badge.destroy({ children: true })
-      }
-    })
+    this._unsubs.push(
+      ctx.eventBus.on('le-militare:symbol:transform', (e) => {
+        this._reelSet.setSymbolAt(e.reel, e.row, e.newSymbolId)
+      }),
+      ctx.eventBus.on('le-militare:multiplier:stick', (e) => {
+        const sym = this._reelSet.getReel(e.reel).getSymbolAt(e.row)
+        if (sym) {
+          sym.multiplierContainer.addChild(e.badge)
+        } else {
+          e.badge.destroy({ children: true })
+        }
+      }),
+    )
 
     this._multiplierHud = new MultiplierHud()
     ctx.scene.overlays.addChild(this._multiplierHud)
 
-    this._buyBonusControl = new BuyBonusControl(ctx.eventBus, ctx.fsm, 100)
+    this._buyBonusControl = new BuyBonusControl(ctx.eventBus, ctx.fsm, BUY_BONUS_COST_MULTIPLIER)
     ctx.hud.slot('control-right').addChild(this._buyBonusControl)
 
     this._frame = new ReelFrame({
@@ -125,10 +128,13 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._multiplierHud.setValue(state.freeSpins?.multiplierSum ?? 1)
   }
 
-  async presentResult(
-    _action: keyof { spin: unknown; buybonus: unknown; freespin: unknown; state: unknown },
-    result: LeMilitareResult,
-  ): Promise<void> {
+  /** Restore the visual grid from a persisted lastGrid (session restore). */
+  restoreGrid(grid: number[][]): void {
+    if (!grid.length || !grid[0]?.length) return
+    this._reelSet.setSymbols(transposeGrid(grid))
+  }
+
+  async presentResult(_action: ActionType<'le-militare'>, result: LeMilitareResult): Promise<void> {
     this._combatOpView.clearPersistentMultipliers()
     await this._present(result, derivePresentPlan(result))
   }
@@ -190,20 +196,22 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       proj.connectionLocalY,
       GRID_CONFIG.reels,
     )
-    this._combatOpView.drawWires(
-      REEL_CONFIG.symbolWidth,
-      GRID_CONFIG.reelSpacing,
-      REEL_CONFIG.visibleSymbols * REEL_CONFIG.symbolHeight,
-      1, // draw in design space, container scale handles the rest
-      REEL_CONFIG.symbolHeight,
-    )
+    const combatLayout: CombatLayout = {
+      symbolWidth: REEL_CONFIG.symbolWidth,
+      symbolHeight: REEL_CONFIG.symbolHeight,
+      reelSpacing: GRID_CONFIG.reelSpacing,
+      totalHeight: REEL_CONFIG.visibleSymbols * REEL_CONFIG.symbolHeight,
+      scale: 1, // draw in design space, container scale handles the rest
+    }
+    this._combatOpView.drawWires(combatLayout)
   }
 
   destroy(): void {
+    this._destroyed = true
+    for (const unsub of this._unsubs) unsub()
+    this._unsubs.length = 0
     // FIX 2.4: destroy combat-op view before reel set so in-flight badge/missile tweens
     // targeting SymbolViews are killed before those views are torn down.
-    this._combatOpView.removeAllListeners('symbol:transform')
-    this._combatOpView.removeAllListeners('multiplier:stick')
     this._combatOpView.destroy({ children: true })
     this._multiplierHud.destroy({ children: true })
     this._reelSet.destroy({ children: true })
@@ -222,6 +230,9 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   }
 
   private async _present(result: LeMilitareResult, plan: PresentPlan): Promise<void> {
+    const bus = this._ctx.eventBus
+    bus.emit('le-militare:spin:resolving:started', { resultType: result.type })
+
     if (plan.preAnnounce) {
       await this._overlay.announce(plan.preAnnounce.text, plan.preAnnounce.ms)
     }
@@ -236,15 +247,22 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     }
 
     if (result.win > 0) {
-      this._ctx.eventBus.emit('win:awarded', {
-        amount: result.win,
-        multiplierX: result.multiplierSum,
-      })
-      await this._overlay.announceWin(result.win, this._ctx.session.lastWager)
+      const wager = this._ctx.session.lastWager
+      for (const tier of manifest.winTiers) {
+        if (result.win >= tier.thresholdX * wager) {
+          bus.emit('le-militare:win:tier:crossed', { thresholdX: tier.thresholdX, win: result.win })
+          break
+        }
+      }
+      bus.emit('win:awarded', { amount: result.win, multiplierX: result.multiplierSum })
+      await this._overlay.announceWin(result.win, wager)
     }
+
+    bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
   }
 
   private async _playCascadeSteps(result: LeMilitareResult): Promise<void> {
+    const bus = this._ctx.eventBus
     this._reelSet.clearAllMultipliers()
 
     // For FREE spins, HUD shows the carry-over multiplier from earlier spins in the session
@@ -253,20 +271,35 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // step has no shootdowns (otherwise the HUD lags until the first multiplier event).
     this._multiplierHud.setValue(currentMultiplier)
 
-    const hasAnyCombatOp = result.steps.some((s) => s.activations.length > 0)
+    if (result.steps.length === 0) {
+      bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
+      return
+    }
+
+    const hasAnyCombatOp = result.steps.some(
+      (s) => s.activations.length > 0 || s.shootdowns.length > 0,
+    )
 
     for (let i = 0; i < result.steps.length; i++) {
       const step = result.steps[i]!
+      bus.emit('le-militare:cascade:step:started', { index: i })
 
       // ── Combat Operation ──────────────────────────────────────────────────
       // Animate S300 column flash then plane shootdowns (in sequence per activation,
       // shootdowns fire in parallel for all planes on this step).
       if (step.activations.length > 0) {
-        void this._mascot.triggerS300Feature()
-        await this._combatOpView.animateActivations(step.activations)
+        const deployPromise = this._mascot.triggerS300Feature()
+        bus.emit('le-militare:mascot:deployed', { stepIndex: i })
+        bus.emit('le-militare:combat:activations:started', { activations: step.activations })
+        // Run activation overlays in parallel with deploy; await both before missiles
+        const activationPromise = this._combatOpView.animateActivations(step.activations)
+        await Promise.all([deployPromise, activationPromise])
+        bus.emit('le-militare:combat:activations:completed', { activations: step.activations })
       }
       if (step.shootdowns.length > 0) {
+        bus.emit('le-militare:combat:shootdowns:started', { shootdowns: step.shootdowns })
         await this._combatOpView.animateShootdowns(step.shootdowns, step.activations, WILD_ID)
+        bus.emit('le-militare:combat:shootdowns:completed', { shootdowns: step.shootdowns })
         for (const sd of step.shootdowns) currentMultiplier += sd.multiplier
         this._multiplierHud.setValue(currentMultiplier)
       }
@@ -277,7 +310,10 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       }
 
       // ── No cluster hits → terminal step ───────────────────────────────────
-      if (step.hits.length === 0) break
+      if (step.hits.length === 0) {
+        bus.emit('le-militare:cascade:step:completed', { index: i })
+        break
+      }
 
       // ── Cluster win highlights ────────────────────────────────────────────
       // Group hits by symbol type so we highlight one symbol group at a time.
@@ -305,11 +341,16 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
           GRID_CONFIG.rows,
         )
       }
+      bus.emit('le-militare:cascade:step:completed', { index: i })
     }
 
     // ── Final grid ────────────────────────────────────────────────────────────
+    // Only set if the last step had no combat ops (which already set the grid inside the loop)
     const lastStep = result.steps[result.steps.length - 1]
-    if (lastStep) {
+    const lastStepHadCombat = lastStep
+      ? lastStep.activations.length > 0 || lastStep.shootdowns.length > 0
+      : false
+    if (lastStep && !lastStepHadCombat) {
       this._reelSet.setSymbols(transposeGrid(lastStep.postCombatGrid))
     }
 
@@ -330,11 +371,33 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // Retract launcher after all animations if it was deployed this spin
     if (hasAnyCombatOp) {
       this._combatOpView.deactivateAllWires()
-      void this._mascot.retractLauncher()
+      // Fire-and-forget retraction — it's slow (1.8s) and non-blocking for the next spin
+      // because retractLauncher serializes via its internal promise chain
+      this._mascot.retractLauncher().catch(() => {
+        // Ignore retraction errors; mascot state resets on next deploy
+      })
+      bus.emit('le-militare:mascot:retracted', { stepIndex: result.steps.length - 1 })
     }
   }
 
   private _wait(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+    const ac = new AbortController()
+    const id = setTimeout(() => {
+      if (!ac.signal.aborted) ac.abort()
+    }, ms)
+    // Stop the timer if destroyed
+    const poll = setInterval(() => {
+      if (this._destroyed) {
+        clearTimeout(id)
+        ac.abort()
+        clearInterval(poll)
+      }
+    }, 100)
+    return new Promise<void>((resolve) => {
+      ac.signal.addEventListener('abort', () => {
+        clearInterval(poll)
+        if (!this._destroyed) resolve()
+      })
+    })
   }
 }

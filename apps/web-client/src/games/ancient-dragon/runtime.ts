@@ -11,6 +11,7 @@ import type {
   AncientDragonResult,
 } from '@tgslots/ancient-dragon'
 import type { AncientDragonSerializedState } from '@tgslots/shared-contracts/states'
+import type { ActionType } from '@tgslots/shared-contracts'
 import { manifest } from './manifest.js'
 import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
 import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
@@ -81,7 +82,7 @@ export class AncientDragonRuntime implements GameRuntime<'ancient-dragon'> {
   }
 
   async presentResult(
-    _action: keyof { spin: unknown; freespin: unknown; state: unknown },
+    _action: ActionType<'ancient-dragon'>,
     result: AncientDragonResult,
   ): Promise<void> {
     switch (result.type) {

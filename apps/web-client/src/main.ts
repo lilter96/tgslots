@@ -1,10 +1,15 @@
 import { Application } from 'pixi.js'
 import { BET_CONFIG as WW_BET_CONFIG, BUY_BONUS_COST_MULTIPLIER } from '@tgslots/woodland-whisper'
 import { BET_CONFIG as AD_BET_CONFIG } from '@tgslots/ancient-dragon'
+import {
+  BET_CONFIG as LM_BET_CONFIG,
+  BUY_BONUS_COST_MULTIPLIER as LM_BUY_BONUS_COST_MULTIPLIER,
+} from '@tgslots/le-militare'
 import { Wager } from '@tgslots/slots-core'
 import type { GameId } from '@tgslots/shared-contracts'
 import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
 import type { AncientDragonSerializedState } from '@tgslots/shared-contracts/states'
+import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
 import { GameStateMachine } from './engine/state-machine.js'
 import { SessionManager } from './engine/session-manager.js'
 import { HUD } from './engine/hud.js'
@@ -29,6 +34,7 @@ import { GameUIState } from './types.js'
 // Import game registrations so declaration-merging activates before any dispatch call
 import './games/woodland-whisper/index.js'
 import './games/ancient-dragon/index.js'
+import './games/le-militare/index.js'
 
 // Empty string → relative URL, forwarded by the Vite dev proxy to :3001.
 // Set VITE_API_URL to an absolute URL in production.
@@ -92,6 +98,7 @@ async function mountGame(gameId: string): Promise<void> {
     session,
     hud,
     sound: soundManager,
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
   } as unknown as Parameters<typeof client.mount>[0]
   const runtime = await client.mount(ctx)
 
@@ -100,7 +107,10 @@ async function mountGame(gameId: string): Promise<void> {
     soundManager.setMapping(client.soundMapping)
   }
 
-  let orchestrator: SpinOrchestrator<'woodland-whisper'> | SpinOrchestrator<'ancient-dragon'>
+  let orchestrator:
+    | SpinOrchestrator<'woodland-whisper'>
+    | SpinOrchestrator<'ancient-dragon'>
+    | SpinOrchestrator<'le-militare'>
   if (gameId === 'ancient-dragon') {
     const d = dispatcher as GameDispatcher<'ancient-dragon'>
     const adActions: OrchestratorActions<'ancient-dragon'> = {
@@ -114,6 +124,23 @@ async function mountGame(gameId: string): Promise<void> {
       runtime as GameRuntime<'ancient-dragon'>,
       eventBus,
       adActions,
+      () => spinSpeed.profile,
+    )
+  } else if (gameId === 'le-militare') {
+    const d = dispatcher as GameDispatcher<'le-militare'>
+    const lmActions: OrchestratorActions<'le-militare'> = {
+      spinCost: (m) => new Wager(m, LM_BET_CONFIG).totalWager,
+      doSpin: (m) => d.dispatch('spin', { multiplier: m }),
+      buyBonusCost: (m) => new Wager(m, LM_BET_CONFIG).totalWager * LM_BUY_BONUS_COST_MULTIPLIER,
+      doBuyBonus: (m) => d.dispatch('buybonus', { multiplier: m }),
+      doFreeSpin: () => d.dispatch('freespin', {}),
+    }
+    orchestrator = new SpinOrchestrator(
+      fsm,
+      session,
+      runtime as GameRuntime<'le-militare'>,
+      eventBus,
+      lmActions,
       () => spinSpeed.profile,
     )
   } else {
@@ -152,6 +179,13 @@ async function mountGame(gameId: string): Promise<void> {
   if (gameId === 'ancient-dragon') {
     const initState = initResponse.state as AncientDragonSerializedState
     runtime.applyState(initState as Parameters<typeof runtime.applyState>[0])
+    orchestrator.resumeFreeSpins().catch(console.error)
+  } else if (gameId === 'le-militare') {
+    const initState = initResponse.state as LeMilitareSerializedState
+    runtime.applyState(initState as Parameters<typeof runtime.applyState>[0])
+    if (initState.lastGrid && runtime.restoreGrid) {
+      runtime.restoreGrid(initState.lastGrid)
+    }
     orchestrator.resumeFreeSpins().catch(console.error)
   } else {
     const initState = initResponse.state as WoodlandWhisperSerializedState

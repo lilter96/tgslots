@@ -72,4 +72,21 @@ describe('deriveFreeCarryOverMultiplier', () => {
   it('returns 0 when no combat ops happened this spin (multiplierSum = 0)', () => {
     expect(deriveFreeCarryOverMultiplier(freeResult(0, 5))).toBe(5)
   })
+
+  it('returns 0 when state is undefined (malformed response)', () => {
+    const r = freeResult(3, 7)
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
+    ;(r as unknown as Record<string, unknown>).state = undefined
+    expect(deriveFreeCarryOverMultiplier(r)).toBe(0)
+  })
+
+  it('returns 0 when sessionMultiplierSum is NaN', () => {
+    const r = freeResult(5, NaN)
+    expect(deriveFreeCarryOverMultiplier(r)).toBe(0)
+  })
+
+  it('clamps negative carry-over to 0', () => {
+    // session is less than current spin — shouldn't happen but guard against it
+    expect(deriveFreeCarryOverMultiplier(freeResult(10, 2))).toBe(0)
+  })
 })

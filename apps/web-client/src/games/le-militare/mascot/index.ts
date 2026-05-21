@@ -23,6 +23,8 @@ export class S300Mascot extends Container {
 
   private _idle: IdleTweens | null = null
   private _isDeployed = false
+  private _deployPromise: Promise<void> | null = null
+  private _retractPromise: Promise<void> | null = null
 
   constructor() {
     super()
@@ -61,37 +63,45 @@ export class S300Mascot extends Container {
   }
 
   getLaunchPoint(): { x: number; y: number } {
-    return computeLaunchPoint(this.masterContainer.x, this.masterContainer.y)
+    return computeLaunchPoint(this.masterContainer.x, this.masterContainer.y, this._isDeployed)
   }
 
   getConnectionPoint(): { x: number; y: number } {
     return computeConnectionPoint(this.masterContainer.x, this.masterContainer.y)
   }
 
-  triggerS300Feature(): Promise<void> {
-    if (this._isDeployed) return Promise.resolve()
+  async triggerS300Feature(): Promise<void> {
+    if (this._isDeployed) return this._deployPromise ?? Promise.resolve()
+    // Wait for any in-progress retraction before deploying
+    if (this._retractPromise) await this._retractPromise
     this._isDeployed = true
     this._killIdle()
 
-    return new Promise<void>((resolve) => {
+    this._deployPromise = new Promise<void>((resolve) => {
       createDeployTimeline(this.masterContainer, this.launcherContainer, () => {
         this._idle = startDeployedIdleTweens(this.masterContainer, this.radarContainer)
+        this._deployPromise = null
         resolve()
       })
     })
+    return this._deployPromise
   }
 
-  retractLauncher(): Promise<void> {
-    if (!this._isDeployed) return Promise.resolve()
+  async retractLauncher(): Promise<void> {
+    if (!this._isDeployed) return this._retractPromise ?? Promise.resolve()
+    // Wait for any in-progress deploy before retracting
+    if (this._deployPromise) await this._deployPromise
     this._isDeployed = false
     this._killIdle()
 
-    return new Promise<void>((resolve) => {
+    this._retractPromise = new Promise<void>((resolve) => {
       createRetractTween(this.launcherContainer, () => {
         this._idle = startIdleTweens(this.masterContainer, this.radarContainer)
+        this._retractPromise = null
         resolve()
       })
     })
+    return this._retractPromise
   }
 
   override destroy(options?: { children?: boolean; texture?: boolean }): void {

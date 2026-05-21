@@ -1,11 +1,12 @@
 import type { LeMilitareResult } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '../modules/le-militare-state.js'
+import type { EmptyPayload } from '@tgslots/shared-contracts/game-registry'
 
 interface LeMilitareActions {
   spin: { multiplier: number }
   buybonus: { multiplier: number }
-  freespin: Record<string, never>
-  state: Record<string, never>
+  freespin: EmptyPayload
+  state: EmptyPayload
 }
 
 declare module './game-registry.js' {

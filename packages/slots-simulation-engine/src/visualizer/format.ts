@@ -9,7 +9,7 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;')
 }
 
-export function escapeJson(value: unknown): string {
+export function escapeJson<T>(value: T): string {
   return JSON.stringify(value).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e')
 }
 

@@ -1,9 +1,11 @@
 import type { LeMilitareResult } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
 import type { IGameClient } from '../../engine/game-client.js'
+import type { EmptyPayload } from '@tgslots/shared-contracts'
 import { manifest } from './manifest.js'
 import { assets } from './assets.js'
 import { LeMilitareRuntime } from './runtime.js'
+import './events.js'
 
 declare module '@tgslots/shared-contracts/game-registry' {
   interface GameRegistry {
@@ -13,8 +15,8 @@ declare module '@tgslots/shared-contracts/game-registry' {
       actions: {
         spin: { multiplier: number }
         buybonus: { multiplier: number }
-        freespin: Record<string, never>
-        state: Record<string, never>
+        freespin: EmptyPayload
+        state: EmptyPayload
       }
     }
   }
@@ -28,6 +30,7 @@ export const leMilitareClient: IGameClient<'le-militare'> = {
       name: 'win-small',
       options: { volume: 0.8 },
     },
+    'le-militare:win:tier:crossed': 'win-big',
     'feature:announced': 'win-big',
   },
   async mount(ctx) {

@@ -27,6 +27,7 @@ describe('WoodlandWhisperRuntime', () => {
   it('does not open pick bonus during applyState for a triggering spin result', () => {
     const eventBus = new GameEventBus()
     const runtime = new WoodlandWhisperRuntime()
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const harness = runtime as unknown as Record<string, unknown>
 
     let setSymbolsCalls = 0
@@ -56,6 +57,7 @@ describe('WoodlandWhisperRuntime', () => {
   it('restores the pending pick bonus only when resumeFeatures is invoked', async () => {
     const eventBus = new GameEventBus()
     const runtime = new WoodlandWhisperRuntime()
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const harness = runtime as unknown as Record<string, unknown>
     const state = makePickBonusState()
 

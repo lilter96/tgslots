@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js'
+import { gsap } from 'gsap'
 import type { DestroyOptions } from 'pixi.js'
 import type { GameEventBus } from '../../engine/event-bus.js'
 import type { GameStateMachine } from '../../engine/state-machine.js'
@@ -8,6 +9,7 @@ import { isBuyBonusEnabled, formatBuyBonusCostLabel } from './helpers/buy-bonus-
 const CONTROL_W = 120
 const CONTROL_H = 60
 const TITLE_TEXT = 'BUY BONUS'
+const DEBOUNCE_MS = 500
 
 export class BuyBonusControl extends Container {
   private readonly _background = new Graphics()
@@ -25,6 +27,7 @@ export class BuyBonusControl extends Container {
 
   private _freeSpinsRemaining = 0
   private _isAutoSpin = false
+  private _lastClickTime = 0
 
   constructor(eventBus: GameEventBus, fsm: GameStateMachine, costMultiplier: number) {
     super()
@@ -34,7 +37,7 @@ export class BuyBonusControl extends Container {
       style: {
         fontFamily: 'serif',
         fill: '#d4af37',
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: '700',
       },
     })
@@ -55,7 +58,10 @@ export class BuyBonusControl extends Container {
     )
 
     this.on('pointerdown', () => {
-      if (!this.eventMode || this.eventMode !== 'static') return
+      if (this.eventMode === 'none') return
+      const now = performance.now()
+      if (now - this._lastClickTime < DEBOUNCE_MS) return
+      this._lastClickTime = now
       eventBus.emit('buy-bonus:requested', {})
     })
   }
@@ -86,15 +92,18 @@ export class BuyBonusControl extends Container {
       freeSpinsRemaining: this._freeSpinsRemaining,
     })
 
-    this.alpha = enabled ? 1 : 0.45
+    const targetAlpha = enabled ? 1 : 0.55
     this.eventMode = enabled ? 'static' : 'none'
+    this.cursor = enabled ? 'pointer' : 'default'
+    gsap.killTweensOf(this)
+    gsap.to(this, { alpha: targetAlpha, duration: 0.2 })
     this._drawBackground(enabled)
   }
 
   private _drawBackground(enabled: boolean): void {
     this._background.clear()
     this._background.roundRect(0, 0, CONTROL_W, CONTROL_H, 4)
-    this._background.fill(enabled ? 0xc41e1e : 0x4a1010)
+    this._background.fill(enabled ? 0xc41e1e : 0x3a1a1a)
     this._background.stroke({ width: 2, color: 0xd4af37 })
   }
 }

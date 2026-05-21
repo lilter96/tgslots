@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-restricted-types -- branded Array1<T> requires unknown as an intermediate cast; no safe alternative */
 // ─── Array1<T> — Compile-time non-empty array guarantee ─────────────────────
 
 export type Array1<T> = readonly [T, ...T[]]

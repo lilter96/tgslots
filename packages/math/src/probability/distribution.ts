@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-restricted-types -- distribution CE (computation expressions) requires unknown for heterogeneous generator yield types; no safe alternative */
 import type { Rng } from '../rng'
 import { Either } from '../functional/either.js'
 import { Array1 } from '../functional/array1.js'

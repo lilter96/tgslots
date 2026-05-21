@@ -5,10 +5,10 @@ export type Either<L, R> =
   | { readonly tag: 1; readonly value: R } // Right
 
 export const Either = {
-  left<L, R = never>(value: L): Either<L, R> {
+  left<L, R = void>(value: L): Either<L, R> {
     return { tag: 0, value }
   },
-  right<L = never, R = unknown>(value: R): Either<L, R> {
+  right<L = void, R = void>(value: R): Either<L, R> {
     return { tag: 1, value }
   },
   match<L, R, A>(e: Either<L, R>, onLeft: (l: L) => A, onRight: (r: R) => A): A {

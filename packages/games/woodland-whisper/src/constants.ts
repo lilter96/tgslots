@@ -76,6 +76,7 @@ export const STRIP_STRINGS: readonly string[][] = [
 
 // ─── Feature Config ────────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PICK_BONUS_TABLE = config.feature.pick_bonus as unknown as readonly (readonly [
   number,
   number,

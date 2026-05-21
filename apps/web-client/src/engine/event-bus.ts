@@ -1,4 +1,5 @@
 import type { Unsubscribe } from './signal.js'
+import type { EmptyPayload } from '@tgslots/shared-contracts'
 
 export interface GameEventMap {
   'win:awarded': { amount: number; multiplierX: number }
@@ -8,11 +9,11 @@ export interface GameEventMap {
   'free-spins:updated': { remaining: number; awarded?: number }
   'auto-spin:updated': { active: boolean; remaining: number }
   'pick-card-selected': { index: number }
-  'buy-bonus:requested': Record<string, never>
+  'buy-bonus:requested': EmptyPayload
   'error:api': { message: string }
 
   // Audio specific events
-  'spin:started': Record<string, never>
+  'spin:started': EmptyPayload
   'reel:stopped': { reelIndex: number; isLast: boolean }
   'feature:announced': { type: 'bonus' | 'free-spins' }
   'pick:card:revealed': { index: number; value: number }
@@ -39,7 +40,13 @@ export class GameEventBus {
   emit<K extends GameEventType>(event: K, payload: GameEventMap[K]): void {
     const set = this._listeners.get(event)
     if (!set) return
-    for (const fn of set) fn(payload)
+    for (const fn of set) {
+      try {
+        fn(payload)
+      } catch (err) {
+        console.error(`[EventBus] Listener for "${event}" threw:`, err)
+      }
+    }
   }
 
   clearAll(): void {

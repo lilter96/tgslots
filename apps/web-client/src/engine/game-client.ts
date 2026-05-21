@@ -32,6 +32,8 @@ export interface GameRuntime<G extends GameId> {
   destroy(): void
   /** Optional: resume any active feature (e.g. pick bonus) after a session restore. */
   resumeFeatures?(): Promise<void>
+  /** Optional: restore the visual grid from a persisted lastGrid (session restore). */
+  restoreGrid?(grid: number[][]): void
 }
 
 export interface IGameClient<G extends GameId> {

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'bun:test'
-import type { GameId, ActionType, ActionPayload, GameState, GameResult } from '../game-registry'
+import type {
+  GameId,
+  ActionType,
+  ActionPayload,
+  GameState,
+  GameResult,
+  EmptyPayload,
+} from '../game-registry'
 
 // Local augmentation for type-contract verification.
 // Excluded from the root tsconfig (*.test.ts) so it doesn't pollute the production type graph.
@@ -10,7 +17,7 @@ declare module '../game-registry' {
       result: { type: 'base'; win: number }
       actions: {
         roll: { multiplier: number }
-        reset: Record<string, never>
+        reset: EmptyPayload
       }
     }
   }

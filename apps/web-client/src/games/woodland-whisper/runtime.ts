@@ -19,6 +19,7 @@ import type {
 import { BUY_BONUS_COST_MULTIPLIER } from '@tgslots/woodland-whisper'
 import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
 import type { WWPickBonusSerialized } from '@tgslots/shared-contracts/states'
+import type { ActionType } from '@tgslots/shared-contracts'
 import { deriveAwardedFreeSpins } from './free-spins-helpers.js'
 import { manifest } from './manifest.js'
 import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
@@ -124,13 +125,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   }
 
   async presentResult(
-    _action: keyof {
-      spin: unknown
-      buybonus: unknown
-      freespin: unknown
-      pick: unknown
-      state: unknown
-    },
+    _action: ActionType<'woodland-whisper'>,
     result: WoodlandWhisperResult,
   ): Promise<void> {
     switch (result.type) {

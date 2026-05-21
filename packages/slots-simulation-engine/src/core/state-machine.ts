@@ -791,7 +791,7 @@ export const Metrics = {
   },
 }
 
-export interface StateMachine<TResult extends SpinResult, TState = unknown> {
+export interface StateMachine<TResult extends SpinResult, TState = object> {
   readonly state: TState
 
   spin(rng: Rng, wager: Wager): TResult

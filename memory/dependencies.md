@@ -34,6 +34,11 @@ apps/simulations
   ├── @tgslots/slots-core            (slot engine, scatter engine, betting, projected grid)
   └── @tgslots/slots-simulation-engine (StateMachine and SpinResult types)
 
+@tgslots/le-militare
+  ├── @tgslots/math                  (Rng, Sampler, SamplingPlan, Array1)
+  ├── @tgslots/slots-core            (createClusterSlotEngine, MutableCascadeGrid, evaluateClusters, collectVanishPositions, BetConfiguration, Wager)
+  └── @tgslots/slots-simulation-engine (StateMachine, SpinResult, DataCollector, RoundMetricsSnapshot types)
+
 @tgslots/slots-simulation-engine
   ├── @tgslots/math                  (Rng type)
   ├── @tgslots/slots-core            (BetConfiguration, Wager)
@@ -51,7 +56,7 @@ apps/simulations
 ```
 Layer 0 (foundation):  @tgslots/math
 Layer 1 (core):        @tgslots/slots-core
-Layer 2 (games):       @tgslots/ancient-dragon, @tgslots/woodland-whisper
+Layer 2 (games):       @tgslots/ancient-dragon, @tgslots/woodland-whisper, @tgslots/le-militare
 Layer 2 (infra):       @tgslots/slots-simulation-engine
 Layer 3 (apps):        apps/api, apps/simulations, apps/web-client
 ```

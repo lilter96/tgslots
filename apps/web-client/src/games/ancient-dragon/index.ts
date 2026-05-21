@@ -1,6 +1,7 @@
 import type { AncientDragonResult } from '@tgslots/ancient-dragon'
 import type { AncientDragonSerializedState } from '@tgslots/shared-contracts/states'
 import type { IGameClient } from '../../engine/game-client.js'
+import type { EmptyPayload } from '@tgslots/shared-contracts'
 import { manifest } from './manifest.js'
 import { assets } from './assets.js'
 import { AncientDragonRuntime } from './runtime.js'
@@ -12,8 +13,8 @@ declare module '@tgslots/shared-contracts/game-registry' {
       result: AncientDragonResult
       actions: {
         spin: { multiplier: number }
-        freespin: Record<string, never>
-        state: Record<string, never>
+        freespin: EmptyPayload
+        state: EmptyPayload
       }
     }
   }

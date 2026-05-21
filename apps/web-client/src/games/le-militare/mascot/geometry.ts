@@ -6,11 +6,22 @@ import {
   CONNECTION_ANCHOR_Y,
 } from './design.js'
 
-/** Missile launch point in the mascot's local space (tip of deployed launcher). */
-export function computeLaunchPoint(masterX: number, masterY: number): { x: number; y: number } {
+/** Missile launch point in the mascot's local space. */
+export function computeLaunchPoint(
+  masterX: number,
+  masterY: number,
+  isDeployed = true,
+): { x: number; y: number } {
+  if (isDeployed) {
+    return {
+      x: masterX + LAUNCHER_HINGE_X,
+      y: masterY + LAUNCHER_HINGE_Y - LAUNCHER_LEN,
+    }
+  }
+  // Undeployed: launcher points right
   return {
-    x: masterX + LAUNCHER_HINGE_X,
-    y: masterY + LAUNCHER_HINGE_Y - LAUNCHER_LEN,
+    x: masterX + LAUNCHER_HINGE_X + LAUNCHER_LEN,
+    y: masterY + LAUNCHER_HINGE_Y,
   }
 }
 

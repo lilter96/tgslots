@@ -1,5 +1,6 @@
 import { Container, Graphics } from 'pixi.js'
 import { gsap } from 'gsap'
+import type { GameEventBus } from '../../../engine/event-bus.js'
 import { ANIMATION_CONFIG } from '../animation-config.js'
 import { explode } from './explosion.js'
 import { playBadge } from './badge.js'
@@ -95,8 +96,7 @@ export interface FireMissileParams {
   row: number
   multiplier: number
   wildId: number
-  onTransform: (reel: number, row: number, wildId: number) => void
-  onMultiplierStick: (reel: number, row: number, multiplier: number, badge: Container) => void
+  bus: GameEventBus
 }
 
 export async function fireMissile(p: FireMissileParams): Promise<void> {
@@ -145,7 +145,7 @@ export async function fireMissile(p: FireMissileParams): Promise<void> {
   parent.removeChild(missile)
   missile.destroy({ children: true })
 
-  p.onTransform(reel, row, wildId)
+  p.bus.emit('le-militare:symbol:transform', { reel, row, newSymbolId: wildId })
 
   void (async () => {
     await new Promise<void>((r) => {
@@ -168,6 +168,6 @@ export async function fireMissile(p: FireMissileParams): Promise<void> {
 
   await Promise.all([
     explode(parent, tx, ty, sw),
-    playBadge(parent, tx, ty, multiplier, sh, reel, row, p.onMultiplierStick),
+    playBadge(parent, tx, ty, multiplier, sh, reel, row, p.bus),
   ])
 }

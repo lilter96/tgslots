@@ -310,7 +310,9 @@ describe('SpinOrchestrator', () => {
       const originalSetTimeout = globalThis.setTimeout
       globalThis.setTimeout = ((_handler: TimerHandler, timeout?: number) => {
         delays.push(timeout ?? 0)
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
         return 0 as unknown as ReturnType<typeof setTimeout>
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
       }) as unknown as typeof setTimeout
 
       try {

@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
+import type { GameEventBus } from '../../../engine/event-bus.js'
 import { ANIMATION_CONFIG } from '../animation-config.js'
 
 const BADGE_STYLE_OPTS = {
@@ -25,14 +26,17 @@ export async function playBadge(
   sh: number,
   reel: number,
   row: number,
-  onStick: (reel: number, row: number, multiplier: number, badge: Container) => void,
+  bus: GameEventBus,
 ): Promise<void> {
   const badge = new Container()
+  const label = `×${multiplier}`
+  // Scale badge width for large multipliers
+  const badgeW = Math.max(76, label.length * 18 + 12)
   const bg = new Graphics()
-  bg.roundRect(-38, -22, 76, 44, 11)
+  bg.roundRect(-badgeW / 2, -22, badgeW, 44, 11)
   bg.fill({ color: 0x0a0a0a, alpha: 0.92 })
   bg.stroke({ color: 0xd4af37, width: 2.5 })
-  const txt = new Text({ text: `×${multiplier}`, style: BADGE_STYLE_OPTS })
+  const txt = new Text({ text: label, style: BADGE_STYLE_OPTS })
   txt.anchor.set(0.5)
   badge.addChild(bg)
   badge.addChild(txt)
@@ -54,21 +58,24 @@ export async function playBadge(
       },
     })
 
+    // Drift upward for a "rising prize" feel
     gsap.to(badge, {
-      y: cy - sh * 0.1,
+      y: cy - sh * 0.22,
       duration: ANIMATION_CONFIG.BADGE_DRIFT_DURATION_S,
       delay: ANIMATION_CONFIG.BADGE_DRIFT_DELAY_S,
       ease: 'power2.out',
       onComplete: () => {
-        if (parent.destroyed) {
-          badge.destroy({ children: true })
-          resolve()
-          return
+        const isDestroyed = parent.destroyed
+        if (!isDestroyed) {
+          parent.removeChild(badge)
+          gsap.killTweensOf(badge)
+          gsap.killTweensOf(badge.scale)
         }
-        parent.removeChild(badge)
-        gsap.killTweensOf(badge)
-        gsap.killTweensOf(badge.scale)
-        onStick(reel, row, multiplier, badge)
+        // Always emit so the handler cleans up the badge regardless
+        bus.emit('le-militare:multiplier:stick', { reel, row, multiplier, badge })
+        if (isDestroyed) {
+          badge.destroy({ children: true })
+        }
         resolve()
       },
     })

@@ -51,9 +51,11 @@ export class MultiplierHud extends Container {
   }
 
   public setValue(value: number) {
-    const targetValue = Math.max(1, value)
+    const safe = Number.isFinite(value) ? value : 1
+    const targetValue = Math.max(1, Math.round(safe))
     if (this._currentValue === targetValue) return
 
+    gsap.killTweensOf(this.scale)
     gsap.to(this.scale, {
       x: 1.2,
       y: 1.2,
