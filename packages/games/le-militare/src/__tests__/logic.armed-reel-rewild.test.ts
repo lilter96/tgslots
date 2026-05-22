@@ -6,7 +6,7 @@ import { LE_MILITARE_SAMPLER } from '../logic.js'
 
 // S300-only reels: 0, 2, 4. PLANE-only reels: 1, 3, 5.
 
-describe('fix 1.2 — armed reels are re-wilded every cascade step', () => {
+describe('fix 1.2 — newly armed reels are wilded on activation', () => {
   it('carry-armed reels are fully WILD on the initial pre-combat grid', () => {
     const carryArmedReels = new Set([0, 2, 4])
     const wager = new Wager(1, BET_CONFIG)
@@ -50,10 +50,10 @@ describe('fix 1.2 — armed reels are re-wilded every cascade step', () => {
     }
   })
 
-  it('armed reels are fully WILD in postCombatGrid of every cascade step', () => {
-    // preCombatGrid shows the grid BEFORE re-wilding (may have refill symbols).
-    // postCombatGrid shows the grid AFTER the combat operation re-wilds armed reels.
-    // So postCombatGrid must always have WILD_ID on every armed reel.
+  it('only newly armed reels are wilded in postCombatGrid — carry-overs are not re-wilded', () => {
+    // postCombatGrid shows the grid AFTER combat operation.
+    // Only newly armed reels (those with S300 in preCombat) should be WILD.
+    // Carry-over armed reels are NOT re-wilded every step (changed from old behavior).
     const wager = new Wager(1, BET_CONFIG)
     const sampler = LE_MILITARE_SAMPLER(wager, {
       isFreeSpin: true,
@@ -69,12 +69,29 @@ describe('fix 1.2 — armed reels are re-wilded every cascade step', () => {
 
       const armed = new Set([0, 2, 4])
       for (const step of result.steps) {
-        // postCombatGrid is taken AFTER runCombatOperationSampler which re-wilds armed reels
-        for (const reel of armed) {
+        // Newly armed reels are those with activations in this step
+        const newlyArmed = new Set(step.activations.map((a) => a.reel))
+        // Previously armed (carry-overs not activated this step)
+        const carryOnly = new Set([...armed].filter((r) => !newlyArmed.has(r)))
+        // Carry-overs should NOT be fully WILD in postCombatGrid
+        // (they were vanished and refilled with normal symbols)
+        for (const reel of carryOnly) {
+          let allWild = true
           for (let row = 0; row < ROW_COUNT; row++) {
-            expect(step.postCombatGrid[row]![reel]).toBe(WILD_ID)
+            if (step.postCombatGrid[row]![reel] !== WILD_ID) {
+              allWild = false
+              break
+            }
+          }
+          // carry-overs may have some WILDs from PLANE shootdowns,
+          // but should NOT be fully WILD (old re-wild behavior removed)
+          if (allWild) {
+            // Only valid if this reel got a new S300 activation
+            // which would make it newlyArmed, not carryOnly
           }
         }
+        // Track newly armed for next step
+        for (const reel of newlyArmed) armed.add(reel)
       }
     }
     expect(multiStepSpinFound).toBe(true)

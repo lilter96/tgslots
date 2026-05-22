@@ -217,11 +217,14 @@ function runCombatOperationSampler(
       activations.push({ reel, convertedCells: ROW_COUNT })
     }
 
-    // FIX 1.2: re-wild ALL armed reels (new + pre-existing carry-overs).
-    // Cascade refill may have deposited non-wild symbols onto armed reels;
-    // this pass ensures every armed reel stays fully wild every step.
-    // Armed-reel cells are never sticky — the whole reel is wild unconditionally.
-    for (const reel of armedReels) {
+    // FIX 1.2: only newly armed reels are wilded (once, on activation).
+    // Previously all armed reels were re-wilded every cascade step, which
+    // guaranteed a permanent WILD column and forced cascades to 100 steps.
+    // Now armed reels persist for tracking (S300 ignored, PLANE shootdowns
+    // still fire) but their cells vanish and refill normally.
+    // In free spins, carry-armed reels are wilded once at spin start via
+    // createSpinSampler's paint step.
+    for (const reel of newArmedReels) {
       for (let row = 0; row < ROW_COUNT; row++) {
         grid.setSymbol(reel, row, WILD_ID)
         stickyGrid[reel]![row] = false

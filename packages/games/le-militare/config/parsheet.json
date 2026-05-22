@@ -8,7 +8,7 @@
     {
       "id": "total-rtp",
       "label": "Total RTP",
-      "expected": 0.962,
+      "expected": 0.984,
       "source": { "kind": "summary", "key": "rtp" },
       "tolerance": { "type": "absolute", "value": 0.015 },
       "format": "percent"
@@ -37,7 +37,7 @@
     {
       "id": "basic-game-rtp",
       "label": "Base Game RTP",
-      "expected": 0.70,
+      "expected": 0.721,
       "source": {
         "kind": "scope",
         "scope": ["base-game"],
@@ -50,7 +50,7 @@
     {
       "id": "feature-rtp",
       "label": "Feature (Free Spins) RTP",
-      "expected": 0.262,
+      "expected": 0.263,
       "source": {
         "kind": "scope",
         "scope": ["features", "free-spins"],

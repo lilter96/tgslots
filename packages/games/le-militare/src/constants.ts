@@ -74,7 +74,7 @@ export const BUY_BONUS_COST_MULTIPLIER: number = config.buy_bonus_cost_multiplie
 
 // ─── Multiplier Pool ───────────────────────────────────────────────────────
 
-export const MULTIPLIER_POOL = [2, 3, 5, 10, 25, 50, 100, 500] as const
+export const MULTIPLIER_POOL = config.multiplier_pool.values as readonly number[]
 export const MULTIPLIER_POOL_WEIGHTS: readonly (readonly [number, number])[] = MULTIPLIER_POOL.map(
   (val, i) => [val, config.multiplier_pool.weights[i]!] as const,
 )

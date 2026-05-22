@@ -7,10 +7,10 @@ describe('multiplierSampler', () => {
   it('returns values from the multiplier pool', () => {
     const rng = mt19937(42)
     const results = new Set<number>()
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 1000; i++) {
       results.add(multiplierSampler.sample(rng))
     }
-    for (const v of [2, 3, 5, 10]) {
+    for (const v of [2, 3, 5]) {
       expect(results.has(v)).toBe(true)
     }
   })
