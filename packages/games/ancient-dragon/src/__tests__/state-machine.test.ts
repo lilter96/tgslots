@@ -1,30 +1,23 @@
 import { describe, expect, it } from 'bun:test'
-import { mt19937 } from '@tgslots/math/rng/mt19937'
-import { Wager } from '@tgslots/slots-core/betting'
+import { SlotsTestEngine } from '@tgslots/slots-simulation-engine/testing/slots-test-engine'
 import { BET_CONFIG } from '../constants.js'
-import type {
-  AncientDragonBaseResult,
-  AncientDragonFreeResult,
-  AncientDragonState,
-} from '../game-state-machine.js'
+import type { AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
 import { AncientDragonStateMachine } from '../game-state-machine.js'
 
 describe('AncientDragonStateMachine', () => {
-  it('should transition from BASE to FREE', () => {
-    // Seed chosen to eventually trigger free spins or we'll just test the methods
-    const rng = mt19937(123)
-    const sm = new AncientDragonStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+  const engine = new SlotsTestEngine(AncientDragonStateMachine, BET_CONFIG)
 
-    // 1. Base Spin
-    const baseResult = sm.spin(rng, wager) as AncientDragonBaseResult
+  it('should transition from BASE to FREE', () => {
+    const seed = engine.findSeed((r) => (r as AncientDragonBaseResult).triggeredFreeSpins)
+    const { sm, rng, result } = engine.runSpin({ seed: seed ?? 123 })
+
+    const baseResult = result as AncientDragonBaseResult
     expect(baseResult.type).toBe('BASE')
     expect(baseResult.sc).toBeDefined()
     expect(baseResult.grid).toHaveLength(5)
     expect(baseResult.grid[0]).toHaveLength(3)
     expect(Array.isArray(baseResult.hits)).toBe(true)
 
-    // 2. If triggered, check next()
     if (baseResult.triggeredFreeSpins) {
       expect(sm.state.freeSpins).not.toBeNull()
       const fsResult = sm.next(rng) as AncientDragonFreeResult
@@ -35,21 +28,15 @@ describe('AncientDragonStateMachine', () => {
   })
 
   it('should be recoverable from state', () => {
-    const sm = new AncientDragonStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-
-    const state: AncientDragonState = {
+    const sm = engine.createMachine({
       freeSpins: {
-        triggeringWager: wager,
+        triggeringWager: engine.wager(),
         totalWin: 500,
         spinsRemaining: 5,
       },
-    }
+    })
 
-    // @ts-expect-error: accessing private property for state injection in test
-    sm._state = state
-
-    const rng = mt19937(42)
+    const rng = engine.rng(42)
     const fsResult = sm.next(rng) as AncientDragonFreeResult
     expect(fsResult?.type).toBe('FREE')
     expect(sm.state.freeSpins?.spinsRemaining).toBe(4)
