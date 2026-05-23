@@ -11,14 +11,11 @@ import {
   BET_CONFIG,
   FREE_SPIN_MULTIPLIER,
   INNER_WEIGHTS,
-  PICK_BONUS_TABLE,
   SCATTER_PAY,
   STRIP_STRINGS,
   Symbols,
 } from './constants.js'
 
-// COIN is never a REPLACEMENT symbol, so scatter positions are invariant across
-// all resolved strip variants — precompute once from the raw string strips.
 const _scatterStrips = STRIP_STRINGS.map((stripStr) => {
   const n = stripStr.length
   const arr = new Uint8Array(n + 2)
@@ -80,8 +77,6 @@ function evaluateWithWager(
   }
 }
 
-// ─── Encoding ──────────────────────────────────────────────────────────────
-
 const INT_STRIPS = STRIP_STRINGS.map((strip) => {
   const arr = new Uint8Array(strip.length)
   strip.forEach((s, i) => (arr[i] = Symbols[s as keyof typeof Symbols]!))
@@ -113,117 +108,9 @@ const POS_SAMPLERS = REEL_SIZES.map(
   (size) => new Sampler(SamplingPlan.draw(0, size), (rng: Rng) => rng(0, size)),
 )
 
-export const ballSampler = Sampler.fromWeighted(Array1.unsafeFromArray(PICK_BONUS_TABLE))
+import { generatePickBonus, pickBonusSampler } from './pick-bonus.js'
 
-const createPickUntilRepeatSampler = (seen: readonly number[] = []): Sampler<number> =>
-  ballSampler.flatMap((ball) => {
-    if (seen.includes(ball)) {
-      return Sampler.pure(ball)
-    }
-    return createPickUntilRepeatSampler([...seen, ball])
-  })
-
-export const pickBonusSampler = createPickUntilRepeatSampler()
-
-/**
- * Creates a Sampler for the pick sequence given a result value.
- * We sample unique balls according to weights until winValue repeat is reached.
- */
-function createPickSequenceValuesSampler(
-  winValue: number,
-  seen: readonly number[] = [],
-): Sampler<number[]> {
-  return ballSampler.flatMap((val) => {
-    if (seen.includes(val)) {
-      if (val === winValue) {
-        return Sampler.pure([...seen, val])
-      }
-      // Force winValue to be the first repeat.
-      return createPickSequenceValuesSampler(winValue, seen)
-    }
-    return createPickSequenceValuesSampler(winValue, [...seen, val])
-  })
-}
-
-/**
- * Sampler that produces a sequence of swaps for a Fisher-Yates shuffle.
- */
-function shuffleSwapsSampler(length: number): Sampler<number[]> {
-  const indices: number[] = []
-  for (let i = length - 1; i > 0; i--) {
-    indices.push(i)
-  }
-  return Sampler.traverse(
-    indices,
-    (i) => new Sampler(SamplingPlan.draw(0, i + 1), (rng) => rng(0, i + 1)),
-  )
-}
-
-/**
- * Generates a full pick bonus state given the winValue from the sampler.
- * Resulting board and sequence are used for step-by-step picking.
- */
-export function generatePickBonus(winValue: number): Sampler<{
-  board: number[]
-  pickSequence: number[]
-}> {
-  return createPickSequenceValuesSampler(winValue).flatMap((pickSequenceValues) => {
-    const distinctValues = PICK_BONUS_TABLE.map(([val]) => val)
-    const initialBoard: number[] = []
-    for (const val of distinctValues) {
-      initialBoard.push(val, val)
-    }
-
-    return shuffleSwapsSampler(initialBoard.length).flatMap((boardSwaps) => {
-      const board = [...initialBoard]
-      boardSwaps.forEach((j, offset) => {
-        const i = initialBoard.length - 1 - offset
-        const temp = board[i]!
-        board[i] = board[j]!
-        board[j] = temp
-      })
-
-      const valToIndices = new Map<number, number[]>()
-      board.forEach((val, idx) => {
-        if (!valToIndices.has(val)) valToIndices.set(val, [])
-        valToIndices.get(val)!.push(idx)
-      })
-
-      // We have 10 distinct values, each with 2 indices.
-      // We sample a single bit for each to decide if we swap the indices.
-      const indexShuffles = Sampler.traverse(
-        Array.from(valToIndices.keys()),
-        () => new Sampler(SamplingPlan.draw(0, 2), (rng) => rng(0, 2)),
-      )
-
-      return indexShuffles.map((swaps) => {
-        const keys = Array.from(valToIndices.keys())
-        const finalValToIndices = new Map<number, number[]>()
-        keys.forEach((key, i) => {
-          const indices = [...valToIndices.get(key)!]
-          if (swaps[i] === 1) {
-            const temp = indices[0]!
-            indices[0] = indices[1]!
-            indices[1] = temp
-          }
-          finalValToIndices.set(key, indices)
-        })
-
-        const pickSequence: number[] = []
-        const usedCount = new Map<number, number>()
-        for (const val of pickSequenceValues) {
-          const count = usedCount.get(val) ?? 0
-          const indices = finalValToIndices.get(val)
-          if (!indices) throw new Error(`Value ${val} not found in board`)
-          pickSequence.push(indices[count]!)
-          usedCount.set(val, count + 1)
-        }
-
-        return { board, pickSequence }
-      })
-    })
-  })
-}
+export { generatePickBonus }
 
 function withPickBonus(
   base: Sampler<{
@@ -280,10 +167,6 @@ function createBuyBonusSampler(wager: Wager): Sampler<SpinEvaluationResult> {
 export const BUY_BONUS_SAMPLER = (wager: Wager): Sampler<SpinEvaluationResult> =>
   createBuyBonusSampler(wager)
 
-/**
- * Sampler for the initial screen.
- * Generates a random grid that is guaranteed to have NO wins and < 2 scatters.
- */
 function createInitialGridSampler(): Sampler<SpinEvaluationResult> {
   const defaultWager = new Wager(1, BET_CONFIG)
   const baseSampler = innerSampler.flatMap((repSym) => {
@@ -297,8 +180,6 @@ function createInitialGridSampler(): Sampler<SpinEvaluationResult> {
     if (result.win === 0 && result.sc < 2) {
       return Sampler.pure({ ...result, pickedBonus: 0 })
     }
-    // Retry if it's a winning grid or has too many scatters.
-    // In practice, non-winning grids are very common, so this is efficient.
     return createInitialGridSampler()
   })
 }

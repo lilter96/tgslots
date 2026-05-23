@@ -9,11 +9,9 @@ import type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 import { engine } from './engine.js'
 import { INNER_WEIGHTS, SCATTER_PAY, STRIP_STRINGS, Symbols } from './constants.js'
 
-// YINYANG is never an INNER replacement, so scatter positions are invariant across
-// all resolved strip variants — precompute once from the raw string strips.
 const _scatterStrips = STRIP_STRINGS.map((stripStr) => {
   const n = stripStr.length
-  const r = new Uint8Array(n + 2) // 3 rows visible means we need n+2 to read at position n-1
+  const r = new Uint8Array(n + 2)
   for (let i = 0; i < n; i++) r[i] = Symbols[stripStr[i] as keyof typeof Symbols]!
   r[n] = r[0]!
   r[n + 1] = r[1]!
@@ -22,7 +20,7 @@ const _scatterStrips = STRIP_STRINGS.map((stripStr) => {
 const scatterEngine = new PrecomputedScatterEngine(
   { symbolId: Symbols.YINYANG!, payouts: [...SCATTER_PAY] },
   _scatterStrips,
-  3, // Ancient Dragon is 5x3
+  3,
 )
 
 export interface SpinEvaluationResult {
@@ -42,7 +40,6 @@ function evaluateWithWager(
   const lineResult = evaluateSpin(projected, engine)
   const scatterResult = scatterEngine.evaluateAtPositions(positions, 1)
 
-  // Line wins: base * creditsPerLine; Scatter wins: base * totalWager
   const lineWin = lineResult.totalWin * wager.creditsPerLine
   const scatterWin = scatterResult.win * wager.totalWager
 
