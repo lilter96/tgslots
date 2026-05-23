@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure
-`tgslots` is a Bun-based TypeScript monorepo. Shared logic lives in `packages/`: `math`, `slots-core`, `slots-simulation-engine`, and `shared-contracts`. Game packages live in `packages/games/`. Apps live in `apps/` (api, simulations, web-client, marketing).
+`tgslots` is a Bun-based TypeScript monorepo. Shared logic lives in `packages/`: `math`, `slots-core`, `slots-simulation-engine`, `shared-contracts`, and `asset-pipeline`. Game packages live in `packages/games/`. Apps live in `apps/` (api, simulations, web-client, marketing).
 
 ## Memory
 Before non-trivial tasks, read `memory/index.md` and `memory/active_context.md`. Architectural decisions live in `memory/decisions/`. Memory stores only what code cannot tell you: ADRs and current work context. If `ls`, `grep`, or `git log` can answer it, it doesn't belong in memory.
@@ -12,7 +12,11 @@ When you make a change that alters a design choice, add an ADR to `memory/decisi
 - `bun install`: install workspace dependencies
 - `bun run build`: runs each workspace `build` script and validates TypeScript compilation
 - `bun run typecheck`: checks the root TS graph with `tsc --noEmit`
-- `bun run lint`: runs ESLint across the repo
+- `bun run eslint:lint`: runs ESLint across the repo
+- `bun run eslint:fix`: auto-fix lint issues
+- `bun run validate`: runs typecheck, lint, and tests (full CI check)
+- `bun run setup`: install deps and build all workspaces (first-time setup)
+- `bun run dev:api` / `dev:client` / `dev:marketing`: start individual dev servers
 - `bun test`: runs Bun tests across packages with test files
 - `bun --filter @tgslots/math test`: run tests for a single workspace
 - `bun --filter @tgslots/simulations run sim -- --game ancient-dragon`: run a simulation
@@ -39,7 +43,7 @@ When you make a change that alters a design choice, add an ADR to `memory/decisi
 - Services must be stateless (pure functions or classes with no mutable fields)
 - Dependency injection preferred over direct imports of singletons
 - No hidden coupling between packages — only explicit imports
-- Each package exports from a single `src/index.ts` barrel
+- Packages export from a single `src/index.ts` barrel (math, slots-simulation-engine, shared-contracts) or from individual modules (slots-core)
 
 ### Hot Path Rules (evaluation + sampling)
 - Use integer symbol IDs, never string comparisons in payline evaluation
@@ -125,11 +129,20 @@ Engine auto-emits at root: `rounds` (count), `round-rtp` (rtp), `round-win-amoun
 1. `@tgslots/slots-core` — payline/scatter evaluation, symbol registry, slot engine
 2. `@tgslots/ancient-dragon` — sampler logic and state machine
 3. `@tgslots/woodland-whisper` — sampler logic and state machine
-4. `@tgslots/slots-simulation-engine` — scoped metrics merge/finalize, comparisons, runner, CLI parsing
-5. Expand property/statistical checks where math primitives already have baseline coverage
+4. `@tgslots/le-militare` — sampler logic and state machine
+5. `@tgslots/slots-simulation-engine` — scoped metrics merge/finalize, comparisons, runner, CLI parsing
+6. Expand property/statistical checks where math primitives already have baseline coverage
 
 ## Code Quality
-Prettier enforces 2-space indentation, single quotes, trailing commas, no semicolons, `printWidth: 100`. ESLint runs via `bun run lint`. Husky + lint-staged run `eslint:fix` on staged files pre-commit.
+Prettier enforces 2-space indentation, single quotes, trailing commas, no semicolons, `printWidth: 100`. ESLint (flat config at `eslint.config.js`) runs via `bun run eslint:lint`. Husky + lint-staged run `bun run eslint:fix` on staged files pre-commit.
+
+## Subagent Automation
+After a meaningful edit (new logic, config change, API route, test file), run the relevant subagent(s) in the background without waiting for the user to ask. Match the agent to the domain:
+- Edited `logic.ts`, `samplers.ts`, or evaluation code → `perf-reviewer`
+- Added exported functions/modules → `test-coverage-auditor`
+- Changed metric collection or ran sim → `simulation-analyzer`
+- Added/changed Elysia routes → `api-contract-auditor`
+- Edited JSON configs or `constants.ts` → `config-validator`
 
 ## Commit & Pull Request Guidelines
 Use Conventional Commits: `fix(games): ...`, `refactor(betting): ...`. Keep the type lowercase, scope focused. PRs should summarize the change, list affected packages, include `lint`, `typecheck`, test, or simulation results.

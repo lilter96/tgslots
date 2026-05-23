@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import type { AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
 import { ancientDragonTestEngine as engine } from './test-engine.js'
 
-describe('AncientDragonStateMachine', () => {
-  it('transitions from BASE to FREE through the shared test engine', () => {
+describe('spin()', () => {
+  it('transitions from BASE to FREE', () => {
     const seed = engine.findSeed((session) => {
       const result = session.act('spin') as AncientDragonBaseResult
       return result.triggeredFreeSpins
@@ -27,12 +27,11 @@ describe('AncientDragonStateMachine', () => {
     }
   })
 
-  it('is recoverable from seeded free-spin state via scenario registration', () => {
-    const session = engine.session()
-    session.scenario('withFreeSpins', { totalWin: 500, spinsRemaining: 5 })
+  it('resets free-spin state on a new base spin', () => {
+    const session = engine.session({ seed: 42 })
+    session.scenario('withFreeSpins', { totalWin: 100, spinsRemaining: 5 })
 
-    const freeResult = session.act('next') as AncientDragonFreeResult | null
-    expect(freeResult?.type).toBe('FREE')
-    expect(session.sm.state.freeSpins?.spinsRemaining).toBe(4)
+    session.act('spin')
+    expect(session.sm.state.freeSpins).toBeNull()
   })
 })
