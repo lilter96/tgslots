@@ -5,6 +5,8 @@ import type { BetConfiguration } from '@tgslots/slots-core/betting'
 import { Wager } from '@tgslots/slots-core/betting'
 import type {
   RawMetricScope,
+  RawScopedMetric,
+  RawSimulationMetrics,
   RoundMetricsSnapshot,
   SpinResult,
   StateMachine,
@@ -56,232 +58,76 @@ class RecordingDataCollector extends ModernDataCollector {
   }
 }
 
-export class SlotsTestSessionBase<TSM extends AnySlotsStateMachine> {
-  readonly collector = new RecordingDataCollector()
-  readonly scratch = new Map<string, SlotsTestValue>()
-
+/**
+ * The handler-facing surface of a session. Custom action/scenario/probe handlers
+ * receive this contract (not the concrete session), which deliberately omits the
+ * typed `act`/`scenario`/`probe` namespaces — those reference the registries, and
+ * exposing them here would create a circular handler↔registry type dependency.
+ * Handlers compose via the primitives below (`executeResultStep`, `runSpin`,
+ * `withinRound`, `sm`, …).
+ */
+export interface SlotsTestRunner<TSM extends AnySlotsStateMachine> {
   readonly seed: number
   readonly wager: Wager
   readonly rng: Rng
-
   sm: TSM
+  readonly scratch: Map<string, SlotsTestValue>
 
-  private currentRoundStart = 0
-  private roundOpen = false
-  private readonly completedRounds: SlotsTestCompletedRound<ResultOf<TSM>>[] = []
-  private readonly traceEntries: SlotsTestRecordedResult<ResultOf<TSM>>[] = []
+  readonly results: readonly ResultOf<TSM>[]
+  readonly trace: readonly SlotsTestRecordedResult<ResultOf<TSM>>[]
+  readonly rounds: readonly SlotsTestCompletedRound<ResultOf<TSM>>[]
+  readonly lastResult: ResultOf<TSM> | null
+  readonly lastRound: SlotsTestCompletedRound<ResultOf<TSM>> | null
 
-  constructor(
-    protected readonly engineBase: SlotsTestEngine<
-      TSM,
-      SlotsTestActionRegistry<TSM>,
-      SlotsTestScenarioRegistry<TSM>,
-      SlotsTestProbeRegistry<TSM>
-    >,
-    options: SlotsTestRunOptions<TSM['state']> = {},
-  ) {
-    const { seed = 0, betLevel = 1, initialState } = options
-    this.seed = seed
-    this.wager = engineBase.wager(betLevel)
-    this.rng = engineBase.rng(seed)
-    this.sm = engineBase.createMachine(initialState)
-  }
-
-  get results(): ResultOf<TSM>[] {
-    return this.collector.recordedResults as ResultOf<TSM>[]
-  }
-
-  get trace(): readonly SlotsTestRecordedResult<ResultOf<TSM>>[] {
-    return this.traceEntries
-  }
-
-  get rounds(): readonly SlotsTestCompletedRound<ResultOf<TSM>>[] {
-    return this.completedRounds
-  }
-
-  get lastResult(): ResultOf<TSM> | null {
-    return this.results.at(-1) ?? null
-  }
-
-  get lastRound(): SlotsTestCompletedRound<ResultOf<TSM>> | null {
-    return this.completedRounds.at(-1) ?? null
-  }
-
-  resetMachine(initialState?: TSM['state']): TSM {
-    this.sm = this.engineBase.createMachine(initialState)
-    return this.sm
-  }
-
-  setScratch<T extends SlotsTestValue>(key: string, value: T): T {
-    this.scratch.set(key, value)
-    return value
-  }
-
-  getScratch<T extends SlotsTestValue>(key: string): T | undefined {
-    return this.scratch.get(key) as T | undefined
-  }
-
-  startRound(): void {
-    if (this.roundOpen) return
-    this.currentRoundStart = this.results.length
-    this.collector.beginRound(this.wager.totalWager)
-    this.roundOpen = true
-  }
-
-  finishRound(): SlotsTestCompletedRound<ResultOf<TSM>> | null {
-    if (!this.roundOpen) return null
-
-    this.collector.endRound()
-    this.roundOpen = false
-
-    const snapshot = this.collector.getLastRoundSnapshot()
-    if (snapshot) {
-      this.sm.recordRoundMetrics?.(this.collector, snapshot, this.wager)
-    }
-
-    const completedRound: SlotsTestCompletedRound<ResultOf<TSM>> = {
-      results: this.results.slice(this.currentRoundStart),
-      snapshot,
-    }
-
-    this.completedRounds.push(completedRound)
-    return completedRound
-  }
-
-  withinRound<T>(fn: () => T): T {
-    const openedHere = !this.roundOpen
-    if (openedHere) {
-      this.startRound()
-    }
-
-    try {
-      return fn()
-    } finally {
-      if (openedHere) {
-        this.finishRound()
-      }
-    }
-  }
-
+  resetMachine(initialState?: TSM['state']): TSM
+  setScratch<T extends SlotsTestValue>(key: string, value: T): T
+  getScratch<T extends SlotsTestValue>(key: string): T | undefined
+  startRound(): void
+  finishRound(): SlotsTestCompletedRound<ResultOf<TSM>> | null
+  withinRound<T>(fn: () => T): T
   executeResultStep<TResult extends ResultOf<TSM> | null>(
     action: string,
     runner: () => TResult,
-    options: SlotsTestStepOptions = {},
-  ): TResult {
-    const { collect = true, metricPhase = null } = options
-    const result = runner()
-    if (result === null) {
-      return result
-    }
-
-    const openedHere = !this.roundOpen
-    if (openedHere) {
-      this.startRound()
-    }
-
-    if (collect) {
-      this.collector.collect(result)
-      this.traceEntries.push({ action, metricPhase, result })
-
-      if (metricPhase) {
-        this.sm.recordResultMetrics?.(this.collector, result, {
-          phase: metricPhase,
-          wager: this.wager,
-        })
-      }
-    }
-
-    if (openedHere) {
-      this.finishRound()
-    }
-
-    return result
-  }
-
-  runSpin(): ResultOf<TSM> {
-    return this.executeResultStep(
-      'spin',
-      () => this.sm.spin(this.rng, this.wager) as ResultOf<TSM>,
-      {
-        metricPhase: 'spin',
-      },
-    ) as ResultOf<TSM>
-  }
-
-  runNext(): ResultOf<TSM> | null {
-    return this.executeResultStep('next', () => this.sm.next(this.rng) as ResultOf<TSM> | null, {
-      metricPhase: 'next',
-    }) as ResultOf<TSM> | null
-  }
-
-  runCycle(): SlotsTestCompletedRound<ResultOf<TSM>> {
-    if (this.roundOpen) {
-      throw new Error('Cannot run a full cycle while a round is already open')
-    }
-
-    const startIndex = this.results.length
-    runCycle(this.sm, this.rng, this.collector, this.wager)
-    const roundResults = this.results.slice(startIndex)
-
-    roundResults.forEach((result, index) => {
-      this.traceEntries.push({
-        action: 'cycle',
-        metricPhase: index === 0 ? 'spin' : 'next',
-        result,
-      })
-    })
-
-    const completedRound: SlotsTestCompletedRound<ResultOf<TSM>> = {
-      results: roundResults,
-      snapshot: this.collector.getLastRoundSnapshot(),
-    }
-
-    this.completedRounds.push(completedRound)
-    return completedRound
-  }
-
+    options?: SlotsTestStepOptions,
+  ): TResult
+  runSpin(): ResultOf<TSM>
+  runNext(): ResultOf<TSM> | null
+  runCycle(): SlotsTestCompletedRound<ResultOf<TSM>>
   resultsOfType<TType extends ResultOf<TSM>['type']>(
     type: TType,
-  ): Extract<ResultOf<TSM>, { type: TType }>[] {
-    return this.results.filter(
-      (result): result is Extract<ResultOf<TSM>, { type: TType }> => result.type === type,
-    )
-  }
-
-  getScope(path: string): RawMetricScope | undefined {
-    return this.engineBase.getScope(this.collector, path)
-  }
-
-  getMetric(path: string, metricName: string) {
-    return this.getScope(path)?.metrics[metricName]
-  }
-
-  assertScopeDefined(path: string): void {
-    this.engineBase.assertScopeDefined(this.collector, path)
-  }
-
-  assertMetricDefined(path: string, metricName: string): void {
-    this.engineBase.assertMetricDefined(this.collector, path, metricName)
-  }
+  ): Extract<ResultOf<TSM>, { type: TType }>[]
+  getScope(path: string): RawMetricScope | undefined
+  getMetric(path: string, metricName: string): RawScopedMetric | undefined
+  getRawMetrics(): RawSimulationMetrics
+  assertScopeDefined(path: string): void
+  assertMetricDefined(path: string, metricName: string): void
 }
 
 export type SlotsTestActionHandler<
   TSM extends AnySlotsStateMachine,
   TArgs extends SlotsTestArgList = readonly [],
   TReturn extends SlotsTestValue | void = void,
-> = (session: SlotsTestSessionBase<TSM>, ...args: TArgs) => TReturn
+> = (session: SlotsTestRunner<TSM>, ...args: TArgs) => TReturn
 
 export type SlotsTestScenarioHandler<
   TSM extends AnySlotsStateMachine,
   TArgs extends SlotsTestArgList = readonly [],
   TReturn extends SlotsTestValue | void = void,
-> = (session: SlotsTestSessionBase<TSM>, ...args: TArgs) => TReturn
+> = (session: SlotsTestRunner<TSM>, ...args: TArgs) => TReturn
 
 export type SlotsTestProbeHandler<
   TSM extends AnySlotsStateMachine,
   TArgs extends SlotsTestArgList = readonly [],
   TReturn extends SlotsTestValue | void = void,
-> = (session: SlotsTestSessionBase<TSM>, ...args: TArgs) => TReturn
+> = (session: SlotsTestRunner<TSM>, ...args: TArgs) => TReturn
+
+type SlotsTestHandlerArgs<TSM extends AnySlotsStateMachine, TFn> =
+  NonNullable<TFn> extends (
+    session: SlotsTestRunner<TSM>,
+    ...args: infer TArgs extends SlotsTestArgList
+  ) => SlotsTestValue | void
+    ? TArgs
+    : SlotsTestArgList
 
 type SlotsTestNamedActionRegistry<TSM extends AnySlotsStateMachine> = Record<
   string,
@@ -298,6 +144,11 @@ type SlotsTestNamedProbeRegistry<TSM extends AnySlotsStateMachine> = Record<
   SlotsTestProbeHandler<TSM, SlotsTestArgList, SlotsTestValue | void>
 >
 
+// The empty registries use a `symbol` index (not `string`). A `string` index
+// would widen `Extract<keyof TRegistry, string>` to `string` (so `act`/`scenario`/
+// `probe` would accept any string and lose name-narrowing) and would make an empty
+// registry's callable-name set non-`never`. The symbol index keeps unregistered
+// names un-callable while still satisfying the base-registry constraint.
 type SlotsTestEmptyActionRegistry<TSM extends AnySlotsStateMachine> = {
   [key: symbol]: SlotsTestActionHandler<TSM, readonly [], void>
 }
@@ -331,6 +182,7 @@ function createDefaultActions<TSM extends AnySlotsStateMachine>(): DefaultSlotsT
     spin: (session) => session.runSpin(),
     next: (session) => session.runNext(),
     cycle: (session) => session.runCycle(),
+    // `round` is an alias of `cycle`.
     round: (session) => session.runCycle(),
   }
 }
@@ -340,28 +192,231 @@ export class SlotsTestSession<
   TActions extends SlotsTestActionRegistry<TSM>,
   TScenarios extends SlotsTestScenarioRegistry<TSM>,
   TProbes extends SlotsTestProbeRegistry<TSM>,
-> extends SlotsTestSessionBase<TSM> {
-  private readonly engine: SlotsTestEngine<TSM, TActions, TScenarios, TProbes>
+> implements SlotsTestRunner<TSM> {
+  private readonly collector = new RecordingDataCollector()
+  readonly scratch = new Map<string, SlotsTestValue>()
+
+  readonly seed: number
+  readonly wager: Wager
+  readonly rng: Rng
+
+  sm: TSM
+
+  private currentRoundStart = 0
+  private roundOpen = false
+  private readonly completedRounds: SlotsTestCompletedRound<ResultOf<TSM>>[] = []
+  private readonly traceEntries: SlotsTestRecordedResult<ResultOf<TSM>>[] = []
 
   constructor(
-    engine: SlotsTestEngine<TSM, TActions, TScenarios, TProbes>,
+    private readonly engine: SlotsTestEngine<TSM, TActions, TScenarios, TProbes>,
     options: SlotsTestRunOptions<TSM['state']> = {},
   ) {
-    super(
-      engine as SlotsTestEngine<
-        TSM,
-        SlotsTestActionRegistry<TSM>,
-        SlotsTestScenarioRegistry<TSM>,
-        SlotsTestProbeRegistry<TSM>
-      >,
-      options,
+    const { seed = 0, betLevel = 1, initialState } = options
+    this.seed = seed
+    this.wager = engine.wager(betLevel)
+    this.rng = engine.rng(seed)
+    this.sm = engine.createMachine(initialState)
+  }
+
+  private get rawResults(): ResultOf<TSM>[] {
+    return this.collector.recordedResults as ResultOf<TSM>[]
+  }
+
+  get results(): readonly ResultOf<TSM>[] {
+    return [...this.rawResults]
+  }
+
+  get trace(): readonly SlotsTestRecordedResult<ResultOf<TSM>>[] {
+    return this.traceEntries
+  }
+
+  get rounds(): readonly SlotsTestCompletedRound<ResultOf<TSM>>[] {
+    return this.completedRounds
+  }
+
+  get lastResult(): ResultOf<TSM> | null {
+    return this.rawResults.at(-1) ?? null
+  }
+
+  get lastRound(): SlotsTestCompletedRound<ResultOf<TSM>> | null {
+    return this.completedRounds.at(-1) ?? null
+  }
+
+  resetMachine(initialState?: TSM['state']): TSM {
+    // Collected results, trace, and rounds are intentionally preserved across a
+    // reset; only the machine is swapped. Resetting mid-round would desync the
+    // round bookkeeping, so require a closed round.
+    if (this.roundOpen) {
+      throw new Error('Cannot reset the machine while a round is open; finish it first')
+    }
+    this.sm = this.engine.createMachine(initialState)
+    return this.sm
+  }
+
+  setScratch<T extends SlotsTestValue>(key: string, value: T): T {
+    this.scratch.set(key, value)
+    return value
+  }
+
+  getScratch<T extends SlotsTestValue>(key: string): T | undefined {
+    return this.scratch.get(key) as T | undefined
+  }
+
+  startRound(): void {
+    if (this.roundOpen) return
+    this.currentRoundStart = this.rawResults.length
+    this.collector.beginRound(this.wager.totalWager)
+    this.roundOpen = true
+  }
+
+  finishRound(): SlotsTestCompletedRound<ResultOf<TSM>> | null {
+    if (!this.roundOpen) return null
+
+    this.collector.endRound()
+    this.roundOpen = false
+
+    const snapshot = this.collector.getLastRoundSnapshot()
+    if (snapshot) {
+      this.sm.recordRoundMetrics?.(this.collector, snapshot, this.wager)
+    }
+
+    const completedRound: SlotsTestCompletedRound<ResultOf<TSM>> = {
+      results: this.rawResults.slice(this.currentRoundStart),
+      snapshot,
+    }
+
+    this.completedRounds.push(completedRound)
+    return completedRound
+  }
+
+  withinRound<T>(fn: () => T): T {
+    const openedHere = !this.roundOpen
+    if (openedHere) {
+      this.startRound()
+    }
+
+    try {
+      return fn()
+    } finally {
+      if (openedHere) {
+        this.finishRound()
+      }
+    }
+  }
+
+  executeResultStep<TResult extends ResultOf<TSM> | null>(
+    action: string,
+    runner: () => TResult,
+    options: SlotsTestStepOptions = {},
+  ): TResult {
+    const { collect = true, metricPhase = null } = options
+    const result = runner()
+    if (result === null) {
+      return result
+    }
+
+    // Opting out of collection must also opt out of round tracking: otherwise the
+    // round open/close would still mutate global metrics (rounds, totalBet, rtp)
+    // for a result that was never recorded.
+    if (!collect) {
+      return result
+    }
+
+    const openedHere = !this.roundOpen
+    if (openedHere) {
+      this.startRound()
+    }
+
+    this.collector.collect(result)
+    this.traceEntries.push({ action, metricPhase, result })
+
+    if (metricPhase) {
+      this.sm.recordResultMetrics?.(this.collector, result, {
+        phase: metricPhase,
+        wager: this.wager,
+      })
+    }
+
+    if (openedHere) {
+      this.finishRound()
+    }
+
+    return result
+  }
+
+  runSpin(): ResultOf<TSM> {
+    return this.executeResultStep(
+      'spin',
+      () => this.sm.spin(this.rng, this.wager) as ResultOf<TSM>,
+      {
+        metricPhase: 'spin',
+      },
+    ) as ResultOf<TSM>
+  }
+
+  runNext(): ResultOf<TSM> | null {
+    return this.executeResultStep('next', () => this.sm.next(this.rng) as ResultOf<TSM> | null, {
+      metricPhase: 'next',
+    }) as ResultOf<TSM> | null
+  }
+
+  runCycle(): SlotsTestCompletedRound<ResultOf<TSM>> {
+    if (this.roundOpen) {
+      throw new Error('Cannot run a full cycle while a round is already open')
+    }
+
+    const startIndex = this.rawResults.length
+    runCycle(this.sm, this.rng, this.collector, this.wager)
+    const roundResults = this.rawResults.slice(startIndex)
+
+    roundResults.forEach((result, index) => {
+      this.traceEntries.push({
+        action: 'cycle',
+        metricPhase: index === 0 ? 'spin' : 'next',
+        result,
+      })
+    })
+
+    const completedRound: SlotsTestCompletedRound<ResultOf<TSM>> = {
+      results: roundResults,
+      snapshot: this.collector.getLastRoundSnapshot(),
+    }
+
+    this.completedRounds.push(completedRound)
+    return completedRound
+  }
+
+  resultsOfType<TType extends ResultOf<TSM>['type']>(
+    type: TType,
+  ): Extract<ResultOf<TSM>, { type: TType }>[] {
+    return this.rawResults.filter(
+      (result): result is Extract<ResultOf<TSM>, { type: TType }> => result.type === type,
     )
-    this.engine = engine
+  }
+
+  getScope(path: string): RawMetricScope | undefined {
+    return this.engine.getScope(this.collector, path)
+  }
+
+  getMetric(path: string, metricName: string): RawScopedMetric | undefined {
+    return this.getScope(path)?.metrics[metricName]
+  }
+
+  getRawMetrics(): RawSimulationMetrics {
+    return this.collector.getRawMetrics()
+  }
+
+  assertScopeDefined(path: string): void {
+    this.engine.assertScopeDefined(this.collector, path)
+  }
+
+  assertMetricDefined(path: string, metricName: string): void {
+    this.engine.assertMetricDefined(this.collector, path, metricName)
   }
 
   act<TName extends Extract<keyof TActions, string>>(
     name: TName,
-    ...args: SlotsTestArgList
+    ...args: SlotsTestHandlerArgs<TSM, TActions[TName]>
   ): ReturnType<NonNullable<TActions[TName]>> {
     const handler = this.engine.resolveAction(name) as SlotsTestActionHandler<
       TSM,
@@ -373,7 +428,7 @@ export class SlotsTestSession<
 
   scenario<TName extends Extract<keyof TScenarios, string>>(
     name: TName,
-    ...args: SlotsTestArgList
+    ...args: SlotsTestHandlerArgs<TSM, TScenarios[TName]>
   ): ReturnType<NonNullable<TScenarios[TName]>> {
     const handler = this.engine.resolveScenario(name) as SlotsTestScenarioHandler<
       TSM,
@@ -385,7 +440,7 @@ export class SlotsTestSession<
 
   probe<TName extends Extract<keyof TProbes, string>>(
     name: TName,
-    ...args: SlotsTestArgList
+    ...args: SlotsTestHandlerArgs<TSM, TProbes[TName]>
   ): ReturnType<NonNullable<TProbes[TName]>> {
     const handler = this.engine.resolveProbe(name) as SlotsTestProbeHandler<
       TSM,
