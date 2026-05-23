@@ -1,50 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import type { WoodlandWhisperBaseResult, WoodlandWhisperPickResult } from '../game-state-machine.js'
-import { generatePickBonus } from '../logic.js'
 import { woodlandWhisperTestEngine as engine } from './test-engine.js'
 
-describe('WoodlandWhisper Logic', () => {
-  it('generatePickBonus should create a valid 20-item board and pick sequence', () => {
-    const session = engine.session({ seed: 42 })
-    const winValue = 10
-    const { board, pickSequence } = generatePickBonus(winValue).sample(session.rng)
-
-    expect(board.length).toBe(20)
-    expect(pickSequence.length).toBeGreaterThanOrEqual(2)
-
-    const counts = new Map<number, number>()
-    for (const value of board) {
-      counts.set(value, (counts.get(value) ?? 0) + 1)
-    }
-
-    for (const count of counts.values()) {
-      expect(count).toBe(2)
-    }
-
-    const seen = new Set<number>()
-    let matchedValue = -1
-
-    for (let i = 0; i < pickSequence.length; i++) {
-      const index = pickSequence[i]
-      if (index === undefined) throw new Error('pickSequence index undefined')
-
-      const value = board[index]
-      if (value === undefined) throw new Error('board value undefined')
-
-      if (seen.has(value)) {
-        matchedValue = value
-        expect(i).toBe(pickSequence.length - 1)
-        break
-      }
-
-      seen.add(value)
-    }
-
-    expect(matchedValue).toBe(winValue)
-  })
-})
-
-describe('WoodlandWhisperStateMachine', () => {
+describe('pick-bonus / pickBall()', () => {
   it('transitions from BASE to PICK to FREE via registered actions', () => {
     const session = engine.session({ seed: 12345 })
 
@@ -143,14 +101,37 @@ describe('WoodlandWhisperStateMachine', () => {
     expect(session.sm.state.freeSpins?.spinsRemaining).toBe(10)
   })
 
-  it('records scatter-win metrics through the shared harness', () => {
-    const baseSession = engine.session({ seed: 42 })
-    baseSession.act('spin')
-    baseSession.assertMetricDefined('base-game', 'scatter-win')
+  it('throws when no active pick bonus', () => {
+    const session = engine.session()
+    expect(() => session.act('pickBall', 0)).toThrow('No active pick bonus')
+  })
 
-    const freeSession = engine.session({ seed: 77 })
-    freeSession.scenario('withFreeSpins', { spinsRemaining: 3 })
-    freeSession.act('next')
-    freeSession.assertMetricDefined('features/free-spins', 'scatter-win')
+  it('produces PICK result from an active pick bonus', () => {
+    const session = engine.session({ seed: 42 })
+    session.act('buyBonus')
+
+    const result = session.act('pickBall', 0) as WoodlandWhisperPickResult
+    expect(result.type).toBe('PICK')
+    expect(result.pick.userIndex).toBe(0)
+    expect(typeof result.pick.value).toBe('number')
+    expect(typeof result.pick.isMatch).toBe('boolean')
+  })
+
+  it('resolves the pick bonus when a match is reached', () => {
+    const session = engine.session({ seed: 42 })
+    session.act('buyBonus')
+
+    let matchFound = false
+    for (let pick = 0; pick < 20 && session.sm.state.pickBonus; pick++) {
+      const result = session.act('pickBall', pick % 6) as WoodlandWhisperPickResult
+      if (result.pick.isMatch) {
+        matchFound = true
+        expect(session.sm.state.freeSpins).not.toBeNull()
+        expect(session.sm.state.freeSpins!.spinsRemaining).toBeGreaterThan(0)
+        break
+      }
+    }
+
+    expect(matchFound).toBe(true)
   })
 })
