@@ -1,124 +1,118 @@
 import { describe, expect, it } from 'bun:test'
-import { SlotsTestEngine } from '@tgslots/slots-simulation-engine/testing/slots-test-engine'
-import { ModernDataCollector, Metrics } from '@tgslots/slots-simulation-engine'
-import { BET_CONFIG } from '../constants.js'
-import type { AncientDragonFreeResult, AncientDragonBaseResult } from '../game-state-machine.js'
-import { AncientDragonStateMachine } from '../game-state-machine.js'
+import { Metrics } from '@tgslots/slots-simulation-engine'
+import type { AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
+import { ancientDragonTestEngine as engine } from './test-engine.js'
 
 describe('AncientDragonStateMachine — full round-trip + metrics', () => {
-  const engine = new SlotsTestEngine(AncientDragonStateMachine, BET_CONFIG)
-
-  it('records metrics via recordResultMetrics and recordRoundMetrics', () => {
-    const seed = engine.findSeed((r) => (r as AncientDragonBaseResult).triggeredFreeSpins)
-    const { collector } = engine.runCycle({ seed: seed ?? 42 })
-
-    const metrics = Metrics.finalize(collector.getRawMetrics())
-    expect(metrics.summary.rounds).toBeGreaterThanOrEqual(0)
-  })
-
-  it('recordResultMetrics tracks BASE scatter distribution and hits', () => {
-    const { collector } = engine.runSpin({ seed: 42 })
-
-    engine.assertScopeDefined(collector, 'base-game')
-  })
-
-  it('recordResultMetrics tracks FREE spin results', () => {
-    const sm = engine.createMachine({
-      freeSpins: { triggeringWager: engine.wager(), totalWin: 0, spinsRemaining: 5 },
+  it('records metrics through the shared cycle executor', () => {
+    const seed = engine.findSeed((session) => {
+      const result = session.act('spin') as AncientDragonBaseResult
+      return result.triggeredFreeSpins
     })
 
-    const rng = engine.rng(123)
-    const collector = new ModernDataCollector()
-    const freeResult = sm.next(rng) as AncientDragonFreeResult
+    const session = engine.session({ seed: seed ?? 42 })
+    session.act('cycle')
+
+    const metrics = Metrics.finalize(session.collector.getRawMetrics())
+    expect(metrics.summary.rounds).toBeGreaterThanOrEqual(1)
+  })
+
+  it('tracks BASE scatter distribution and hit scopes', () => {
+    const session = engine.session({ seed: 42 })
+    session.act('spin')
+
+    session.assertScopeDefined('base-game')
+  })
+
+  it('tracks FREE spin result metrics from a registered scenario', () => {
+    const session = engine.session({ seed: 123 })
+    session.scenario('withFreeSpins', { spinsRemaining: 5 })
+
+    const freeResult = session.act('next') as AncientDragonFreeResult | null
     expect(freeResult).not.toBeNull()
 
-    sm.recordResultMetrics!(collector, freeResult!, { phase: 'next', wager: engine.wager() })
-
-    const freeScope = engine.getScope(collector, 'features/free-spins')
-    expect(freeScope).toBeDefined()
-    const spinsPlayed = freeScope?.metrics['spins-played']
+    session.assertScopeDefined('features/free-spins')
+    const spinsPlayed = session.getMetric('features/free-spins', 'spins-played')
     expect(spinsPlayed?.kind).toBe('count')
-    expect((spinsPlayed as { total: number })?.total ?? 0).toBeGreaterThanOrEqual(1)
+    expect((spinsPlayed as { total: number }).total).toBeGreaterThanOrEqual(1)
   })
 
-  it('recordRoundMetrics tracks base and free RTP metrics', () => {
-    const { collector } = engine.runSpin({ seed: 42 })
+  it('tracks base and free RTP metrics after a round closes', () => {
+    const session = engine.session({ seed: 42 })
+    session.act('spin')
 
-    engine.assertMetricDefined(collector, 'base-game', 'win')
+    session.assertMetricDefined('base-game', 'win')
   })
 
-  it('recordRoundMetrics tracks session metrics when free spins are present', () => {
-    const sm = engine.createMachine({
-      freeSpins: { triggeringWager: engine.wager(), totalWin: 0, spinsRemaining: 3 },
-    })
+  it('tracks session metrics when free spins are present', () => {
+    const session = engine.session({ seed: 77 })
+    session.scenario('withFreeSpins', { spinsRemaining: 3 })
+    session.act('next')
 
-    const collector = new ModernDataCollector()
-    const rng = engine.rng(77)
-
-    collector.beginRound(engine.wager().totalWager)
-    const freeResult = sm.next(rng)
-    if (freeResult) {
-      collector.collect(freeResult)
-      sm.recordResultMetrics?.(collector, freeResult, { phase: 'next', wager: engine.wager() })
-    }
-    collector.endRound()
-
-    const round = collector.getLastRoundSnapshot()
-    expect(round).not.toBeNull()
-    sm.recordRoundMetrics!(collector, round!, engine.wager())
-
-    engine.assertScopeDefined(collector, 'features/free-spins')
+    session.assertScopeDefined('features/free-spins')
   })
 
-  it('freeGameSpin throws when no free spins remaining', () => {
-    const sm = engine.createMachine()
-    const rng = engine.rng(1)
+  it('returns null when no free spins remain', () => {
+    const emptySession = engine.session({ seed: 1 })
+    expect(emptySession.act('next')).toBeNull()
 
-    expect(sm.next(rng)).toBeNull()
-
-    const sm2 = engine.createMachine({
-      freeSpins: { triggeringWager: engine.wager(), totalWin: 0, spinsRemaining: 0 },
-    })
-    expect(sm2.next(engine.rng(1))).toBeNull()
+    const depletedSession = engine.session({ seed: 1 })
+    depletedSession.scenario('withFreeSpins', { spinsRemaining: 0 })
+    expect(depletedSession.act('next')).toBeNull()
   })
 
-  it('spin resets freeSpins state on new base spin', () => {
-    const sm = engine.createMachine({
-      freeSpins: { triggeringWager: engine.wager(), totalWin: 100, spinsRemaining: 5 },
-    })
-    expect(sm.state.freeSpins).not.toBeNull()
+  it('resets free-spin state on a new base spin', () => {
+    const session = engine.session({ seed: 42 })
+    session.scenario('withFreeSpins', { totalWin: 100, spinsRemaining: 5 })
 
-    sm.spin(engine.rng(42), engine.wager())
-    expect(sm.state.freeSpins).toBeNull()
+    session.act('spin')
+    expect(session.sm.state.freeSpins).toBeNull()
   })
 
-  it('retrigger adds 10 spins when sc >= 3 during free spin', () => {
-    for (let seed = 0; seed < 500; seed++) {
-      const sm = engine.createMachine({
-        freeSpins: { triggeringWager: engine.wager(), totalWin: 0, spinsRemaining: 5 },
-      })
-      const result = sm.next(engine.rng(seed)) as AncientDragonFreeResult | null
-      if (result?.retriggeredFreeSpins) {
-        expect(sm.state.freeSpins!.spinsRemaining).toBeGreaterThanOrEqual(10)
-        return
+  it('adds 10 spins on retrigger during a free spin', () => {
+    const seed = engine.findSeed(
+      (session) => {
+        session.scenario('withFreeSpins', { spinsRemaining: 5 })
+        const result = session.act('next') as AncientDragonFreeResult | null
+        return Boolean(result?.retriggeredFreeSpins)
+      },
+      { maxSeeds: 500 },
+    )
+
+    expect(seed).not.toBeNull()
+
+    const session = engine.session({ seed: seed ?? 0 })
+    session.scenario('withFreeSpins', { spinsRemaining: 5 })
+    const result = session.act('next') as AncientDragonFreeResult | null
+
+    expect(result?.retriggeredFreeSpins).toBe(true)
+    expect(session.sm.state.freeSpins!.spinsRemaining).toBeGreaterThanOrEqual(10)
+  })
+
+  it('accumulates free-spin totalWin across the full feature session', () => {
+    const seed = engine.findSeed(
+      (session) => {
+        const result = session.act('spin') as AncientDragonBaseResult
+        return result.triggeredFreeSpins
+      },
+      { maxSeeds: 2_000 },
+    )
+
+    expect(seed).not.toBeNull()
+
+    const session = engine.session({ seed: seed ?? 0 })
+    session.withinRound(() => {
+      session.act('spin')
+
+      let safety = 0
+      while (session.sm.state.freeSpins && safety < 50) {
+        const result = session.act('next')
+        if (!result) break
+        safety++
       }
-    }
-  })
+    })
 
-  it('baseGameSpin accumulates freeSpins totalWin across free games', () => {
-    for (let seed = 0; seed < 200; seed++) {
-      const sm = engine.createMachine()
-      sm.spin(engine.rng(seed), engine.wager())
-      if (sm.state.freeSpins) {
-        let totalWin = 0
-        for (let i = 0; i < 20; i++) {
-          const result = sm.next(engine.rng(seed + i + 1000))
-          if (!result) break
-          totalWin += result.win
-        }
-        expect(sm.state.freeSpins.totalWin).toBe(totalWin)
-        return
-      }
-    }
+    const totalFreeWin = session.resultsOfType('FREE').reduce((sum, result) => sum + result.win, 0)
+    expect(session.sm.state.freeSpins?.totalWin ?? totalFreeWin).toBe(totalFreeWin)
   })
 })

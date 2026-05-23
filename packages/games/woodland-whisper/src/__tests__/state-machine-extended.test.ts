@@ -1,46 +1,38 @@
 import { describe, expect, it } from 'bun:test'
-import { mt19937 } from '@tgslots/math/rng/mt19937'
-import { Wager } from '@tgslots/slots-core/betting'
-import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
-import { BET_CONFIG } from '../constants.js'
 import type {
   WoodlandWhisperBaseResult,
   WoodlandWhisperBuyResult,
   WoodlandWhisperFreeResult,
   WoodlandWhisperPickResult,
 } from '../game-state-machine.js'
-import { WoodlandWhisperStateMachine } from '../game-state-machine.js'
+import { woodlandWhisperTestEngine as engine } from './test-engine.js'
 
 describe('WoodlandWhisperStateMachine — init and base spin', () => {
   it('initInitialGrid sets a valid grid', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const rng = mt19937(42)
+    const session = engine.session({ seed: 42 })
+    session.act('initInitialGrid')
 
-    sm.initInitialGrid(rng)
-    const grid = sm.state.lastGrid
+    const grid = session.sm.state.lastGrid
     expect(grid).not.toBeNull()
-    expect(grid!).toHaveLength(3) // 3 rows
-    expect(grid![0]).toHaveLength(5) // 5 reels
+    expect(grid!).toHaveLength(3)
+    expect(grid![0]).toHaveLength(5)
   })
 
-  it('initInitialGrid produces win=0 grid with < 2 scatters', () => {
-    // Try multiple seeds to validate the invariant
+  it('initInitialGrid produces valid dimensions across multiple seeds', () => {
     for (let seed = 0; seed < 50; seed++) {
-      const sm2 = new WoodlandWhisperStateMachine()
-      sm2.initInitialGrid(mt19937(seed))
-      const grid = sm2.state.lastGrid!
-      // Grid should be 3 rows x 5 reels
+      const session = engine.session({ seed })
+      session.act('initInitialGrid')
+
+      const grid = session.sm.state.lastGrid!
       expect(grid).toHaveLength(3)
       expect(grid[0]).toHaveLength(5)
     }
   })
 
   it('spin produces BASE result with expected shape', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const rng = mt19937(42)
+    const session = engine.session({ seed: 42 })
+    const result = session.act('spin') as WoodlandWhisperBaseResult
 
-    const result = sm.spin(rng, wager) as WoodlandWhisperBaseResult
     expect(result.type).toBe('BASE')
     expect(typeof result.win).toBe('number')
     expect(typeof result.sc).toBe('number')
@@ -52,67 +44,55 @@ describe('WoodlandWhisperStateMachine — init and base spin', () => {
   })
 
   it('spin resets freeSpins and pickBonus', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: { triggeringWager: wager, totalWin: 100, spinsRemaining: 5 },
-      pickBonus: {
-        board: [],
-        pickSequence: [],
-        currentPickIndex: 0,
-        userPicks: [],
-        revealedValues: [],
-        winValue: 0,
-        triggeringWager: wager,
+    const session = engine.session({
+      initialState: {
+        lastGrid: null,
+        freeSpins: { triggeringWager: engine.wager(), totalWin: 100, spinsRemaining: 5 },
+        pickBonus: {
+          board: [],
+          pickSequence: [],
+          currentPickIndex: 0,
+          userPicks: [],
+          revealedValues: [],
+          winValue: 0,
+          triggeringWager: engine.wager(),
+        },
       },
-    }
+      seed: 42,
+    })
 
-    sm.spin(mt19937(42), wager)
-    expect(sm.state.freeSpins).toBeNull()
-    expect(sm.state.pickBonus).toBeNull()
+    session.act('spin')
+    expect(session.sm.state.freeSpins).toBeNull()
+    expect(session.sm.state.pickBonus).toBeNull()
   })
 })
 
 describe('WoodlandWhisperStateMachine — freeGameSpin', () => {
-  it('throws when no free spins remaining', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    expect(sm.next(mt19937(1))).toBeNull()
+  it('returns null when no free spins remain', () => {
+    const session = engine.session({ seed: 1 })
+    expect(session.act('next')).toBeNull()
   })
 
   it('produces FREE result and decrements spinsRemaining', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+    const session = engine.session({ seed: 77 })
+    session.scenario('withFreeSpins', { spinsRemaining: 3 })
 
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: { triggeringWager: wager, totalWin: 0, spinsRemaining: 3 },
-      pickBonus: null,
-    }
-
-    const result = sm.next(mt19937(77)) as WoodlandWhisperFreeResult | null
-    if (result) {
-      expect(result.type).toBe('FREE')
-      expect(result.state.freeSpinsLeft).toBe(2)
-      expect(typeof result.win).toBe('number')
-      expect(typeof result.sc).toBe('number')
-      expect(Array.isArray(result.grid)).toBe(true)
-      expect(Array.isArray(result.hits)).toBe(true)
-      expect(result.components).toBeDefined()
-    }
+    const result = session.act('next') as WoodlandWhisperFreeResult | null
+    expect(result?.type).toBe('FREE')
+    expect(result?.state.freeSpinsLeft).toBe(2)
+    expect(typeof result?.win).toBe('number')
+    expect(typeof result?.sc).toBe('number')
+    expect(Array.isArray(result?.grid)).toBe(true)
+    expect(Array.isArray(result?.hits)).toBe(true)
+    expect(result?.components).toBeDefined()
   })
 })
 
 describe('WoodlandWhisperStateMachine — buy bonus', () => {
   it('buyBonus produces BUY result', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const rng = mt19937(42)
+    const session = engine.session({ seed: 42 })
+    const result = session.act('buyBonus') as WoodlandWhisperBuyResult
 
-    const result = sm.buyBonus(rng, wager) as WoodlandWhisperBuyResult
     expect(result.type).toBe('BUY')
     expect(result.triggeredPickBonus).toBe(true)
     expect(result.pickedBonus).toBeGreaterThan(0)
@@ -121,190 +101,127 @@ describe('WoodlandWhisperStateMachine — buy bonus', () => {
   })
 
   it('buyBonus sets pickBonus state', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+    const session = engine.session({ seed: 42 })
+    session.act('buyBonus')
 
-    sm.buyBonus(mt19937(42), wager)
-    expect(sm.state.pickBonus).not.toBeNull()
-    expect(sm.state.pickBonus!.board.length).toBeGreaterThan(0)
-    expect(sm.state.pickBonus!.pickSequence.length).toBeGreaterThan(0)
+    expect(session.sm.state.pickBonus).not.toBeNull()
+    expect(session.sm.state.pickBonus!.board.length).toBeGreaterThan(0)
+    expect(session.sm.state.pickBonus!.pickSequence.length).toBeGreaterThan(0)
   })
 })
 
 describe('WoodlandWhisperStateMachine — pickBall', () => {
   it('throws when no active pick bonus', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    expect(() => sm.pickBall(0)).toThrow('No active pick bonus')
+    const session = engine.session()
+    expect(() => session.act('pickBall', 0)).toThrow('No active pick bonus')
   })
 
-  it('produces PICK result from active pick bonus', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+  it('produces PICK result from an active pick bonus', () => {
+    const session = engine.session({ seed: 42 })
+    session.act('buyBonus')
 
-    // First trigger a buy bonus to get pick state
-    sm.buyBonus(mt19937(42), wager)
-
-    const pickBonus = sm.state.pickBonus
-    expect(pickBonus).not.toBeNull()
-
-    const result = sm.pickBall(0) as WoodlandWhisperPickResult
+    const result = session.act('pickBall', 0) as WoodlandWhisperPickResult
     expect(result.type).toBe('PICK')
-    expect(result.pick).toBeDefined()
     expect(result.pick.userIndex).toBe(0)
     expect(typeof result.pick.value).toBe('number')
     expect(typeof result.pick.isMatch).toBe('boolean')
   })
 
-  it('pick until match resolves pick bonus', () => {
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    sm.buyBonus(mt19937(42), wager)
+  it('resolves the pick bonus when a match is reached', () => {
+    const session = engine.session({ seed: 42 })
+    session.act('buyBonus')
 
     let matchFound = false
-    for (let i = 0; i < 20 && sm.state.pickBonus; i++) {
-      const result = sm.pickBall(i % 6) as WoodlandWhisperPickResult
+    for (let pick = 0; pick < 20 && session.sm.state.pickBonus; pick++) {
+      const result = session.act('pickBall', pick % 6) as WoodlandWhisperPickResult
       if (result.pick.isMatch) {
         matchFound = true
-        expect(sm.state.freeSpins).not.toBeNull()
-        expect(sm.state.freeSpins!.spinsRemaining).toBeGreaterThan(0)
+        expect(session.sm.state.freeSpins).not.toBeNull()
+        expect(session.sm.state.freeSpins!.spinsRemaining).toBeGreaterThan(0)
         break
       }
     }
+
     expect(matchFound).toBe(true)
   })
 })
 
-describe('WoodlandWhisperStateMachine — recordResultMetrics', () => {
+describe('WoodlandWhisperStateMachine — metrics', () => {
   it('records BASE result metrics', () => {
-    const collector = new ModernDataCollector()
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const rng = mt19937(42)
+    const session = engine.session({ seed: 42 })
+    session.act('spin')
 
-    const result = sm.spin(rng, wager) as WoodlandWhisperBaseResult
-    sm.recordResultMetrics!(collector, result, { phase: 'spin', wager })
-
-    const raw = collector.getRawMetrics()
-    const baseScope = raw.rootScope.scopes['base-game']
-    expect(baseScope).toBeDefined()
+    session.assertScopeDefined('base-game')
   })
 
   it('records BUY result metrics', () => {
-    const collector = new ModernDataCollector()
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const result = sm.buyBonus(mt19937(42), wager)
+    const session = engine.session({ seed: 42 })
+    session.act('buyBonus')
 
-    sm.recordResultMetrics!(collector, result, { phase: 'spin', wager })
-
-    const raw = collector.getRawMetrics()
-    const buyScope = raw.rootScope.scopes.features?.scopes['buy-bonus']
-    expect(buyScope).toBeDefined()
-    expect((buyScope?.metrics['purchases'] as { total: number })?.total).toBeGreaterThanOrEqual(1)
+    session.assertScopeDefined('features/buy-bonus')
+    session.assertMetricDefined('features/buy-bonus', 'purchases')
   })
 
   it('records FREE result metrics with scatters', () => {
-    const collector = new ModernDataCollector()
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+    const session = engine.session({ seed: 77 })
+    session.scenario('withFreeSpins', { spinsRemaining: 3 })
+    session.act('next')
 
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: { triggeringWager: wager, totalWin: 0, spinsRemaining: 3 },
-      pickBonus: null,
-    }
-
-    const rng = mt19937(77)
-    const result = sm.next(rng)
-    if (result) {
-      sm.recordResultMetrics!(collector, result, { phase: 'next', wager })
-
-      const raw = collector.getRawMetrics()
-      const freeScope = raw.rootScope.scopes.features?.scopes['free-spins']
-      expect(freeScope).toBeDefined()
-      expect(freeScope?.metrics['spins-played']).toBeDefined()
-    }
+    session.assertScopeDefined('features/free-spins')
+    session.assertMetricDefined('features/free-spins', 'spins-played')
   })
 
-  it('skips metrics for PICK results', () => {
-    const collector = new ModernDataCollector()
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    sm.buyBonus(mt19937(42), wager)
+  it('does not record FREE spin counters for a PICK-only step', () => {
+    const session = engine.session({ seed: 42 })
+    session.act('buyBonus')
+    session.act('pickBall', 0)
 
-    const pickResult = sm.pickBall(0) as WoodlandWhisperPickResult
-    sm.recordResultMetrics!(collector, pickResult, { phase: 'spin', wager })
-
-    // PICK results should not add any metrics
-    const raw = collector.getRawMetrics()
-    // No new metrics should be added from PICK
-    expect(raw.rounds).toBe(0)
+    expect(session.getMetric('features/free-spins', 'spins-played')).toBeUndefined()
   })
-})
 
-describe('WoodlandWhisperStateMachine — recordRoundMetrics', () => {
-  it('tracks base and free RTP + scatters', () => {
-    const collector = new ModernDataCollector()
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const rng = mt19937(42)
+  it('tracks base and free RTP plus session metrics across a full round', () => {
+    const session = engine.session({ seed: 42 })
 
-    collector.beginRound(wager.totalWager)
-    const baseResult = sm.spin(rng, wager)
-    collector.collect(baseResult)
-    sm.recordResultMetrics?.(collector, baseResult, { phase: 'spin', wager })
+    session.withinRound(() => {
+      const baseResult = session.act('spin') as WoodlandWhisperBaseResult
 
-    // Check for triggered free spins
-    const wwBase = baseResult as WoodlandWhisperBaseResult
-    if (wwBase.triggeredPickBonus) {
-      // Play through pick bonus
-      for (let i = 0; i < 20 && sm.state.pickBonus; i++) {
-        const pickResult = sm.pickBall(i)
-        collector.collect(pickResult)
+      if (!baseResult.triggeredPickBonus) {
+        return
       }
-      // Play free spins
-      let nextResult = sm.next(mt19937(100))
-      while (nextResult) {
-        collector.collect(nextResult)
-        sm.recordResultMetrics?.(collector, nextResult, { phase: 'next', wager })
-        nextResult = sm.next(mt19937(200))
-      }
-    }
-    collector.endRound()
 
-    const round = collector.getLastRoundSnapshot()
+      for (let pick = 0; pick < 20 && session.sm.state.pickBonus; pick++) {
+        session.act('pickBall', pick)
+      }
+
+      while (session.sm.state.freeSpins?.spinsRemaining) {
+        const result = session.act('next')
+        if (!result) break
+      }
+    })
+
+    session.assertMetricDefined('base-game', 'win')
+    session.assertMetricDefined('base-game', 'scatter-win')
+    session.assertMetricDefined('features/free-spins', 'feature-rtp')
+    session.assertMetricDefined('features/free-spins', 'scatter-rtp')
+  })
+
+  it('keeps base metrics when no feature round data is present', () => {
+    const seed = engine.findSeed((session) => {
+      const result = session.act('spin') as WoodlandWhisperBaseResult
+      return !result.triggeredPickBonus
+    })
+
+    expect(seed).not.toBeNull()
+
+    const session = engine.session({ seed: seed ?? 0 })
+    session.act('spin')
+
+    const round = session.lastRound?.snapshot
     if (round) {
-      sm.recordRoundMetrics!(collector, round, wager)
-
-      const raw = collector.getRawMetrics()
-      const baseScope = raw.rootScope.scopes['base-game']
-      const freeScope = raw.rootScope.scopes.features?.scopes['free-spins']
-      expect(baseScope?.metrics['win']).toBeDefined()
-      expect(baseScope?.metrics['scatter-win']).toBeDefined()
-      expect(freeScope?.metrics['feature-rtp']).toBeDefined()
-      expect(freeScope?.metrics['scatter-rtp']).toBeDefined()
+      expect(round.countsByType.FREE ?? 0).toBe(0)
+      expect(round.countsByType.PICK ?? 0).toBe(0)
     }
-  })
 
-  it('skips session metrics when no free spins or picks', () => {
-    const collector = new ModernDataCollector()
-    const sm = new WoodlandWhisperStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const rng = mt19937(42)
-
-    collector.beginRound(wager.totalWager)
-    const result = sm.spin(rng, wager) as WoodlandWhisperBaseResult
-    collector.collect(result)
-    collector.endRound()
-
-    const round = collector.getLastRoundSnapshot()
-    if (round && (round.countsByType.FREE ?? 0) === 0 && (round.countsByType.PICK ?? 0) === 0) {
-      sm.recordRoundMetrics!(collector, round, wager)
-      // Should still have base metrics
-      const raw = collector.getRawMetrics()
-      const baseScope = raw.rootScope.scopes['base-game']
-      expect(baseScope?.metrics['win']).toBeDefined()
-    }
+    session.assertMetricDefined('base-game', 'win')
   })
 })

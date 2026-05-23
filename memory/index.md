@@ -11,6 +11,7 @@ tags: [memory, index]
 Memory stores only what code cannot tell you. If `ls`, `grep`, or `git log` can give you the answer, it doesn't belong here.
 
 ### Decisions (ADRs)
+
 Architectural decisions capturing WHY at a point in time. Each is a design choice with context, alternatives considered, and consequences.
 
 - [[decision_002_precomputed_scatter_engine]] — O(R) positional scatter via prefix sums
@@ -20,8 +21,20 @@ Architectural decisions capturing WHY at a point in time. Each is a design choic
 - [[decision_006_api_dispatcher_architecture]] — Type-safe stateless GameRegistry + GameServer dispatcher
 - [[decision_007_web_client_plugin_architecture]] — Multi-game Pixi plugin host via IGameClient
 
+### Components
+
+- [[components/slots-simulation-engine]] — Simulation metrics engine, runner, and the shared fluent `slots-test-engine` harness
+
+### Testing
+
+- [[testing_strategy]] — Current testing rules, including the shared slot gameplay harness requirement
+- [[progress]] — Recent implementation history and validation results
+- [[tasks/task_026_slots_test_engine_refactor]] — Fluent slot test harness refactor and test migration
+
 ### Game specs
+
 - [[le-militare-gdd]] — Full game design document (paytable, reel strips, edge cases, pseudocode) for handoff to Pragmatic mathematician
 
 ### Current work
+
 [[active_context]] — what I'm working on right now and what's next.

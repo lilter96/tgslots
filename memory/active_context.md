@@ -2,18 +2,17 @@
 title: Active Context
 type: active-context
 tags: [memory, context]
-up: "[[index]]"
+up: '[[index]]'
 ---
 
 # Active Context
 
 ## Current focus
 
-Setting up Claude Code for the tgslots monorepo. Configured MCP servers (Playwright, context7, GitHub), project skills (`/gen-test`, `/run-sim`), subagents (code-reviewer, security-reviewer), and hooks (auto-lint on edit, block .env/lock edits).
+`packages/slots-simulation-engine/src/testing/slots-test-engine.ts` is now a fluent, extensible gameplay test harness. Ancient Dragon, Woodland Whisper, and Le Militare state-machine/gameplay suites use registered actions/scenarios/probes instead of direct `_state` mutation or hand-rolled round execution.
 
 ## Next
 
-- Boot `apps/api` + `apps/web-client` and smoke-test all three games end-to-end
-- Expand test coverage in game packages (currently concentrated in math and slots-core)
-- Implement Telegram bot integration layer
-- Add CI pipeline (GitHub Actions)
+- Sweep any remaining gameplay-style slot tests onto the shared harness if new suites are added
+- Keep `slots-test-engine` extensible through registration rather than widening the production `StateMachine` contract
+- Continue expanding deterministic tests around slot math, feature transitions, and metrics reporting

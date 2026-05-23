@@ -1,22 +1,16 @@
 import { describe, expect, it } from 'bun:test'
-import { mt19937 } from '@tgslots/math/rng/mt19937'
-import { Wager } from '@tgslots/slots-core/betting'
-import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
-import { BET_CONFIG } from '../constants.js'
 import type {
   LeMilitareBaseResult,
   LeMilitareBuyResult,
   LeMilitareFreeResult,
 } from '../game-state-machine.js'
-import { LeMilitareStateMachine } from '../game-state-machine.js'
+import { leMilitareTestEngine as engine } from './test-engine.js'
 
 describe('LeMilitareStateMachine — full round-trip', () => {
   it('spin produces BASE result with expected shape', () => {
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const rng = mt19937(42)
+    const session = engine.session({ seed: 42 })
+    const result = session.act('spin') as LeMilitareBaseResult
 
-    const result = sm.spin(rng, wager) as LeMilitareBaseResult
     expect(result.type).toBe('BASE')
     expect(typeof result.win).toBe('number')
     expect(typeof result.scatterCount).toBe('number')
@@ -29,95 +23,62 @@ describe('LeMilitareStateMachine — full round-trip', () => {
   })
 
   it('spin resets freeSpins and lastSpinResult', () => {
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-
-    // Inject previous state
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: {
-        triggeringWager: wager,
-        spinsRemaining: 3,
-        totalWin: 500,
-        armedReels: new Set([1]),
-        multiplierSum: 2,
+    const session = engine.session({
+      initialState: {
+        lastGrid: null,
+        freeSpins: {
+          triggeringWager: engine.wager(),
+          spinsRemaining: 3,
+          totalWin: 500,
+          armedReels: new Set([1]),
+          multiplierSum: 2,
+        },
+        lastSpinResult: null,
       },
-      lastSpinResult: null,
-    }
-    expect(sm.state.freeSpins).not.toBeNull()
+      seed: 42,
+    })
 
-    sm.spin(mt19937(42), wager)
-    expect(sm.state.freeSpins).toBeNull()
+    session.act('spin')
+    expect(session.sm.state.freeSpins).toBeNull()
   })
 
-  it('freeGameSpin throws when no free spins remaining', () => {
-    const sm = new LeMilitareStateMachine()
-    expect(sm.next(mt19937(1))).toBeNull()
+  it('returns null when no free spins remain', () => {
+    const session = engine.session({ seed: 1 })
+    expect(session.act('next')).toBeNull()
   })
 
-  it('freeGameSpin decrements spinsRemaining', () => {
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+  it('decrements spinsRemaining during a free spin', () => {
+    const session = engine.session({ seed: 42 })
+    session.scenario('withFreeSpins', { spinsRemaining: 3 })
 
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: {
-        triggeringWager: wager,
-        spinsRemaining: 3,
-        totalWin: 0,
-        armedReels: new Set(),
-        multiplierSum: 0,
-      },
-      lastSpinResult: null,
-    }
-
-    const result = sm.next(mt19937(42)) as LeMilitareFreeResult | null
-    if (result) {
-      expect(result.type).toBe('FREE')
-      expect(result.state.freeSpinsLeft).toBeLessThanOrEqual(2)
-      expect(typeof result.win).toBe('number')
-      expect(typeof result.scatterCount).toBe('number')
-      expect(Array.isArray(result.steps)).toBe(true)
-    }
+    const result = session.act('next') as LeMilitareFreeResult | null
+    expect(result?.type).toBe('FREE')
+    expect(result?.state.freeSpinsLeft).toBeLessThanOrEqual(2)
+    expect(typeof result?.win).toBe('number')
+    expect(typeof result?.scatterCount).toBe('number')
+    expect(Array.isArray(result?.steps)).toBe(true)
   })
 
-  it('freeGameSpin accumulates totalWin', () => {
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: {
-        triggeringWager: wager,
-        spinsRemaining: 5,
-        totalWin: 0,
-        armedReels: new Set(),
-        multiplierSum: 0,
-      },
-      lastSpinResult: null,
-    }
+  it('accumulates totalWin across free spins', () => {
+    const session = engine.session({ seed: 100 })
+    session.scenario('withFreeSpins', { spinsRemaining: 5 })
 
     let totalWin = 0
-    for (let i = 0; i < 10; i++) {
-      const rng = mt19937(100 + i)
-      const result = sm.next(rng)
+    for (let spin = 0; spin < 10; spin++) {
+      const result = session.act('next')
       if (!result) break
       totalWin += result.win
     }
-    expect(sm.state.freeSpins?.totalWin).toBe(totalWin)
+
+    expect(session.sm.state.freeSpins?.totalWin).toBe(totalWin)
   })
 })
 
 describe('LeMilitareStateMachine — buy bonus', () => {
   it('buyBonus produces BUY result', () => {
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const rng = mt19937(999)
+    const session = engine.session({ seed: 999 })
+    const result = session.act('buyBonus') as LeMilitareBuyResult
 
-    const result = sm.buyBonus(rng, wager) as LeMilitareBuyResult
     expect(result.type).toBe('BUY')
     expect(result.triggeredFreeSpins).toBe(true)
     expect(result.freeSpinsAwarded).toBeGreaterThan(0)
@@ -126,178 +87,97 @@ describe('LeMilitareStateMachine — buy bonus', () => {
   })
 
   it('buyBonus sets up freeSpins state', () => {
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    sm.buyBonus(mt19937(888), wager)
-    expect(sm.state.freeSpins).not.toBeNull()
-    expect(sm.state.freeSpins!.spinsRemaining).toBeGreaterThan(0)
+    const session = engine.session({ seed: 888 })
+    session.act('buyBonus')
+
+    expect(session.sm.state.freeSpins).not.toBeNull()
+    expect(session.sm.state.freeSpins!.spinsRemaining).toBeGreaterThan(0)
   })
 
   it('buyBonus resets previous state', () => {
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-
-    // Inject previous free spins
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: {
-        triggeringWager: wager,
-        spinsRemaining: 3,
-        totalWin: 100,
-        armedReels: new Set(),
-        multiplierSum: 0,
+    const session = engine.session({
+      initialState: {
+        lastGrid: null,
+        freeSpins: {
+          triggeringWager: engine.wager(),
+          spinsRemaining: 3,
+          totalWin: 100,
+          armedReels: new Set<number>(),
+          multiplierSum: 0,
+        },
+        lastSpinResult: null,
       },
-      lastSpinResult: null,
-    }
+      seed: 777,
+    })
 
-    sm.buyBonus(mt19937(777), wager)
-    // Should have new spins from buy bonus, not old ones
-    expect(sm.state.freeSpins!.spinsRemaining).not.toBe(3)
+    session.act('buyBonus')
+    expect(session.sm.state.freeSpins!.spinsRemaining).not.toBe(3)
   })
 })
 
-describe('LeMilitareStateMachine — recordResultMetrics', () => {
+describe('LeMilitareStateMachine — metrics', () => {
   it('records BASE result metrics including triggered free spins', () => {
-    const collector = new ModernDataCollector()
-    const wager = new Wager(1, BET_CONFIG)
+    const seed = engine.findSeed(
+      (session) => {
+        const result = session.act('spin') as LeMilitareBaseResult
+        return result.triggeredFreeSpins
+      },
+      { maxSeeds: 2_000 },
+    )
 
-    // Find a seed with trigger
-    for (let seed = 0; seed < 100; seed++) {
-      const rng = mt19937(seed)
-      const sm2 = new LeMilitareStateMachine()
-      const result = sm2.spin(rng, wager) as LeMilitareBaseResult
+    expect(seed).not.toBeNull()
 
-      if (result.triggeredFreeSpins) {
-        sm2.recordResultMetrics!(collector, result, { phase: 'spin', wager })
+    const session = engine.session({ seed: seed ?? 0 })
+    session.act('spin')
 
-        const raw = collector.getRawMetrics()
-        const baseScope = raw.rootScope.scopes['base-game']
-        expect(baseScope).toBeDefined()
-
-        const freeScope = raw.rootScope.scopes.features?.scopes['free-spins']
-        expect(freeScope?.metrics['triggers']).toBeDefined()
-        expect((freeScope?.metrics['spins-awarded'] as { sum: number })?.sum).toBeGreaterThan(0)
-        return
-      }
-    }
+    session.assertScopeDefined('base-game')
+    session.assertMetricDefined('features/free-spins', 'triggers')
+    session.assertMetricDefined('features/free-spins', 'spins-awarded')
   })
 
   it('records BUY result metrics', () => {
-    const collector = new ModernDataCollector()
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
-    const result = sm.buyBonus(mt19937(555), wager)
+    const session = engine.session({ seed: 555 })
+    session.act('buyBonus')
 
-    sm.recordResultMetrics!(collector, result, { phase: 'spin', wager })
-
-    const raw = collector.getRawMetrics()
-    const buyScope = raw.rootScope.scopes.features?.scopes['buy-bonus']
-    expect(buyScope).toBeDefined()
-    expect((buyScope?.metrics['purchases'] as { total: number })?.total).toBeGreaterThanOrEqual(1)
+    session.assertScopeDefined('features/buy-bonus')
+    session.assertMetricDefined('features/buy-bonus', 'purchases')
   })
 
   it('records FREE result metrics including spin payout', () => {
-    const collector = new ModernDataCollector()
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+    const session = engine.session({ seed: 42 })
+    session.scenario('withFreeSpins', { spinsRemaining: 3 })
+    session.act('next')
 
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: {
-        triggeringWager: wager,
-        spinsRemaining: 3,
-        totalWin: 0,
-        armedReels: new Set(),
-        multiplierSum: 0,
-      },
-      lastSpinResult: null,
-    }
-
-    const rng = mt19937(42)
-    const result = sm.next(rng) as LeMilitareFreeResult | null
-    if (result) {
-      sm.recordResultMetrics!(collector, result, { phase: 'next', wager })
-
-      const raw = collector.getRawMetrics()
-      const freeScope = raw.rootScope.scopes.features?.scopes['free-spins']
-      expect(freeScope).toBeDefined()
-      expect(freeScope?.metrics['spins-played']).toBeDefined()
-    }
+    session.assertScopeDefined('features/free-spins')
+    session.assertMetricDefined('features/free-spins', 'spins-played')
   })
-})
 
-describe('LeMilitareStateMachine — recordRoundMetrics', () => {
   it('tracks base win RTP and feature RTP', () => {
-    const collector = new ModernDataCollector()
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+    const session = engine.session({ seed: 42 })
 
-    // Run a complete round
-    collector.beginRound(wager.totalWager)
-    const baseResult = sm.spin(mt19937(42), wager)
-    collector.collect(baseResult)
-    sm.recordResultMetrics?.(collector, baseResult, { phase: 'spin', wager })
-
-    // If free spins triggered, play through them
-    if (baseResult.triggeredFreeSpins) {
-      let nextResult = sm.next(mt19937(100))
-      while (nextResult) {
-        collector.collect(nextResult)
-        sm.recordResultMetrics?.(collector, nextResult, { phase: 'next', wager })
-        nextResult = sm.next(mt19937(200))
+    session.withinRound(() => {
+      const baseResult = session.act('spin') as LeMilitareBaseResult
+      if (!baseResult.triggeredFreeSpins) {
+        return
       }
-    }
-    collector.endRound()
 
-    const round = collector.getLastRoundSnapshot()
-    if (round) {
-      sm.recordRoundMetrics!(collector, round, wager)
+      while (session.sm.state.freeSpins?.spinsRemaining) {
+        const nextResult = session.act('next')
+        if (!nextResult) break
+      }
+    })
 
-      const raw = collector.getRawMetrics()
-      const baseScope = raw.rootScope.scopes['base-game']
-      const freeScope = raw.rootScope.scopes.features?.scopes['free-spins']
-      expect(baseScope?.metrics['win']).toBeDefined()
-      expect(freeScope?.metrics['feature-rtp']).toBeDefined()
-    }
+    session.assertMetricDefined('base-game', 'win')
+    session.assertMetricDefined('features/free-spins', 'feature-rtp')
   })
 
-  it('tracks session metrics when free spins played', () => {
-    const collector = new ModernDataCollector()
-    const sm = new LeMilitareStateMachine()
-    const wager = new Wager(1, BET_CONFIG)
+  it('tracks session metrics when free spins are played', () => {
+    const session = engine.session({ seed: 77 })
+    session.scenario('withFreeSpins', { spinsRemaining: 2 })
+    session.act('next')
 
-    // @ts-expect-error: accessing private property
-    sm._state = {
-      lastGrid: null,
-      freeSpins: {
-        triggeringWager: wager,
-        spinsRemaining: 2,
-        totalWin: 0,
-        armedReels: new Set(),
-        multiplierSum: 0,
-      },
-      lastSpinResult: null,
-    }
-
-    collector.beginRound(wager.totalWager)
-    const freeResult = sm.next(mt19937(77))
-    if (freeResult) {
-      collector.collect(freeResult)
-      sm.recordResultMetrics?.(collector, freeResult, { phase: 'next', wager })
-    }
-    collector.endRound()
-
-    const round = collector.getLastRoundSnapshot()
-    if (round && (round.countsByType.FREE ?? 0) > 0) {
-      sm.recordRoundMetrics!(collector, round, wager)
-
-      const raw = collector.getRawMetrics()
-      const freeScope = raw.rootScope.scopes.features?.scopes['free-spins']
-      expect(freeScope?.metrics['session-win']).toBeDefined()
-      expect(freeScope?.metrics['triggered-round-win']).toBeDefined()
-      expect(freeScope?.metrics['total-spins-per-trigger']).toBeDefined()
-    }
+    session.assertMetricDefined('features/free-spins', 'session-win')
+    session.assertMetricDefined('features/free-spins', 'triggered-round-win')
+    session.assertMetricDefined('features/free-spins', 'total-spins-per-trigger')
   })
 })

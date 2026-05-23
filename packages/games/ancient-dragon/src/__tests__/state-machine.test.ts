@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'bun:test'
-import { SlotsTestEngine } from '@tgslots/slots-simulation-engine/testing/slots-test-engine'
-import { BET_CONFIG } from '../constants.js'
 import type { AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
-import { AncientDragonStateMachine } from '../game-state-machine.js'
+import { ancientDragonTestEngine as engine } from './test-engine.js'
 
 describe('AncientDragonStateMachine', () => {
-  const engine = new SlotsTestEngine(AncientDragonStateMachine, BET_CONFIG)
+  it('transitions from BASE to FREE through the shared test engine', () => {
+    const seed = engine.findSeed((session) => {
+      const result = session.act('spin') as AncientDragonBaseResult
+      return result.triggeredFreeSpins
+    })
 
-  it('should transition from BASE to FREE', () => {
-    const seed = engine.findSeed((r) => (r as AncientDragonBaseResult).triggeredFreeSpins)
-    const { sm, rng, result } = engine.runSpin({ seed: seed ?? 123 })
+    const session = engine.session({ seed: seed ?? 123 })
+    const baseResult = session.act('spin') as AncientDragonBaseResult
 
-    const baseResult = result as AncientDragonBaseResult
     expect(baseResult.type).toBe('BASE')
     expect(baseResult.sc).toBeDefined()
     expect(baseResult.grid).toHaveLength(5)
@@ -19,26 +19,20 @@ describe('AncientDragonStateMachine', () => {
     expect(Array.isArray(baseResult.hits)).toBe(true)
 
     if (baseResult.triggeredFreeSpins) {
-      expect(sm.state.freeSpins).not.toBeNull()
-      const fsResult = sm.next(rng) as AncientDragonFreeResult
-      expect(fsResult?.type).toBe('FREE')
-      expect(fsResult.grid).toHaveLength(5)
-      expect(Array.isArray(fsResult.hits)).toBe(true)
+      expect(session.sm.state.freeSpins).not.toBeNull()
+      const freeResult = session.act('next') as AncientDragonFreeResult | null
+      expect(freeResult?.type).toBe('FREE')
+      expect(freeResult?.grid).toHaveLength(5)
+      expect(Array.isArray(freeResult?.hits)).toBe(true)
     }
   })
 
-  it('should be recoverable from state', () => {
-    const sm = engine.createMachine({
-      freeSpins: {
-        triggeringWager: engine.wager(),
-        totalWin: 500,
-        spinsRemaining: 5,
-      },
-    })
+  it('is recoverable from seeded free-spin state via scenario registration', () => {
+    const session = engine.session()
+    session.scenario('withFreeSpins', { totalWin: 500, spinsRemaining: 5 })
 
-    const rng = engine.rng(42)
-    const fsResult = sm.next(rng) as AncientDragonFreeResult
-    expect(fsResult?.type).toBe('FREE')
-    expect(sm.state.freeSpins?.spinsRemaining).toBe(4)
+    const freeResult = session.act('next') as AncientDragonFreeResult | null
+    expect(freeResult?.type).toBe('FREE')
+    expect(session.sm.state.freeSpins?.spinsRemaining).toBe(4)
   })
 })
