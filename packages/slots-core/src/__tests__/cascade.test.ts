@@ -95,6 +95,12 @@ function makeRefill(perReel: string[][]): RefillSource {
 // ---------------------------------------------------------------------------
 
 describe('MutableCascadeGrid', () => {
+  it('getMultiplier always returns 1', () => {
+    const grid = new MutableCascadeGrid(reelCount, rowCount)
+    expect(grid.getMultiplier(0, 0)).toBe(1)
+    expect(grid.getMultiplier(4, 2)).toBe(1)
+  })
+
   it('fromProjection copies grid symbols', () => {
     const original: EvalGrid = makeGrid([
       ['A', 'B', 'A'],
@@ -413,5 +419,38 @@ describe('createCascadeSampler', () => {
       ['A', 'B', 'A'],
     ])
     expect(() => createCascadeSampler(ENGINE, Sampler.pure<EvalGrid>(g), [])).toThrow()
+  })
+
+  it('produces a single no-win step for grid with no winning clusters', () => {
+    const g = makeGrid([
+      ['A', 'B', 'A'],
+      ['B', 'A', 'B'],
+      ['A', 'B', 'A'],
+      ['B', 'A', 'B'],
+      ['A', 'B', 'A'],
+    ])
+    const refillSamplers = Array.from({ length: reelCount }, () =>
+      Sampler.pure<number>(EMPTY_SYMBOL),
+    )
+    const sampler = createCascadeSampler(ENGINE, Sampler.pure<EvalGrid>(g), refillSamplers)
+    const result = sampler.sample(() => 0)
+    expect(result.totalWin).toBe(0)
+    expect(result.steps).toHaveLength(1)
+    expect(result.steps[0]!.stepWin).toBe(0)
+    expect(result.steps[0]!.vanished).toHaveLength(0)
+  })
+
+  it('honors custom maxSteps option', () => {
+    const aId = ENGINE.symbols.toId.get('A')!
+    const g = new MutableCascadeGrid(reelCount, rowCount)
+    for (let r = 0; r < reelCount; r++) {
+      for (let c = 0; c < rowCount; c++) g.setSymbol(r, c, aId)
+    }
+    const refillSamplers = Array.from({ length: reelCount }, () => Sampler.pure<number>(aId))
+    const sampler = createCascadeSampler(ENGINE, Sampler.pure<EvalGrid>(g), refillSamplers, {
+      maxSteps: 2,
+    })
+    const result = sampler.sample(() => 0)
+    expect(result.steps.length).toBeLessThanOrEqual(2)
   })
 })

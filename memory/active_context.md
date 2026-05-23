@@ -1,39 +1,19 @@
 ---
-title: "Active Context"
-type: "active-context"
-aliases: 
-- "Current Task"
-tags: 
-- "memory"
-- "context"
-up: 
-- "[[index]]"
-current_task: "task_040_le_militare_refactor"
+title: Active Context
+type: active-context
+tags: [memory, context]
+up: "[[index]]"
 ---
+
 # Active Context
 
-## Recent Changes
-- **Completed Le Militare SOLID refactor** ([[task_040_le_militare_refactor]]). Decomposed three god-files (runtime.ts 429→~330 lines, s300-mascot.ts 676 lines → deleted, combat-operation-view.ts 645 lines → deleted) into focused submodules: `helpers/` (grid-transform, cluster-grouping, free-spins-math, mascot-projection, tween-utils, buy-bonus-rules, present-plan), `reel-frame/`, `mascot/` (palette, design, draw-chassis, draw-radar, draw-launcher, tweens, geometry), `combat/` (wire-renderer, activation-animator, missile, explosion, badge, events). Collapsed 3 duplicate `_present*` methods via `PresentPlan`. Fixed audio paths in assets.ts. 105 tests pass (up from 97).
-- Implemented cascade animations and Combat Operation visuals for Le Militare in the web-client.
-- Added Multiplier HUD and Buy Bonus control for Le Militare.
-- **Built `apps/marketing` — React 18 + Tailwind CSS 3 + Vite 6 game presentation app** ([[task_038_marketing_app]]). New workspace `@tgslots/marketing` (port 3003). Implements a Hacksaw-style one-pager for Woodland Whisper: full-bleed SVG hero, stats bar (RTP 88.04%, 30 paylines, High volatility est., 5 000× max-win est.), lore section, feature grid with 4 custom 64×64 SVG icons. "Play Demo" mounts the existing Pixi client via `fixed inset-0` iframe (Vite dev proxy `/web-client` → port 3002). Generic `GamePresentation` type and registry make adding future games a one-file task. Added `dev:marketing` script to root `package.json`; `bun install` resolves the new workspace. Typecheck clean.
-- **Added shared fast and turbo spin speeds to the plugin web client** ([[task_037_web_client_spin_speed_modes]]). Introduced `SpinSpeedController` with `normal`/`fast`/`turbo` timing profiles, added compact `FAST` and `TURBO` toggles to the bottom footer HUD, routed auto-spin pacing through the active profile in `SpinOrchestrator`, and made both Woodland Whisper and Ancient Dragon runtimes consume the same reel/overlay/highlight/pick-bonus timing model. Added controller coverage plus auto-spin delay verification, and verified `bun --filter @tgslots/web-client test`, `bun --filter @tgslots/web-client typecheck`, and `bun --filter @tgslots/web-client build`.
-- **Restored Woodland Whisper buy bonus in the plugin web client** ([[task_036_web_client_buy_bonus_restore]]). Added a plugin-owned `BUY BONUS` HUD control mounted through `GameUIContext.hud`, routed clicks through `buy-bonus:requested` to `SpinOrchestrator.buyBonus()`, and synchronized disabled state via FSM, free-spin, and auto-spin events. Corrected the sequencing bug where action-state hydration opened the pick-bonus board before the guaranteed trigger spin finished; `applyState()` now defers pick-bonus rendering until the feature flow starts or a suspended session is resumed. Also moved the pick-bonus board from `scene.features` to `scene.overlays` so it covers the footer HUD correctly. Added buy-bonus helper/orchestrator/runtime coverage, fixed package-level web-client test typing, and verified `bun --filter @tgslots/web-client test`, `bun run --filter @tgslots/web-client typecheck`, `bun run typecheck`, and `bun run --filter @tgslots/web-client build`.
-- **Deleted dead engine files** (post-plugin-refactor cleanup). Removed `asset-loader.ts`, `pick-bonus-ui.ts`, `free-spins-status.ts`, `game-host.ts`, and `asset-loader.test.ts` from `apps/web-client/src/engine/`. All superseded by plugin-architecture equivalents; confirmed zero live importers before deletion. 318 tests pass, typecheck clean.
-- **Completed web client plugin refactor** ([[task_035_web_client_plugin_refactor]]). `apps/web-client` is now a multi-game plugin host. Both Woodland Whisper and Ancient Dragon are playable. Engine has zero imports from any specific game package. `@tgslots/shared-contracts` shared between `apps/api` and `apps/web-client`. New test files: `signal`, `dispatcher`, `spin-orchestrator`, `scene`, shared-contracts registry; `free-spins-status` test relocated to WW plugin folder.
-- Implemented Type-Safe Stateless Dispatcher API (`apps/api`). Added `GameRegistry + GameServer` dispatcher, `IGameModule` interface, `InMemorySessionManager`, typed module adapters for both Woodland Whisper and Ancient Dragon, a generic `/game/:gameId/:action` route, and per-game typed route wrappers at `/woodlandwhisper` and `/ancientdragon`. Deleted the old hardcoded `sessions.ts` and `woodland-whisper.ts`. All 275 tests pass. See [[task_034_api_dispatcher_architecture]].
-- Rebuilt the Woodland Whisper web client around a shared responsive Pixi layout model. Added viewport/orientation-aware scene geometry, refactored the HUD into a bottom-pinned adaptive slot footer for both info and controls, narrowed footer info cards on normal/large screens, and made the auto-spin modal, pick-bonus board, and win overlay resize cleanly across phone, tablet, and desktop screens in both portrait and landscape. Added deterministic layout tests and updated mobile viewport/canvas handling.
-- Fixed Woodland Whisper web-client free-spin UX. Added a persistent HUD banner showing remaining free spins, dynamic `X FREE SPINS WON` announcements after pick-bonus trigger/retrigger, and pure helper coverage for state-delta derivation and restore behavior. Memory now includes a dedicated `[[web-client]]` component note.
-- Added Buy Free Spins feature to Woodland Whisper. Config: `buy_bonus_cost_multiplier: 100` in `config.json`. Backend: `WoodlandWhisperBuyResult` type (`'BUY'` SpinType), `buyBonus(rng, wager)` method on state machine, metrics recorded under `features/buy-bonus`. Frontend: `BUY BONUS` button (gold, `100× BET` label) in HUD emits `buyBonus` event; `GameController.buyBonus()` deducts cost and runs pick bonus + free spin loop; `IDLE → FEATURE_TRANSITION` added as valid UI state transition.
-- Added Cluster Pays evaluation engine (`cluster/`) and Super Cascades tumble engine (`cascade/`) to `@tgslots/slots-core`. New modules: `cluster/types.ts`, `cluster/cluster-engine.ts`, `cluster/evaluator.ts`, `cascade/types.ts`, `cascade/cascade-grid.ts`, `cascade/vanishing.ts`, `cascade/cascade-engine.ts`, `cascade/sampler.ts`, `paytable/cluster-paytable.ts`. Added `EMPTY_SYMBOL = -2` sentinel to `symbol-registry.ts`. 22 new tests (10 cluster, 14 cascade). See [[task_031_super_cascades_engine]] and [[decision_005_cluster_pays_and_super_cascades]].
-- Standardized metric vocabulary across engine + both games + parsheets. Renames: engine `round-payout`→`round-rtp`, `round-win`→`round-win-amount`, `result-count`→`spins-per-round`; AD `awarded-spins`→`spins-awarded`, `spins`→`spins-played`, `feature-win`→`session-win`, `round-win`→`triggered-round-win`; WW `winning-spins`→`hits`, `feature-win`→`session-win`, `round-win`→`triggered-round-win`.
-- Rebuilt `--visualize` HTML output as a modern offline-capable dashboard. ApexCharts bundled inline (~600KB single-file report). KPI count-ups with sparklines, RTP composition donut, tolerance-band comparison cards grouped by category, round-win histogram, spin-type donut, collapsible scope tree where every metric kind has a tailored visualization (count → rate gauge bar; value → min/avg/max bar; payout → bar of avg+total; rtp → radial gauge; distribution → ApexCharts horizontal bar). Sticky TOC scroll-spy, dark/light toggle, IntersectionObserver reveal animations.
-- Added `category` and `description` fields to `ComparisonTarget` for grouped/tooltipped comparison cards (auto-inferred when not set).
-- ADR 004 records the canonical vocabulary rule and visualizer architecture.
-- Earlier: split metric kinds into `payout`/`rtp` (ADR 003); fixed Ancient Dragon 33% RTP and migrated to external config format.
+## Current focus
 
-## Next Steps
-- Start both dev servers (`bun run dev:client` on port 3002, `bun run dev:marketing` on port 3003) and visually verify the Woodland Whisper presentation page — hero renders, stats bar shows, lore + feature grid load, "Play Demo" iframe launches the Pixi game.
-- Boot `apps/api` + `apps/web-client` and smoke-test both games end-to-end.
-- Implement the third slot game.
-- Add Telegram bot integration layer.
+Setting up Claude Code for the tgslots monorepo. Configured MCP servers (Playwright, context7, GitHub), project skills (`/gen-test`, `/run-sim`), subagents (code-reviewer, security-reviewer), and hooks (auto-lint on edit, block .env/lock edits).
+
+## Next
+
+- Boot `apps/api` + `apps/web-client` and smoke-test all three games end-to-end
+- Expand test coverage in game packages (currently concentrated in math and slots-core)
+- Implement Telegram bot integration layer
+- Add CI pipeline (GitHub Actions)

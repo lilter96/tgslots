@@ -177,6 +177,15 @@ describe('Sampler.flatMap', () => {
       expect(left.sample(rng1)).toBe(right.sample(rng2))
     }
   })
+
+  test('falls back to plan interpretation when child has no direct sampler', () => {
+    const rng = mt19937(42)
+    // Parent has a direct sampler, child does not
+    const parent = Sampler.pure(10)
+    const child = new Sampler(SamplingPlan.pure(99), null)
+    const result = parent.flatMap(() => child)
+    expect(result.sample(rng)).toBe(99)
+  })
 })
 
 describe('Sampler.sampleN', () => {

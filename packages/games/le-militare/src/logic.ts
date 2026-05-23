@@ -463,14 +463,19 @@ export const LE_MILITARE_SAMPLER = (
 
 // ─── Buy Bonus Sampler ────────────────────────────────────────────────────
 
-function createBuyBonusSampler(wager: Wager): Sampler<LeMilitareSpinResult> {
+const BUY_BONUS_MAX_ATTEMPTS = 2000
+
+function createBuyBonusSampler(wager: Wager, attempt = 0): Sampler<LeMilitareSpinResult> {
+  if (attempt >= BUY_BONUS_MAX_ATTEMPTS) {
+    throw new Error('Buy bonus failed to trigger scatter within max attempts')
+  }
   return LE_MILITARE_SAMPLER(wager, {
     isFreeSpin: false,
     carryArmedReels: new Set(),
     carryMultiplierSum: 0,
   }).flatMap((result) => {
     if (result.scatterCount >= MIN_SCATTERS) return Sampler.pure(result)
-    return createBuyBonusSampler(wager)
+    return createBuyBonusSampler(wager, attempt + 1)
   })
 }
 

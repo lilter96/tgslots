@@ -4,8 +4,11 @@ import {
   Distribution,
   distributionDo,
   Distributions,
+  Sampler,
+  SamplingPlan,
   TrackedDistribution,
 } from '../probability'
+import type { WeightedBranch } from '../probability'
 import { mt19937 } from '../rng'
 
 // ─── Distribution ──────────────────────────────────────────────────────────
@@ -302,6 +305,81 @@ describe('TrackedDistribution', () => {
     const rng = mt19937(1)
     const result = TrackedDistribution.sample(fm, rng)
     expect(result.value).toBe(4)
+  })
+
+  test('branch — can be sampled to reach a weighted outcome', () => {
+    const inner = TrackedDistribution.resolved(99, 'leaf')
+    const branch: WeightedBranch<number, string> = {
+      asSampler: new Sampler(SamplingPlan.pure(inner)),
+      weightedItems: [[1, inner]],
+    }
+    const td = TrackedDistribution.branch(branch)
+    const rng = mt19937(1)
+    const result = TrackedDistribution.sample(td, rng)
+    expect(result.value).toBe(99)
+    expect(result.path).toBe('leaf')
+  })
+
+  test('branch — enumerate yields the underlying outcomes', () => {
+    const inner = TrackedDistribution.resolved(42, 'p')
+    const branch: WeightedBranch<number, string> = {
+      asSampler: new Sampler(SamplingPlan.pure(inner)),
+      weightedItems: [[1, inner]],
+    }
+    const td = TrackedDistribution.branch(branch)
+    const outcomes = [...TrackedDistribution.enumerate(td)]
+    expect(outcomes).toHaveLength(1)
+    expect(outcomes[0]!.value).toBe(42)
+    expect(outcomes[0]!.probability).toBeCloseTo(1)
+  })
+
+  test('map transforms branch outcomes', () => {
+    const td = TrackedDistribution.fromWeightedValues(
+      [
+        [1, 10],
+        [1, 20],
+      ] as const,
+      (v) => `p${v}`,
+    )
+    const mapped = TrackedDistribution.map(td, (v) => v * 2)
+    const outcomes = [...TrackedDistribution.enumerate(mapped)]
+    expect(outcomes).toHaveLength(2)
+    const values = outcomes.map((o) => o.value).sort()
+    expect(values).toEqual([20, 40])
+  })
+
+  test('flatMap on branch chains to inner distribution', () => {
+    const td = TrackedDistribution.fromWeightedValues(
+      [
+        [1, 'a'],
+        [1, 'b'],
+      ] as const,
+      (v) => `outer:${v}`,
+    )
+    const fm = TrackedDistribution.flatMap(td, (v, path) =>
+      TrackedDistribution.resolved(`${v}-${path}`, 'inner'),
+    )
+    const outcomes = [...TrackedDistribution.enumerate(fm)]
+    expect(outcomes).toHaveLength(2)
+    const values = outcomes.map((o) => o.value).sort()
+    expect(values).toEqual(['a-outer:a', 'b-outer:b'])
+  })
+
+  test('enumerate respects maxDepth on branch', () => {
+    const leaf = TrackedDistribution.resolved(1, 'leaf')
+    const inner: WeightedBranch<number, string> = {
+      asSampler: new Sampler(SamplingPlan.pure(leaf)),
+      weightedItems: [[1, leaf]],
+    }
+    const outer: WeightedBranch<number, string> = {
+      asSampler: new Sampler(SamplingPlan.pure(TrackedDistribution.branch(inner))),
+      weightedItems: [[1, TrackedDistribution.branch(inner)]],
+    }
+    const td = TrackedDistribution.branch(outer)
+    const shallow = [...TrackedDistribution.enumerate(td, 0)]
+    expect(shallow).toHaveLength(0)
+    const deep = [...TrackedDistribution.enumerate(td, 50)]
+    expect(deep).toHaveLength(1)
   })
 })
 

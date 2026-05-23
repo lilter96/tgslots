@@ -281,20 +281,34 @@
   },
   "scatter_definition": {
     "symbol": "SCATTER",
-    "min_count": 6,
+    "min_count": 4,
     "free_spins_awarded": {
-      "4": 3,
-      "5": 5,
-      "6": 8,
-      "7": 10
+      "4": 10,
+      "5": 15,
+      "6": 20,
+      "7": 25
     }
   },
   "multiplier_pool": {
     "values": [
-      1
+      2,
+      3,
+      5,
+      10,
+      25,
+      50,
+      100,
+      500
     ],
     "weights": [
-      100
+      400,
+      250,
+      150,
+      100,
+      50,
+      30,
+      15,
+      5
     ]
   },
   "disallow_mixed_wild_clusters": true,
