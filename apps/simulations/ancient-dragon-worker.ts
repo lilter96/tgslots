@@ -3,7 +3,7 @@
 
 import { parentPort, workerData } from 'node:worker_threads'
 import { mt19937 } from '@tgslots/math'
-import { AncientDragonStateMachine } from '@tgslots/ancient-dragon'
+import { AncientDragonStateMachine, ancientDragonMetrics } from '@tgslots/ancient-dragon'
 import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
 import {
   performWarmup,
@@ -37,6 +37,7 @@ performWarmup(sm, rng, warmup, wager)
 
 runWorkerLoop(
   sm,
+  ancientDragonMetrics,
   rng,
   new ModernDataCollector(),
   {

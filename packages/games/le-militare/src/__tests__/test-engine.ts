@@ -6,6 +6,7 @@ import {
 import { BET_CONFIG } from '../constants.js'
 import type { LeMilitareBuyResult, LeMilitareFreeSpinsState } from '../game-state-machine.js'
 import { LeMilitareStateMachine } from '../game-state-machine.js'
+import { leMilitareMetrics } from '../metrics.js'
 
 const buyBonusAction: SlotsTestActionHandler<LeMilitareStateMachine, [], LeMilitareBuyResult> = (
   session,
@@ -34,7 +35,11 @@ const withFreeSpinsScenario: SlotsTestScenarioHandler<
   return session.sm.state.freeSpins
 }
 
-export const leMilitareTestEngine = createSlotsTestEngine(LeMilitareStateMachine, BET_CONFIG)
+export const leMilitareTestEngine = createSlotsTestEngine(
+  LeMilitareStateMachine,
+  BET_CONFIG,
+  leMilitareMetrics,
+)
   .registerAction('buyBonus', buyBonusAction)
   .registerScenario('withFreeSpins', withFreeSpinsScenario)
   .registerProbe('sessionMultiplier', (session) => session.sm.state.freeSpins?.multiplierSum ?? 0)

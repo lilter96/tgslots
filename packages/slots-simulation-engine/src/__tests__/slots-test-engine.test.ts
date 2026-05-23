@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { Rng } from '@tgslots/math/rng/types'
 import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
-import type {
-  DataCollector,
-  RoundMetricsSnapshot,
-  SpinResult,
-  StateMachine,
-} from '../core/state-machine.js'
+import type { GameMetrics, SpinResult, StateMachine } from '../core/state-machine.js'
 import {
   createSlotsTestEngine,
   type SlotsTestActionHandler,
@@ -51,7 +46,7 @@ class ExtendedStubMachine implements StateMachine<StubResult, StubState> {
     }
   }
 
-  next(): StubFreeResult | null {
+  next(): StubResult | null {
     if (this.state.freeSpins <= 0) return null
     this.state.freeSpins--
     return {
@@ -70,12 +65,10 @@ class ExtendedStubMachine implements StateMachine<StubResult, StubState> {
       components: { total: 0 },
     }
   }
+}
 
-  recordResultMetrics(
-    collector: DataCollector,
-    result: StubResult,
-    _context: { phase: 'spin' | 'next'; wager: Wager },
-  ): void {
+const stubMetrics: GameMetrics<StubResult> = {
+  recordResultMetrics(collector, result, _context) {
     const freeSpins = collector.scope(['features', 'free-spins'])
 
     if (result.type === 'BASE' && result.triggeredFreeSpins) {
@@ -93,22 +86,22 @@ class ExtendedStubMachine implements StateMachine<StubResult, StubState> {
       freeSpins.count('spins-played')
       freeSpins.payout('spin-win', result.win)
     }
-  }
+  },
 
-  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot): void {
+  recordRoundMetrics(collector, round) {
     collector.scope('base-game').rtp('win', round.winsByType.BASE?.total ?? 0)
     collector
       .scope(['features', 'free-spins'])
       .rtp('feature-rtp', round.winsByType.FREE?.total ?? 0)
-  }
+  },
 }
 
 const BET_CONFIG = new BetConfiguration(100, 10, 10, 0)
 
-const buyBonusAction: SlotsTestActionHandler<ExtendedStubMachine, [], StubBuyResult> = (session) =>
+const buyBonusAction: SlotsTestActionHandler<ExtendedStubMachine, [], StubResult> = (session) =>
   session.executeResultStep('buyBonus', () => session.sm.buyBonus(session.rng, session.wager), {
     metricPhase: 'spin',
-  })
+  }) as StubResult
 
 const withFreeSpinsScenario: SlotsTestScenarioHandler<
   ExtendedStubMachine,
@@ -123,7 +116,7 @@ const remainingFreeSpinsProbe: SlotsTestProbeHandler<ExtendedStubMachine, [], nu
   session.sm.state.freeSpins
 
 describe('SlotsTestEngine fluent API', () => {
-  const engine = createSlotsTestEngine(ExtendedStubMachine, BET_CONFIG)
+  const engine = createSlotsTestEngine(ExtendedStubMachine, BET_CONFIG, stubMetrics)
     .registerAction('buyBonus', buyBonusAction)
     .registerScenario('withFreeSpins', withFreeSpinsScenario)
     .registerProbe('remainingFreeSpins', remainingFreeSpinsProbe)

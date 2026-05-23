@@ -791,24 +791,27 @@ export const Metrics = {
   },
 }
 
+export interface GameMetrics<TResult extends SpinResult = SpinResult> {
+  recordResultMetrics(
+    collector: DataCollector,
+    result: TResult,
+    context: { phase: 'spin' | 'next'; wager: Wager },
+  ): void
+
+  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, wager: Wager): void
+}
+
 export interface StateMachine<TResult extends SpinResult, TState = object> {
   readonly state: TState
 
   spin(rng: Rng, wager: Wager): TResult
 
   next(rng: Rng): TResult | null
-
-  recordResultMetrics?(
-    collector: DataCollector,
-    result: TResult,
-    context: { phase: 'spin' | 'next'; wager: Wager },
-  ): void
-
-  recordRoundMetrics?(collector: DataCollector, round: RoundMetricsSnapshot, wager: Wager): void
 }
 
 export function runCycle<TResult extends SpinResult>(
   sm: StateMachine<TResult>,
+  metrics: GameMetrics<TResult>,
   rng: Rng,
   collector: DataCollector,
   wager: Wager,
@@ -817,18 +820,18 @@ export function runCycle<TResult extends SpinResult>(
 
   const initial = sm.spin(rng, wager)
   collector.collect(initial)
-  sm.recordResultMetrics?.(collector, initial, { phase: 'spin', wager })
+  metrics.recordResultMetrics(collector, initial, { phase: 'spin', wager })
 
   let nextResult: TResult | null
   while ((nextResult = sm.next(rng)) !== null) {
     collector.collect(nextResult)
-    sm.recordResultMetrics?.(collector, nextResult, { phase: 'next', wager })
+    metrics.recordResultMetrics(collector, nextResult, { phase: 'next', wager })
   }
 
   collector.endRound()
 
   const round = collector.getLastRoundSnapshot()
   if (round) {
-    sm.recordRoundMetrics?.(collector, round, wager)
+    metrics.recordRoundMetrics(collector, round, wager)
   }
 }

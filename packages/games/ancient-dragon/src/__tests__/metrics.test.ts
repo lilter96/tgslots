@@ -1,54 +1,119 @@
 import { describe, expect, it } from 'bun:test'
-import { Metrics } from '@tgslots/slots-simulation-engine'
+import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
+import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
 import type { AncientDragonBaseResult, AncientDragonFreeResult } from '../game-state-machine.js'
-import { ancientDragonTestEngine as engine } from './test-engine.js'
+import { ancientDragonMetrics } from '../metrics.js'
 
-describe('metrics', () => {
-  it('records metrics through the shared cycle executor', () => {
-    const seed = engine.findSeed((session) => {
-      const result = session.act('spin') as AncientDragonBaseResult
-      return result.triggeredFreeSpins
+const testWager = new Wager(1, new BetConfiguration(100, 10, 10, 0))
+
+function makeBaseResult(overrides?: Partial<AncientDragonBaseResult>): AncientDragonBaseResult {
+  return {
+    type: 'BASE',
+    win: 0,
+    sc: 2,
+    triggeredFreeSpins: false,
+    grid: [],
+    hits: [],
+    ...overrides,
+  }
+}
+
+function makeFreeResult(overrides?: Partial<AncientDragonFreeResult>): AncientDragonFreeResult {
+  return {
+    type: 'FREE',
+    win: 100,
+    sc: 1,
+    retriggeredFreeSpins: false,
+    grid: [],
+    hits: [],
+    ...overrides,
+  }
+}
+
+describe('ancientDragonMetrics', () => {
+  describe('recordResultMetrics', () => {
+    it('records BASE scatter distribution and hits', () => {
+      const collector = new ModernDataCollector()
+      collector.beginRound(100)
+
+      ancientDragonMetrics.recordResultMetrics(collector, makeBaseResult({ sc: 2, win: 50 }), {
+        phase: 'spin',
+        wager: testWager,
+      })
+
+      const raw = collector.getRawMetrics()
+      const baseScope = raw.rootScope.scopes['base-game']!
+      expect(baseScope.metrics['scatter-count']).toBeDefined()
+      expect(baseScope.metrics['scatter-count']!.kind).toBe('distribution')
+      expect(baseScope.metrics['hits']).toBeDefined()
+      expect(baseScope.metrics['hits']!.kind).toBe('count')
     })
 
-    const session = engine.session({ seed: seed ?? 42 })
-    session.act('cycle')
+    it('records FREE spin metrics with scopes', () => {
+      const collector = new ModernDataCollector()
+      collector.beginRound(100)
 
-    const metrics = Metrics.finalize(session.getRawMetrics())
-    expect(metrics.summary.rounds).toBeGreaterThanOrEqual(1)
+      ancientDragonMetrics.recordResultMetrics(
+        collector,
+        makeFreeResult({ sc: 2, win: 150, retriggeredFreeSpins: true }),
+        { phase: 'next', wager: testWager },
+      )
+
+      const raw = collector.getRawMetrics()
+      const freeScope = raw.rootScope.scopes['features']!.scopes['free-spins']!
+      expect(freeScope.metrics['spins-played']).toBeDefined()
+      expect(freeScope.metrics['spin-win']).toBeDefined()
+      expect(freeScope.metrics['retriggers']).toBeDefined()
+    })
+
+    it('does not record triggers when not triggered', () => {
+      const collector = new ModernDataCollector()
+      collector.beginRound(100)
+
+      ancientDragonMetrics.recordResultMetrics(
+        collector,
+        makeBaseResult({ sc: 2, win: 0, triggeredFreeSpins: false }),
+        { phase: 'spin', wager: testWager },
+      )
+
+      const raw = collector.getRawMetrics()
+      const freeScope = raw.rootScope.scopes['features']?.scopes['free-spins']
+      // triggers should not be recorded (scope may not exist at all)
+      const triggers = freeScope?.metrics['triggers']
+      expect(triggers).toBeUndefined()
+    })
   })
 
-  it('tracks BASE scatter distribution and hit scopes', () => {
-    const session = engine.session({ seed: 42 })
-    session.act('spin')
+  describe('recordRoundMetrics', () => {
+    it('records base-game and feature RTP', () => {
+      const collector = new ModernDataCollector()
+      collector.beginRound(100)
+      collector.collect(makeBaseResult({ win: 0 }))
+      collector.collect(makeFreeResult({ win: 200 }))
+      collector.endRound()
+      const round = collector.getLastRoundSnapshot()!
 
-    session.assertScopeDefined('base-game')
-  })
+      ancientDragonMetrics.recordRoundMetrics(collector, round, testWager)
 
-  it('tracks FREE spin result metrics from a registered scenario', () => {
-    const session = engine.session({ seed: 123 })
-    session.scenario('withFreeSpins', { spinsRemaining: 5 })
+      const raw = collector.getRawMetrics()
+      const baseScope = raw.rootScope.scopes['base-game']!
+      expect(baseScope.metrics['win']).toBeDefined()
+      expect(baseScope.metrics['win']!.kind).toBe('rtp')
+    })
 
-    const freeResult = session.act('next') as AncientDragonFreeResult | null
-    expect(freeResult).not.toBeNull()
+    it('records session-win when free spins occurred', () => {
+      const collector = new ModernDataCollector()
+      collector.beginRound(100)
+      collector.collect(makeBaseResult({ win: 0 }))
+      collector.collect(makeFreeResult({ win: 200 }))
+      collector.endRound()
+      const round = collector.getLastRoundSnapshot()!
 
-    session.assertScopeDefined('features/free-spins')
-    const spinsPlayed = session.getMetric('features/free-spins', 'spins-played')
-    expect(spinsPlayed?.kind).toBe('count')
-    expect((spinsPlayed as { total: number }).total).toBeGreaterThanOrEqual(1)
-  })
+      ancientDragonMetrics.recordRoundMetrics(collector, round, testWager)
 
-  it('tracks base and free RTP metrics after a round closes', () => {
-    const session = engine.session({ seed: 42 })
-    session.act('spin')
-
-    session.assertMetricDefined('base-game', 'win')
-  })
-
-  it('tracks session metrics when free spins are present', () => {
-    const session = engine.session({ seed: 77 })
-    session.scenario('withFreeSpins', { spinsRemaining: 3 })
-    session.act('next')
-
-    session.assertScopeDefined('features/free-spins')
+      const raw = collector.getRawMetrics()
+      const freeScope = raw.rootScope.scopes['features']!.scopes['free-spins']!
+      expect(freeScope.metrics['session-win']).toBeDefined()
+    })
   })
 })

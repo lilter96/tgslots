@@ -4,6 +4,7 @@ import type { Rng } from '@tgslots/math/rng/types'
 import type { BetConfiguration } from '@tgslots/slots-core/betting'
 import { Wager } from '@tgslots/slots-core/betting'
 import type {
+  GameMetrics,
   RawMetricScope,
   RawScopedMetric,
   RawSimulationMetrics,
@@ -277,7 +278,7 @@ export class SlotsTestSession<
 
     const snapshot = this.collector.getLastRoundSnapshot()
     if (snapshot) {
-      this.sm.recordRoundMetrics?.(this.collector, snapshot, this.wager)
+      this.engine.metrics.recordRoundMetrics(this.collector, snapshot, this.wager)
     }
 
     const completedRound: SlotsTestCompletedRound<ResultOf<TSM>> = {
@@ -331,7 +332,7 @@ export class SlotsTestSession<
     this.traceEntries.push({ action, metricPhase, result })
 
     if (metricPhase) {
-      this.sm.recordResultMetrics?.(this.collector, result, {
+      this.engine.metrics.recordResultMetrics(this.collector, result, {
         phase: metricPhase,
         wager: this.wager,
       })
@@ -366,7 +367,7 @@ export class SlotsTestSession<
     }
 
     const startIndex = this.rawResults.length
-    runCycle(this.sm, this.rng, this.collector, this.wager)
+    runCycle(this.sm, this.engine.metrics, this.rng, this.collector, this.wager)
     const roundResults = this.rawResults.slice(startIndex)
 
     roundResults.forEach((result, index) => {
@@ -460,6 +461,7 @@ export class SlotsTestEngine<
   constructor(
     private readonly MachineClass: new (initialState?: TSM['state']) => TSM,
     private readonly betConfig: BetConfiguration,
+    readonly metrics: GameMetrics<SpinResult>,
     private readonly actions: SlotsTestActionRegistry<TSM>,
     private readonly scenarios: SlotsTestScenarioRegistry<TSM>,
     private readonly probes: SlotsTestProbeRegistry<TSM>,
@@ -548,6 +550,7 @@ export class SlotsTestEngineBuilder<
   constructor(
     private readonly MachineClass: new (initialState?: TSM['state']) => TSM,
     private readonly betConfig: BetConfiguration,
+    private readonly metrics: GameMetrics<SpinResult>,
     private readonly actions: SlotsTestActionRegistry<TSM> = createDefaultActions<TSM>(),
     private readonly scenarios: SlotsTestScenarioRegistry<TSM> = {},
     private readonly probes: SlotsTestProbeRegistry<TSM> = {},
@@ -569,6 +572,7 @@ export class SlotsTestEngineBuilder<
     return new SlotsTestEngineBuilder(
       this.MachineClass,
       this.betConfig,
+      this.metrics,
       { ...this.actions, [name]: handler } as SlotsTestActionRegistry<TSM>,
       this.scenarios,
       this.probes,
@@ -596,6 +600,7 @@ export class SlotsTestEngineBuilder<
     return new SlotsTestEngineBuilder(
       this.MachineClass,
       this.betConfig,
+      this.metrics,
       this.actions,
       { ...this.scenarios, [name]: handler } as SlotsTestScenarioRegistry<TSM>,
       this.probes,
@@ -623,6 +628,7 @@ export class SlotsTestEngineBuilder<
     return new SlotsTestEngineBuilder(
       this.MachineClass,
       this.betConfig,
+      this.metrics,
       this.actions,
       this.scenarios,
       { ...this.probes, [name]: handler } as SlotsTestProbeRegistry<TSM>,
@@ -638,6 +644,7 @@ export class SlotsTestEngineBuilder<
     return new SlotsTestEngine(
       this.MachineClass,
       this.betConfig,
+      this.metrics,
       this.actions,
       this.scenarios,
       this.probes,
@@ -648,6 +655,7 @@ export class SlotsTestEngineBuilder<
 export function createSlotsTestEngine<TSM extends AnySlotsStateMachine>(
   MachineClass: new (initialState?: TSM['state']) => TSM,
   betConfig: BetConfiguration,
+  metrics: GameMetrics<SpinResult>,
 ): SlotsTestEngineBuilder<TSM> {
-  return new SlotsTestEngineBuilder(MachineClass, betConfig)
+  return new SlotsTestEngineBuilder(MachineClass, betConfig, metrics)
 }

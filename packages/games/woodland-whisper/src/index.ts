@@ -10,6 +10,10 @@ import {
 import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli'
 import parsheetData from '../config/parsheet.json' with { type: 'json' }
 
+import { woodlandWhisperMetrics } from './metrics.js'
+
+export { woodlandWhisperMetrics }
+
 export {
   WoodlandWhisperStateMachine,
   WOODLAND_WHISPER_SAMPLER,
@@ -31,7 +35,7 @@ export type {
 
 export type { PaylineHit } from '@tgslots/slots-core/paylines/types'
 
-/** Standardized simulation metadata for the unified runner */
+/** Consumed by the CLI via dynamic `import(packageName).SIM_CONFIG`. Do not remove. */
 export const SIM_CONFIG = {
   name: 'WOODLAND WHISPER',
   parsheet: parsheetData as ParsheetConfig,

@@ -2,8 +2,18 @@ import { describe, expect, it } from 'bun:test'
 import type { Rng } from '@tgslots/math/rng/types'
 import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
 
-import { ModernDataCollector, type SpinResult, type StateMachine } from '../core/state-machine.js'
+import {
+  ModernDataCollector,
+  type GameMetrics,
+  type SpinResult,
+  type StateMachine,
+} from '../core/state-machine.js'
 import { performWarmup, runWorkerLoop } from '../runner/index.js'
+
+const noopMetrics: GameMetrics<SpinResult> = {
+  recordResultMetrics() {},
+  recordRoundMetrics() {},
+}
 
 class SimpleStateMachine implements StateMachine<SpinResult, { count: number }> {
   readonly state = { count: 0 }
@@ -73,6 +83,7 @@ describe('runWorkerLoop', () => {
 
     runWorkerLoop(
       sm,
+      noopMetrics,
       rng,
       collector,
       {
@@ -99,6 +110,7 @@ describe('runWorkerLoop', () => {
 
     runWorkerLoop(
       sm,
+      noopMetrics,
       rng,
       collector,
       {
@@ -123,6 +135,7 @@ describe('runWorkerLoop', () => {
 
     runWorkerLoop(
       sm,
+      noopMetrics,
       rng,
       collector,
       {

@@ -5,6 +5,7 @@ import {
 import { BET_CONFIG } from '../constants.js'
 import type { FreeSpinState } from '../game-state-machine.js'
 import { AncientDragonStateMachine } from '../game-state-machine.js'
+import { ancientDragonMetrics } from '../metrics.js'
 
 const withFreeSpinsScenario: SlotsTestScenarioHandler<
   AncientDragonStateMachine,
@@ -22,7 +23,11 @@ const withFreeSpinsScenario: SlotsTestScenarioHandler<
   return session.sm.state.freeSpins
 }
 
-export const ancientDragonTestEngine = createSlotsTestEngine(AncientDragonStateMachine, BET_CONFIG)
+export const ancientDragonTestEngine = createSlotsTestEngine(
+  AncientDragonStateMachine,
+  BET_CONFIG,
+  ancientDragonMetrics,
+)
   .registerScenario('withFreeSpins', withFreeSpinsScenario)
   .registerProbe('freeSpinState', (session) => session.sm.state.freeSpins)
   .build()

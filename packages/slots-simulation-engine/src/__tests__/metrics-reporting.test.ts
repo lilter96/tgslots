@@ -6,6 +6,7 @@ import {
   ModernDataCollector,
   runCycle,
   type DataCollector,
+  type GameMetrics,
   type RoundMetricsSnapshot,
   type SpinResult,
   type StateMachine,
@@ -46,7 +47,9 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
       components: { total: 30 },
     }
   }
+}
 
+const stubMetrics: GameMetrics<StubResult> = {
   recordResultMetrics(
     collector: DataCollector,
     result: StubResult,
@@ -63,14 +66,14 @@ class StubStateMachine implements StateMachine<StubResult, { emitted: boolean }>
       featureScope.count('spins')
       featureScope.payout('spin-win', result.win)
     }
-  }
+  },
 
   recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
     const featureScope = collector.scope(['features', 'free-spins'])
     const freeWin = round.winsByType.FREE?.total ?? 0
     featureScope.payout('bonus-payout', freeWin)
     featureScope.rtp('bonus-rtp', freeWin)
-  }
+  },
 }
 
 describe('simulation metrics reporting', () => {
@@ -79,7 +82,7 @@ describe('simulation metrics reporting', () => {
 
   it('finalizes generic scoped metrics from collector hooks', () => {
     const collector = new ModernDataCollector()
-    runCycle(new StubStateMachine(), rng, collector, wager)
+    runCycle(new StubStateMachine(), stubMetrics, rng, collector, wager)
 
     const metrics = Metrics.finalize(collector.getRawMetrics())
     const freeSpins = metrics.scopes.scopes.features?.scopes['free-spins']
@@ -123,8 +126,8 @@ describe('simulation metrics reporting', () => {
 
   it('rtp finalization divides by cumulative totalBet, not per-record denominator', () => {
     const collector = new ModernDataCollector()
-    runCycle(new StubStateMachine(), rng, collector, wager)
-    runCycle(new StubStateMachine(), rng, collector, wager)
+    runCycle(new StubStateMachine(), stubMetrics, rng, collector, wager)
+    runCycle(new StubStateMachine(), stubMetrics, rng, collector, wager)
 
     const metrics = Metrics.finalize(collector.getRawMetrics())
     const freeSpins = metrics.scopes.scopes.features?.scopes['free-spins']
@@ -160,8 +163,8 @@ describe('simulation metrics reporting', () => {
     const left = new ModernDataCollector()
     const right = new ModernDataCollector()
 
-    runCycle(new StubStateMachine(), rng, left, wager)
-    runCycle(new StubStateMachine(), rng, right, wager)
+    runCycle(new StubStateMachine(), stubMetrics, rng, left, wager)
+    runCycle(new StubStateMachine(), stubMetrics, rng, right, wager)
 
     const merged = Metrics.finalize(Metrics.merge(left.getRawMetrics(), right.getRawMetrics()))
     const freeSpins = merged.scopes.scopes.features?.scopes['free-spins']
@@ -178,7 +181,7 @@ describe('simulation metrics reporting', () => {
 
   it('evaluates normalized comparisons against summary and scoped metrics', () => {
     const collector = new ModernDataCollector()
-    runCycle(new StubStateMachine(), rng, collector, wager)
+    runCycle(new StubStateMachine(), stubMetrics, rng, collector, wager)
 
     const metrics = Metrics.finalize(collector.getRawMetrics())
     const comparisons = evaluateComparisons(metrics, {
