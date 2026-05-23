@@ -163,4 +163,55 @@ describe('SlotsTestEngine fluent API', () => {
     session.assertMetricDefined('base-game', 'win')
     session.assertMetricDefined('features/free-spins', 'feature-rtp')
   })
+
+  it('does not record rounds or metrics for a non-collected step', () => {
+    const session = engine.session()
+    const before = session.getRawMetrics()
+
+    const result = session.executeResultStep(
+      'peek',
+      () => session.sm.buyBonus(session.rng, session.wager),
+      { collect: false },
+    )
+
+    expect(result.type).toBe('BUY')
+
+    const after = session.getRawMetrics()
+    expect(after.rounds).toBe(before.rounds)
+    expect(after.totalBet).toBe(before.totalBet)
+    expect(after.totalSpinResults).toBe(before.totalSpinResults)
+    expect(session.rounds).toHaveLength(0)
+    expect(session.results).toHaveLength(0)
+    expect(session.trace).toHaveLength(0)
+  })
+
+  it('exposes raw metrics and returns a defensive copy of results', () => {
+    const session = engine.session()
+    session.act('cycle')
+
+    expect(session.getRawMetrics().rounds).toBeGreaterThanOrEqual(1)
+
+    const lengthBefore = session.results.length
+    const view = session.results as StubResult[]
+    view.push({ type: 'FREE', win: 0, components: { total: 0 } })
+    expect(session.results).toHaveLength(lengthBefore)
+  })
+
+  it('refuses to reset the machine while a round is open', () => {
+    const session = engine.session()
+    session.startRound()
+    expect(() => session.resetMachine({ freeSpins: 0 })).toThrow('while a round is open')
+  })
+
+  it('rejects mistyped action and scenario arguments at compile time', () => {
+    const session = engine.session()
+
+    // @ts-expect-error spin takes no arguments
+    session.act('spin', 1)
+    // @ts-expect-error withFreeSpins expects a number, not a string
+    session.scenario('withFreeSpins', 'nope')
+
+    session.scenario('withFreeSpins', 3)
+    expect(session.probe('remainingFreeSpins')).toBe(3)
+  })
 })

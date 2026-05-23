@@ -13,7 +13,7 @@ describe('AncientDragonStateMachine — full round-trip + metrics', () => {
     const session = engine.session({ seed: seed ?? 42 })
     session.act('cycle')
 
-    const metrics = Metrics.finalize(session.collector.getRawMetrics())
+    const metrics = Metrics.finalize(session.getRawMetrics())
     expect(metrics.summary.rounds).toBeGreaterThanOrEqual(1)
   })
 
