@@ -95,6 +95,7 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       lastGrid: s.lastGrid,
       freeSpins,
       lastSpinResult: null,
+      roundWin: 0,
     }
     return new LeMilitareStateMachine(runtimeState)
   }

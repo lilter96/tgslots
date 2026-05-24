@@ -30,6 +30,7 @@ describe('spin()', () => {
           multiplierSum: 2,
         },
         lastSpinResult: null,
+        roundWin: 0,
       },
       seed: 42,
     })

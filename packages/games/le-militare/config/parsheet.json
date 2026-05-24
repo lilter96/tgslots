@@ -2,7 +2,7 @@
   "metadata": {
     "bet": 1,
     "source": "parsheet",
-    "notes": "6x5, cluster pays, cascade/tumble, Combat Operation (S300 floods reel + shoots PLANE→multiplier-wild), free spins via SCATTER (>=4 triggers), persistent multiplier across free spins in session"
+    "notes": "6x5 cluster pays (min 6), cascade/tumble, high volatility. Combat Operation is free-spins-only: S300 floods a reel to WILD (armed reels persist), PLANE shot down into multiplier-wild, multiplier sum persists across the session. Free spins via SCATTER (>=4 triggers). Round win capped at 15000x stake."
   },
   "comparisons": [
     {
@@ -16,7 +16,7 @@
     {
       "id": "basic-game-win-cycle",
       "label": "Base Game Win Cycle",
-      "expected": 3.5,
+      "expected": 4.55,
       "source": { "kind": "scope", "scope": ["base-game"], "metric": "hits", "field": "cycle" },
       "tolerance": { "type": "relative", "value": 0.1 },
       "format": "number"
@@ -24,7 +24,7 @@
     {
       "id": "free-spin-trigger-cycle",
       "label": "Free Spin Trigger Cycle",
-      "expected": 120,
+      "expected": 333,
       "source": {
         "kind": "scope",
         "scope": ["features", "free-spins"],
@@ -37,7 +37,7 @@
     {
       "id": "basic-game-rtp",
       "label": "Base Game RTP",
-      "expected": 0.721,
+      "expected": 0.471,
       "source": {
         "kind": "scope",
         "scope": ["base-game"],
@@ -50,7 +50,7 @@
     {
       "id": "feature-rtp",
       "label": "Feature (Free Spins) RTP",
-      "expected": 0.263,
+      "expected": 0.512,
       "source": {
         "kind": "scope",
         "scope": ["features", "free-spins"],

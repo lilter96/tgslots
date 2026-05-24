@@ -20,6 +20,7 @@ Architectural decisions capturing WHY at a point in time. Each is a design choic
 - [[decision_005_cluster_pays_and_super_cascades]] — 4-connected BFS clusters, `Sampler<T>` cascade refill
 - [[decision_006_api_dispatcher_architecture]] — Type-safe stateless GameRegistry + GameServer dispatcher
 - [[decision_007_web_client_plugin_architecture]] — Multi-game Pixi plugin host via IGameClient
+- [[decision_008_le_militare_math_rebalance]] — Le Militare tuned to 98.4% RTP: S300 free-only, run-length clustering, paytable scaler, 15,000× cap
 
 ### Components
 

@@ -29,6 +29,7 @@ const withFreeSpinsScenario: SlotsTestScenarioHandler<
       multiplierSum: overrides.multiplierSum ?? 0,
     },
     lastSpinResult: null,
+    roundWin: 0,
   })
 
   return session.sm.state.freeSpins
