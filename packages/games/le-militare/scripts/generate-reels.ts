@@ -156,9 +156,9 @@ const SPEC: Spec = {
     recon: {
       multiplierPool: { values: [1, 2, 3, 5, 10, 25], weights: [660, 270, 50, 14, 5, 1] },
       airRaid: {
-        triggerWeights: [16, 84],
+        triggerWeights: [20, 80],
         squadronSizes: [1, 2, 3],
-        squadronWeights: [60, 30, 10],
+        squadronWeights: [52, 33, 15],
         hitWeights: [6, 4],
       },
     },
@@ -176,7 +176,7 @@ const SPEC: Spec = {
     siege: {
       multiplierPool: {
         values: [1, 2, 3, 5, 10, 25, 50, 100],
-        weights: [560, 250, 90, 40, 30, 18, 8, 4],
+        weights: [650, 275, 50, 12, 5, 4, 3, 1],
       },
       airRaid: {
         triggerWeights: [6, 94],
