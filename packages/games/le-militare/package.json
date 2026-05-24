@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "generate:reels": "bun scripts/generate-reels.ts",
     "sim": "bun --filter @tgslots/simulations run le-militare",
     "sim:verify": "bun --filter @tgslots/simulations run le-militare:verify"
   },

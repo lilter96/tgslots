@@ -34,6 +34,7 @@ describe('buy-bonus / buyBonus()', () => {
           multiplierSum: 0,
         },
         lastSpinResult: null,
+        roundWin: 0,
       },
       seed: 777,
     })

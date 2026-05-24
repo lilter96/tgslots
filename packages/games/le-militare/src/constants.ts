@@ -72,6 +72,9 @@ export const MAX_CASCADE_STEPS = 100 as const
 
 export const BUY_BONUS_COST_MULTIPLIER: number = config.buy_bonus_cost_multiplier
 
+/** Round payout ceiling, expressed as a multiple of the total stake. */
+export const MAX_WIN_MULTIPLIER: number = config.game_metadata.max_win_multiplier
+
 // ─── Multiplier Pool ───────────────────────────────────────────────────────
 
 export const MULTIPLIER_POOL = config.multiplier_pool.values as readonly number[]

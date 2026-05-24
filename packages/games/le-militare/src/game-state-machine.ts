@@ -6,7 +6,7 @@ import type {
   StateMachine,
 } from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
-import { MIN_SCATTERS, FREE_SPIN_AWARDS } from './constants.js'
+import { MIN_SCATTERS, FREE_SPIN_AWARDS, MAX_WIN_MULTIPLIER } from './constants.js'
 import { LE_MILITARE_SAMPLER, BUY_BONUS_SAMPLER } from './logic.js'
 import type { LeMilitareSpinResult } from './types.js'
 
@@ -24,6 +24,9 @@ export interface LeMilitareState {
   lastGrid: number[][] | null
   freeSpins: LeMilitareFreeSpinsState | null
   lastSpinResult: LeMilitareSpinResult | null
+  // Cumulative win of the current round (base + free spins), used for the
+  // max-win cap which ends the feature once the ceiling is reached.
+  roundWin: number
 }
 
 // ─── Results ──────────────────────────────────────────────────────────────
@@ -69,7 +72,12 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
   private _state: LeMilitareState
 
   constructor(initialState?: LeMilitareState) {
-    this._state = initialState ?? { lastGrid: null, freeSpins: null, lastSpinResult: null }
+    this._state = initialState ?? {
+      lastGrid: null,
+      freeSpins: null,
+      lastSpinResult: null,
+      roundWin: 0,
+    }
   }
 
   get state(): LeMilitareState {
@@ -92,6 +100,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     // Reset any previous session
     this._state.freeSpins = null
     this._state.lastSpinResult = null
+    this._state.roundWin = 0
 
     const sampler = LE_MILITARE_SAMPLER(wager, {
       isFreeSpin: false,
@@ -103,7 +112,11 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     this._state.lastGrid = result.initialGrid
     this._state.lastSpinResult = result
 
-    if (result.triggeredFreeSpins) {
+    const cap = MAX_WIN_MULTIPLIER * wager.totalWager
+    const win = Math.min(result.finalWin, cap)
+    this._state.roundWin = win
+
+    if (result.triggeredFreeSpins && win < cap) {
       this._state.freeSpins = {
         triggeringWager: wager,
         spinsRemaining: result.freeSpinsAwarded,
@@ -115,14 +128,14 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
 
     return {
       type: 'BASE',
-      win: result.finalWin,
-      components: { total: result.finalWin },
+      win,
+      components: { total: win },
       scatterCount: result.scatterCount,
       triggeredFreeSpins: result.triggeredFreeSpins,
       freeSpinsAwarded: result.freeSpinsAwarded,
       steps: result.steps,
       multiplierSum: result.multiplierSum,
-      finalWin: result.finalWin,
+      finalWin: win,
       state: this._freeSpinState(),
     }
   }
@@ -144,7 +157,13 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
 
     this._state.lastGrid = result.initialGrid
     this._state.lastSpinResult = result
-    this._state.freeSpins.totalWin += result.finalWin
+
+    const cap = MAX_WIN_MULTIPLIER * triggeringWager.totalWager
+    const budget = cap - this._state.roundWin
+    const capReached = result.finalWin >= budget
+    const win = capReached ? budget : result.finalWin
+    this._state.roundWin += win
+    this._state.freeSpins.totalWin += win
 
     // Update session-persistent state
     for (const reel of result.endArmedReels) {
@@ -152,30 +171,36 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     }
     this._state.freeSpins.multiplierSum = result.endMultiplierSum
 
-    // Handle retrigger
-    const retriggered = result.scatterCount >= MIN_SCATTERS
+    // Once the round hits the max-win ceiling the feature ends immediately;
+    // no further spins or retriggers are awarded.
+    let retriggered = false
     let addedSpins = 0
-    if (retriggered) {
-      for (let n = result.scatterCount; n >= MIN_SCATTERS; n--) {
-        const award = FREE_SPIN_AWARDS[n]
-        if (award !== undefined) {
-          addedSpins = award
-          break
+    if (capReached) {
+      this._state.freeSpins.spinsRemaining = 0
+    } else {
+      retriggered = result.scatterCount >= MIN_SCATTERS
+      if (retriggered) {
+        for (let n = result.scatterCount; n >= MIN_SCATTERS; n--) {
+          const award = FREE_SPIN_AWARDS[n]
+          if (award !== undefined) {
+            addedSpins = award
+            break
+          }
         }
+        this._state.freeSpins.spinsRemaining += addedSpins
       }
-      this._state.freeSpins.spinsRemaining += addedSpins
     }
 
     return {
       type: 'FREE',
-      win: result.finalWin,
-      components: { total: result.finalWin },
+      win,
+      components: { total: win },
       scatterCount: result.scatterCount,
       retriggered,
       freeSpinsAwarded: addedSpins,
       steps: result.steps,
       multiplierSum: result.multiplierSum,
-      finalWin: result.finalWin,
+      finalWin: win,
       state: this._freeSpinState(),
     }
   }
@@ -183,14 +208,19 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
   buyBonus(rng: Rng, wager: Wager): LeMilitareBuyResult {
     this._state.freeSpins = null
     this._state.lastSpinResult = null
+    this._state.roundWin = 0
 
     const result = BUY_BONUS_SAMPLER(wager).sample(rng)
 
     this._state.lastGrid = result.initialGrid
     this._state.lastSpinResult = result
+
+    const cap = MAX_WIN_MULTIPLIER * wager.totalWager
+    const win = Math.min(result.finalWin, cap)
+    this._state.roundWin = win
     this._state.freeSpins = {
       triggeringWager: wager,
-      spinsRemaining: result.freeSpinsAwarded,
+      spinsRemaining: win < cap ? result.freeSpinsAwarded : 0,
       totalWin: 0,
       armedReels: new Set(),
       multiplierSum: 0,
@@ -198,14 +228,14 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
 
     return {
       type: 'BUY',
-      win: result.finalWin,
-      components: { total: result.finalWin },
+      win,
+      components: { total: win },
       scatterCount: result.scatterCount,
       triggeredFreeSpins: true,
       freeSpinsAwarded: result.freeSpinsAwarded,
       steps: result.steps,
       multiplierSum: result.multiplierSum,
-      finalWin: result.finalWin,
+      finalWin: win,
       state: this._freeSpinState(),
     }
   }
