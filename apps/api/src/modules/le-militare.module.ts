@@ -12,8 +12,9 @@ import type { LeMilitareSerializedState, LMFreeSpinSerialized } from './le-milit
 // Ensure declaration merge is loaded
 import '../types/le-militare.reg.js'
 
-type LMAction = 'spin' | 'buybonus' | 'freespin' | 'state'
-type LMPayload = { multiplier?: number }
+type LMAction = 'spin' | 'buybonus' | 'chancespin' | 'airraidspin' | 'freespin' | 'state'
+type LMBuyOption = 'standard' | 'elite' | 'super'
+type LMPayload = { multiplier?: number; option?: LMBuyOption }
 
 export class LeMilitareModule implements IGameModule<'le-militare'> {
   readonly gameId = 'le-militare' as const
@@ -29,9 +30,18 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
   ): string | null {
     switch (action) {
       case 'spin':
-      case 'buybonus': {
+      case 'buybonus':
+      case 'chancespin':
+      case 'airraidspin': {
         if (typeof payload.multiplier !== 'number' || payload.multiplier < 1) {
           return 'multiplier must be a positive integer'
+        }
+        if (
+          action === 'buybonus' &&
+          payload.option !== undefined &&
+          !['standard', 'elite', 'super'].includes(payload.option)
+        ) {
+          return 'option must be one of: standard, elite, super'
         }
         return null
       }
@@ -68,7 +78,17 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       }
       case 'buybonus': {
         const wager = new Wager(payload.multiplier!, BET_CONFIG)
-        const result = machine.buyBonus(rng, wager)
+        const result = machine.buyBonus(rng, wager, payload.option ?? 'standard')
+        return { state: this.dehydrate(machine), result }
+      }
+      case 'chancespin': {
+        const wager = new Wager(payload.multiplier!, BET_CONFIG)
+        const result = machine.buyChanceSpin(rng, wager)
+        return { state: this.dehydrate(machine), result }
+      }
+      case 'airraidspin': {
+        const wager = new Wager(payload.multiplier!, BET_CONFIG)
+        const result = machine.buyAirRaidSpin(rng, wager)
         return { state: this.dehydrate(machine), result }
       }
       case 'freespin': {

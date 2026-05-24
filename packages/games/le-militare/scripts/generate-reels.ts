@@ -42,8 +42,23 @@ interface Spec {
     hitWeights: [number, number] // [hit, miss]
   }
   freeSpinsAwarded: Record<string, number>
+  // Feature buy menu. Costs are × stake (integers); each tuned so EV/cost ≈ RTP.
+  buyOptions: {
+    standard: BuyTier
+    elite: BuyTier
+    super: BuyTier
+    chanceSpin: { cost: number; forceWeights: [number, number] }
+    airRaidSpin: { cost: number }
+  }
   maxWinMultiplier: number
   jitterSeed: number
+}
+
+interface BuyTier {
+  cost: number
+  minScatters: number
+  startArmedReels: number
+  startMultiplier: number
 }
 
 // ── Tunable math spec ────────────────────────────────────────────────────────
@@ -140,6 +155,13 @@ const SPEC: Spec = {
     hitWeights: [6, 4],
   },
   freeSpinsAwarded: { '4': 9, '5': 13, '6': 17, '7': 21 },
+  buyOptions: {
+    standard: { cost: 184, minScatters: 4, startArmedReels: 0, startMultiplier: 0 },
+    elite: { cost: 874, minScatters: 6, startArmedReels: 0, startMultiplier: 0 },
+    super: { cost: 1795, minScatters: 7, startArmedReels: 0, startMultiplier: 3 },
+    chanceSpin: { cost: 4.2, forceWeights: [9, 991] },
+    airRaidSpin: { cost: 1.9 },
+  },
   maxWinMultiplier: 15000,
   jitterSeed: 0x9e3779b9,
 }
@@ -234,6 +256,23 @@ function main(): void {
     hit_weights: SPEC.airRaid.hitWeights,
   }
   config.scatter_definition.free_spins_awarded = SPEC.freeSpinsAwarded
+  const tier = (t: BuyTier) => ({
+    cost: t.cost,
+    min_scatters: t.minScatters,
+    start_armed_reels: t.startArmedReels,
+    start_multiplier: t.startMultiplier,
+  })
+  config.buy_options = {
+    standard: tier(SPEC.buyOptions.standard),
+    elite: tier(SPEC.buyOptions.elite),
+    super: tier(SPEC.buyOptions.super),
+    chance_spin: {
+      cost: SPEC.buyOptions.chanceSpin.cost,
+      force_weights: SPEC.buyOptions.chanceSpin.forceWeights,
+    },
+    air_raid_spin: { cost: SPEC.buyOptions.airRaidSpin.cost },
+  }
+  config.buy_bonus_cost_multiplier = SPEC.buyOptions.standard.cost
   config.reel_strips_base = reelsToObject(buildPhase(SPEC.base, rand))
   config.reel_strips_free = reelsToObject(buildPhase(SPEC.free, rand))
 

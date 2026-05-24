@@ -74,19 +74,24 @@ const planeSampler: Sampler<AirRaidPlacement | null> = planeHitSampler.flatMap((
     : Sampler.pure<AirRaidPlacement | null>(null),
 )
 
-export const airRaidSampler: Sampler<AirRaidResult> = airRaidFireSampler.flatMap((fire) => {
-  if (!fire) return Sampler.pure(NO_AIR_RAID)
-  return squadronSizeSampler.flatMap((size) =>
-    Sampler.traverse(
-      Array.from({ length: size }, (_, i) => i),
-      () => planeSampler,
-    ).map((planes) => {
-      const placements = planes.filter((p): p is AirRaidPlacement => p !== null)
-      const multiplierSum = placements.reduce((sum, p) => sum + p.multiplier, 0)
-      return { placements, multiplierSum }
-    }),
-  )
-})
+// The squadron + interception roll, without the "does a raid happen?" gate.
+// `forcedAirRaidSampler` reuses it for the guaranteed-Air-Raid buy spin.
+export const raidBodySampler: Sampler<AirRaidResult> = squadronSizeSampler.flatMap((size) =>
+  Sampler.traverse(
+    Array.from({ length: size }, (_, i) => i),
+    () => planeSampler,
+  ).map((planes) => {
+    const placements = planes.filter((p): p is AirRaidPlacement => p !== null)
+    const multiplierSum = placements.reduce((sum, p) => sum + p.multiplier, 0)
+    return { placements, multiplierSum }
+  }),
+)
+
+export const airRaidSampler: Sampler<AirRaidResult> = airRaidFireSampler.flatMap((fire) =>
+  fire ? raidBodySampler : Sampler.pure(NO_AIR_RAID),
+)
+
+export const forcedAirRaidSampler: Sampler<AirRaidResult> = raidBodySampler
 
 // ─── Sticky Wild Helpers ──────────────────────────────────────────────────
 // stickyGrid[reel][row] === true means that cell holds a shootdown-converted

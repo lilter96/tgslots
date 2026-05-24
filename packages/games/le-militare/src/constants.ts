@@ -94,6 +94,42 @@ export const AIR_RAID = {
   hitWeights: [config.air_raid.hit_weights[0]!, config.air_raid.hit_weights[1]!] as const,
 } as const
 
+// ─── Feature Buy menu ───────────────────────────────────────────────────────
+
+export interface BuyTierConfig {
+  cost: number
+  minScatters: number
+  startArmedReels: number
+  startMultiplier: number
+}
+
+const toTier = (t: {
+  cost: number
+  min_scatters: number
+  start_armed_reels: number
+  start_multiplier: number
+}): BuyTierConfig => ({
+  cost: t.cost,
+  minScatters: t.min_scatters,
+  startArmedReels: t.start_armed_reels,
+  startMultiplier: t.start_multiplier,
+})
+
+export const BUY_OPTIONS = {
+  standard: toTier(config.buy_options.standard),
+  elite: toTier(config.buy_options.elite),
+  super: toTier(config.buy_options.super),
+  chanceSpin: { cost: config.buy_options.chance_spin.cost },
+  airRaidSpin: { cost: config.buy_options.air_raid_spin.cost },
+} as const
+
+export type BuyOptionId = 'standard' | 'elite' | 'super'
+
+export const CHANCE_SPIN_FORCE_WEIGHTS = [
+  config.buy_options.chance_spin.force_weights[0]!,
+  config.buy_options.chance_spin.force_weights[1]!,
+] as const
+
 // ─── Reel Strips ─────────────────────────────────────────────────────────
 
 function encodeStrip(names: string[]): Uint8Array {

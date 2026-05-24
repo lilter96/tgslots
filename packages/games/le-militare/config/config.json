@@ -300,7 +300,7 @@
     ]
   },
   "disallow_mixed_wild_clusters": true,
-  "buy_bonus_cost_multiplier": 100,
+  "buy_bonus_cost_multiplier": 184,
   "reel_strips_base": {
     "reel1": [
       "MEDAL",
@@ -2250,5 +2250,35 @@
       6,
       4
     ]
+  },
+  "buy_options": {
+    "standard": {
+      "cost": 184,
+      "min_scatters": 4,
+      "start_armed_reels": 0,
+      "start_multiplier": 0
+    },
+    "elite": {
+      "cost": 874,
+      "min_scatters": 6,
+      "start_armed_reels": 0,
+      "start_multiplier": 0
+    },
+    "super": {
+      "cost": 1795,
+      "min_scatters": 7,
+      "start_armed_reels": 0,
+      "start_multiplier": 3
+    },
+    "chance_spin": {
+      "cost": 4.2,
+      "force_weights": [
+        9,
+        991
+      ]
+    },
+    "air_raid_spin": {
+      "cost": 1.9
+    }
   }
 }

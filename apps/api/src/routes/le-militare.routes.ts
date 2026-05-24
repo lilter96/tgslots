@@ -53,6 +53,46 @@ export function leMilitareRoutes(server: GameServer) {
           gameId: 'le-militare',
           action: 'buybonus',
           sessionId: body.sessionId,
+          payload: { multiplier: body.multiplier, option: body.option },
+        })
+        if (!out.ok) {
+          set.status = out.status
+          return { error: out.error }
+        }
+        return {
+          sessionId: out.response.sessionId,
+          result: out.response.result!,
+          state: out.response.state,
+        }
+      },
+      {
+        body: t.Object({
+          multiplier: t.Integer({ minimum: 1 }),
+          option: t.Optional(
+            t.Union([t.Literal('standard'), t.Literal('elite'), t.Literal('super')]),
+          ),
+          sessionId: t.Optional(t.String()),
+        }),
+        response: {
+          200: LeMilitareSpinResponseSchema,
+          400: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+        },
+        detail: {
+          tags: ['Le Militare'],
+          summary: 'Buy Bonus (guaranteed free spins)',
+          description:
+            'Purchases a guaranteed Free Spins entry. Tiers: standard, elite (more spins + armed reel), super (max spins + armed reel + starting multiplier).',
+        },
+      },
+    )
+    .post(
+      '/chancespin',
+      ({ body, set }) => {
+        const out = server.execute({
+          gameId: 'le-militare',
+          action: 'chancespin',
+          sessionId: body.sessionId,
           payload: { multiplier: body.multiplier },
         })
         if (!out.ok) {
@@ -77,8 +117,44 @@ export function leMilitareRoutes(server: GameServer) {
         },
         detail: {
           tags: ['Le Militare'],
-          summary: 'Buy Bonus (guaranteed free spins)',
-          description: 'Purchases a guaranteed Free Spins trigger at 100× bet cost.',
+          summary: 'Buy a ×5 Chance spin',
+          description: 'One base spin with 5× the Free Spins trigger probability.',
+        },
+      },
+    )
+    .post(
+      '/airraidspin',
+      ({ body, set }) => {
+        const out = server.execute({
+          gameId: 'le-militare',
+          action: 'airraidspin',
+          sessionId: body.sessionId,
+          payload: { multiplier: body.multiplier },
+        })
+        if (!out.ok) {
+          set.status = out.status
+          return { error: out.error }
+        }
+        return {
+          sessionId: out.response.sessionId,
+          result: out.response.result!,
+          state: out.response.state,
+        }
+      },
+      {
+        body: t.Object({
+          multiplier: t.Integer({ minimum: 1 }),
+          sessionId: t.Optional(t.String()),
+        }),
+        response: {
+          200: LeMilitareSpinResponseSchema,
+          400: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+        },
+        detail: {
+          tags: ['Le Militare'],
+          summary: 'Buy a guaranteed Air Raid spin',
+          description: 'One base spin where the Air Raid always fires (S300 intercepts planes).',
         },
       },
     )
