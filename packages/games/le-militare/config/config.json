@@ -2280,5 +2280,131 @@
     "air_raid_spin": {
       "cost": 1.9
     }
+  },
+  "modes": {
+    "recon": {
+      "multiplier_pool": {
+        "values": [
+          1,
+          2,
+          3,
+          5,
+          10,
+          25
+        ],
+        "weights": [
+          660,
+          270,
+          50,
+          14,
+          5,
+          1
+        ]
+      },
+      "air_raid": {
+        "trigger_weights": [
+          16,
+          84
+        ],
+        "squadron_sizes": [
+          1,
+          2,
+          3
+        ],
+        "squadron_weights": [
+          60,
+          30,
+          10
+        ],
+        "hit_weights": [
+          6,
+          4
+        ]
+      }
+    },
+    "assault": {
+      "multiplier_pool": {
+        "values": [
+          1,
+          2,
+          3,
+          5,
+          10,
+          25
+        ],
+        "weights": [
+          620,
+          252,
+          82,
+          27,
+          16,
+          5
+        ]
+      },
+      "air_raid": {
+        "trigger_weights": [
+          7,
+          93
+        ],
+        "squadron_sizes": [
+          1,
+          2,
+          3
+        ],
+        "squadron_weights": [
+          50,
+          35,
+          15
+        ],
+        "hit_weights": [
+          6,
+          4
+        ]
+      }
+    },
+    "siege": {
+      "multiplier_pool": {
+        "values": [
+          1,
+          2,
+          3,
+          5,
+          10,
+          25,
+          50,
+          100
+        ],
+        "weights": [
+          560,
+          250,
+          90,
+          40,
+          30,
+          18,
+          8,
+          4
+        ]
+      },
+      "air_raid": {
+        "trigger_weights": [
+          6,
+          94
+        ],
+        "squadron_sizes": [
+          1,
+          2,
+          3
+        ],
+        "squadron_weights": [
+          40,
+          35,
+          25
+        ],
+        "hit_weights": [
+          6,
+          4
+        ]
+      }
+    }
   }
 }

@@ -4,7 +4,14 @@ import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli'
 import parsheetData from '../config/parsheet.json' with { type: 'json' }
 
 export { LeMilitareStateMachine, BET_CONFIG }
-export { Symbols, BUY_BONUS_COST_MULTIPLIER } from './constants.js'
+export {
+  Symbols,
+  BUY_BONUS_COST_MULTIPLIER,
+  BUY_OPTIONS,
+  MODE_IDS,
+  DEFAULT_MODE,
+} from './constants.js'
+export type { ModeId, BuyOptionId } from './constants.js'
 
 export type {
   LeMilitareState,

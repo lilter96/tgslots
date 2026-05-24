@@ -11,7 +11,9 @@ import {
   FREE_SPIN_AWARDS,
   MAX_WIN_MULTIPLIER,
   BUY_OPTIONS,
+  DEFAULT_MODE,
   type BuyOptionId,
+  type ModeId,
 } from './constants.js'
 import {
   LE_MILITARE_SAMPLER,
@@ -81,14 +83,20 @@ export type LeMilitareResult = LeMilitareBaseResult | LeMilitareFreeResult | LeM
 
 export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, LeMilitareState> {
   private _state: LeMilitareState
+  private readonly _mode: ModeId
 
-  constructor(initialState?: LeMilitareState) {
+  constructor(initialState?: LeMilitareState, mode: ModeId = DEFAULT_MODE) {
+    this._mode = mode
     this._state = initialState ?? {
       lastGrid: null,
       freeSpins: null,
       lastSpinResult: null,
       roundWin: 0,
     }
+  }
+
+  get mode(): ModeId {
+    return this._mode
   }
 
   get state(): LeMilitareState {
@@ -155,7 +163,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     return this._baseSpin(
       rng,
       wager,
-      LE_MILITARE_SAMPLER(wager, {
+      LE_MILITARE_SAMPLER(this._mode, wager, {
         isFreeSpin: false,
         carryArmedReels: new Set(),
         carryMultiplierSum: 0,
@@ -165,12 +173,12 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
 
   /** Buy: one base spin with 5× the Free Spins trigger chance. */
   buyChanceSpin(rng: Rng, wager: Wager): LeMilitareBaseResult {
-    return this._baseSpin(rng, wager, CHANCE_SPIN_SAMPLER(wager))
+    return this._baseSpin(rng, wager, CHANCE_SPIN_SAMPLER(this._mode, wager))
   }
 
   /** Buy: one base spin with a guaranteed Air Raid. */
   buyAirRaidSpin(rng: Rng, wager: Wager): LeMilitareBaseResult {
-    return this._baseSpin(rng, wager, AIR_RAID_SPIN_SAMPLER(wager))
+    return this._baseSpin(rng, wager, AIR_RAID_SPIN_SAMPLER(this._mode, wager))
   }
 
   freeGameSpin(rng: Rng): LeMilitareFreeResult {
@@ -181,7 +189,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     this._state.freeSpins.spinsRemaining--
     const { triggeringWager, armedReels, multiplierSum } = this._state.freeSpins
 
-    const sampler = LE_MILITARE_SAMPLER(triggeringWager, {
+    const sampler = LE_MILITARE_SAMPLER(this._mode, triggeringWager, {
       isFreeSpin: true,
       carryArmedReels: armedReels,
       carryMultiplierSum: multiplierSum,
@@ -244,7 +252,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     this._state.roundWin = 0
 
     const tier = BUY_OPTIONS[option]
-    const result = BUY_BONUS_SAMPLER(wager, tier.minScatters).sample(rng)
+    const result = BUY_BONUS_SAMPLER(this._mode, wager, tier.minScatters).sample(rng)
 
     this._state.lastGrid = result.initialGrid
     this._state.lastSpinResult = result

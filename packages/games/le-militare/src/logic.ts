@@ -13,10 +13,11 @@ import {
   SCATTER_ID,
   WILD_ID,
 } from './constants.js'
+import type { ModeId } from './constants.js'
 import type { CombatCascadeStep, LeMilitareSpinResult } from './types.ts'
 import { buildGridSampler } from './grid-samplers.js'
 import { countScatters, freeSpinsAwarded, snapshotGrid } from './helpers.js'
-import { combatCascadeLoopSampler, airRaidSampler, forcedAirRaidSampler } from './combat.js'
+import { combatCascadeLoopSampler, MODE_SAMPLERS } from './combat.js'
 import type { AirRaidResult } from './combat.js'
 
 export { makeStripChunkSampler } from './grid-samplers.js'
@@ -41,12 +42,14 @@ function injectScatters(grid: MutableCascadeGrid, count: number): void {
 }
 
 function createSpinSampler(
+  mode: ModeId,
   wager: Wager,
   isFreeSpin: boolean,
   carryArmedReels: ReadonlySet<number>,
   carryMultiplierSum: number,
   opts: SpinOptions = {},
 ): Sampler<LeMilitareSpinResult> {
+  const samplers = MODE_SAMPLERS[mode]
   const strips = isFreeSpin ? INT_STRIPS_FREE : INT_STRIPS_BASE
   const gridSampler = buildGridSampler(strips)
   // The Air Raid is a base-game Combat Operation; free spins keep the
@@ -56,8 +59,8 @@ function createSpinSampler(
     isFreeSpin || raidMode === 'off'
       ? Sampler.pure(NO_AIR_RAID)
       : raidMode === 'forced'
-        ? forcedAirRaidSampler
-        : airRaidSampler
+        ? samplers.forcedAirRaidSampler
+        : samplers.airRaidSampler
 
   return gridSampler.flatMap((grid) =>
     raidSampler.flatMap((raid) => {
@@ -91,6 +94,7 @@ function createSpinSampler(
         initialScatterCount,
         steps,
         MAX_CASCADE_STEPS,
+        samplers.multiplierSampler,
       ).map(({ finalArmedReels, finalMultSum, finalScatterCount }) => {
         const baseClusterWin = steps.reduce((sum, s) => sum + s.stepWin, 0)
         const multiplierSum = finalMultSum - carryMultiplierSum
@@ -118,6 +122,7 @@ function createSpinSampler(
 }
 
 export const LE_MILITARE_SAMPLER = (
+  mode: ModeId,
   wager: Wager,
   ctx: {
     isFreeSpin: boolean
@@ -125,19 +130,23 @@ export const LE_MILITARE_SAMPLER = (
     carryMultiplierSum: number
   },
 ): Sampler<LeMilitareSpinResult> =>
-  createSpinSampler(wager, ctx.isFreeSpin, ctx.carryArmedReels, ctx.carryMultiplierSum)
+  createSpinSampler(mode, wager, ctx.isFreeSpin, ctx.carryArmedReels, ctx.carryMultiplierSum)
 
 // Bonus buy: a triggering spin with a guaranteed scatter count (no air raid on
 // the entry spin). `minScatters` drives the awarded free-spin count.
 export const BUY_BONUS_SAMPLER = (
+  mode: ModeId,
   wager: Wager,
   minScatters: number = MIN_SCATTERS,
 ): Sampler<LeMilitareSpinResult> =>
-  createSpinSampler(wager, false, new Set(), 0, { airRaid: 'off', injectScatters: minScatters })
+  createSpinSampler(mode, wager, false, new Set(), 0, {
+    airRaid: 'off',
+    injectScatters: minScatters,
+  })
 
 // Guaranteed Air Raid: one base spin whose Air Raid always fires.
-export const AIR_RAID_SPIN_SAMPLER = (wager: Wager): Sampler<LeMilitareSpinResult> =>
-  createSpinSampler(wager, false, new Set(), 0, { airRaid: 'forced' })
+export const AIR_RAID_SPIN_SAMPLER = (mode: ModeId, wager: Wager): Sampler<LeMilitareSpinResult> =>
+  createSpinSampler(mode, wager, false, new Set(), 0, { airRaid: 'forced' })
 
 // ×5 Chance spin: a normal base spin, but with an extra forced-trigger roll so
 // the Free Spins trigger probability is ~5× the default. The force weights are
@@ -149,9 +158,9 @@ const chanceForceSampler = Sampler.fromWeighted(
   ]) as Array1<readonly [boolean, number]>,
 )
 
-export const CHANCE_SPIN_SAMPLER = (wager: Wager): Sampler<LeMilitareSpinResult> =>
+export const CHANCE_SPIN_SAMPLER = (mode: ModeId, wager: Wager): Sampler<LeMilitareSpinResult> =>
   chanceForceSampler.flatMap((force) =>
-    createSpinSampler(wager, false, new Set(), 0, {
+    createSpinSampler(mode, wager, false, new Set(), 0, {
       airRaid: 'normal',
       injectScatters: force ? MIN_SCATTERS : 0,
     }),

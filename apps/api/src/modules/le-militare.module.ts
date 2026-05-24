@@ -14,7 +14,8 @@ import '../types/le-militare.reg.js'
 
 type LMAction = 'spin' | 'buybonus' | 'chancespin' | 'airraidspin' | 'freespin' | 'state'
 type LMBuyOption = 'standard' | 'elite' | 'super'
-type LMPayload = { multiplier?: number; option?: LMBuyOption }
+type LMMode = 'recon' | 'assault' | 'siege'
+type LMPayload = { multiplier?: number; option?: LMBuyOption; mode?: LMMode }
 
 export class LeMilitareModule implements IGameModule<'le-militare'> {
   readonly gameId = 'le-militare' as const
@@ -43,6 +44,9 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
         ) {
           return 'option must be one of: standard, elite, super'
         }
+        if (payload.mode !== undefined && !['recon', 'assault', 'siege'].includes(payload.mode)) {
+          return 'mode must be one of: recon, assault, siege'
+        }
         return null
       }
       case 'freespin': {
@@ -68,7 +72,11 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       return { state }
     }
 
-    const machine = this.hydrate(state)
+    // A new round adopts the mode selected in the payload (defaults to the
+    // session's current mode, then assault). Free spins keep the session mode.
+    const roundStarter = action !== 'freespin'
+    const mode: LMMode = (roundStarter && payload.mode) || state.mode || 'assault'
+    const machine = this.hydrate({ ...state, mode })
 
     switch (action) {
       case 'spin': {
@@ -117,7 +125,7 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       lastSpinResult: null,
       roundWin: 0,
     }
-    return new LeMilitareStateMachine(runtimeState)
+    return new LeMilitareStateMachine(runtimeState, s.mode ?? 'assault')
   }
 
   private dehydrate(machine: LeMilitareStateMachine): LeMilitareSerializedState {
@@ -133,6 +141,6 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
         }
       : null
 
-    return { lastGrid: s.lastGrid, freeSpins }
+    return { lastGrid: s.lastGrid, freeSpins, mode: machine.mode }
   }
 }

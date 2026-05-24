@@ -31,16 +31,10 @@ interface Spec {
   // Per-symbol integer payout curve. `start`/`step` are design knobs; every
   // emitted payout is rounded to a whole number (payouts are INTEGERS only).
   paytable: Record<string, { start: number; step: number }>
-  multiplierPool: { values: number[]; weights: number[] }
-  // Base-game Air Raid: a squadron flies over, the S300 intercepts some planes,
-  // each interception drops a multiplier-WILD on a random cell. Integer weights
-  // only (probabilities are weight ratios, never floats).
-  airRaid: {
-    triggerWeights: [number, number] // [fire, skip]
-    squadronSizes: number[]
-    squadronWeights: number[]
-    hitWeights: [number, number] // [hit, miss]
-  }
+  // Selectable volatility modes. Modes share strips + paytable and differ only in
+  // multiplier pool + Air Raid intensity; each is tuned to the same 98.4% RTP.
+  // `assault` is the standard/default profile.
+  modes: { recon: ModeTuning; assault: ModeTuning; siege: ModeTuning }
   freeSpinsAwarded: Record<string, number>
   // Feature buy menu. Costs are × stake (integers); each tuned so EV/cost ≈ RTP.
   buyOptions: {
@@ -59,6 +53,19 @@ interface BuyTier {
   minScatters: number
   startArmedReels: number
   startMultiplier: number
+}
+
+// Per-mode tuning. Integer weights only (probabilities are weight ratios).
+interface ModeTuning {
+  multiplierPool: { values: number[]; weights: number[] }
+  // Air Raid: a squadron flies over, the S300 intercepts some planes, each
+  // interception drops a multiplier-WILD on a random cell.
+  airRaid: {
+    triggerWeights: [number, number] // [fire, skip]
+    squadronSizes: number[]
+    squadronWeights: number[]
+    hitWeights: [number, number] // [hit, miss]
+  }
 }
 
 // ── Tunable math spec ────────────────────────────────────────────────────────
@@ -144,15 +151,40 @@ const SPEC: Spec = {
     GENERAL: { start: 12, step: 1.5 },
     PLANE: { start: 2, step: 0.3 },
   },
-  multiplierPool: {
-    values: [1, 2, 3, 5, 10, 25],
-    weights: [620, 252, 82, 27, 16, 5],
-  },
-  airRaid: {
-    triggerWeights: [7, 93],
-    squadronSizes: [1, 2, 3],
-    squadronWeights: [50, 35, 15],
-    hitWeights: [6, 4],
+  modes: {
+    // Low volatility: frequent Air Raids, small multipliers, tamer tail.
+    recon: {
+      multiplierPool: { values: [1, 2, 3, 5, 10, 25], weights: [660, 270, 50, 14, 5, 1] },
+      airRaid: {
+        triggerWeights: [16, 84],
+        squadronSizes: [1, 2, 3],
+        squadronWeights: [60, 30, 10],
+        hitWeights: [6, 4],
+      },
+    },
+    // Standard (default): the converged 98.4% profile.
+    assault: {
+      multiplierPool: { values: [1, 2, 3, 5, 10, 25], weights: [620, 252, 82, 27, 16, 5] },
+      airRaid: {
+        triggerWeights: [7, 93],
+        squadronSizes: [1, 2, 3],
+        squadronWeights: [50, 35, 15],
+        hitWeights: [6, 4],
+      },
+    },
+    // High volatility: rarer but heavier Air Raids, heavy multiplier tail.
+    siege: {
+      multiplierPool: {
+        values: [1, 2, 3, 5, 10, 25, 50, 100],
+        weights: [560, 250, 90, 40, 30, 18, 8, 4],
+      },
+      airRaid: {
+        triggerWeights: [6, 94],
+        squadronSizes: [1, 2, 3],
+        squadronWeights: [40, 35, 25],
+        hitWeights: [6, 4],
+      },
+    },
   },
   freeSpinsAwarded: { '4': 9, '5': 13, '6': 17, '7': 21 },
   buyOptions: {
@@ -248,13 +280,24 @@ function main(): void {
   config.game_metadata.min_cluster = MIN_CLUSTER
   config.game_metadata.max_win_multiplier = SPEC.maxWinMultiplier
   config.paytable = buildPaytable()
-  config.multiplier_pool = SPEC.multiplierPool
-  config.air_raid = {
-    trigger_weights: SPEC.airRaid.triggerWeights,
-    squadron_sizes: SPEC.airRaid.squadronSizes,
-    squadron_weights: SPEC.airRaid.squadronWeights,
-    hit_weights: SPEC.airRaid.hitWeights,
+  const emitMode = (m: ModeTuning) => ({
+    multiplier_pool: m.multiplierPool,
+    air_raid: {
+      trigger_weights: m.airRaid.triggerWeights,
+      squadron_sizes: m.airRaid.squadronSizes,
+      squadron_weights: m.airRaid.squadronWeights,
+      hit_weights: m.airRaid.hitWeights,
+    },
+  })
+  config.modes = {
+    recon: emitMode(SPEC.modes.recon),
+    assault: emitMode(SPEC.modes.assault),
+    siege: emitMode(SPEC.modes.siege),
   }
+  // Top-level keys mirror the default (assault) mode for any reader that does
+  // not select a mode.
+  config.multiplier_pool = config.modes.assault.multiplier_pool
+  config.air_raid = config.modes.assault.air_raid
   config.scatter_definition.free_spins_awarded = SPEC.freeSpinsAwarded
   const tier = (t: BuyTier) => ({
     cost: t.cost,

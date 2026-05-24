@@ -76,23 +76,56 @@ export const BUY_BONUS_COST_MULTIPLIER: number = config.buy_bonus_cost_multiplie
 export const MAX_WIN_MULTIPLIER: number = config.game_metadata.max_win_multiplier
 
 // ─── Multiplier Pool ───────────────────────────────────────────────────────
-
+// Default (assault) values — used by tests/UI; per-mode pools live in MODE_CONFIGS.
 export const MULTIPLIER_POOL = config.multiplier_pool.values as readonly number[]
-export const MULTIPLIER_POOL_WEIGHTS: readonly (readonly [number, number])[] = MULTIPLIER_POOL.map(
-  (val, i) => [val, config.multiplier_pool.weights[i]!] as const,
-)
 
-// ─── Air Raid (base-game Combat Operation) ──────────────────────────────────
-// Probabilities are integer weight ratios (never floats).
-export const AIR_RAID = {
-  triggerWeights: [
-    config.air_raid.trigger_weights[0]!,
-    config.air_raid.trigger_weights[1]!,
-  ] as const,
-  squadronSizes: config.air_raid.squadron_sizes as readonly number[],
-  squadronWeights: config.air_raid.squadron_weights as readonly number[],
-  hitWeights: [config.air_raid.hit_weights[0]!, config.air_raid.hit_weights[1]!] as const,
-} as const
+// ─── Selectable volatility modes ────────────────────────────────────────────
+// Modes share strips + paytable and differ only in multiplier pool + Air Raid
+// intensity. Probabilities are integer weight ratios (never floats).
+
+export type ModeId = 'recon' | 'assault' | 'siege'
+export const MODE_IDS = ['recon', 'assault', 'siege'] as const
+export const DEFAULT_MODE: ModeId = 'assault'
+
+export interface ModeConfig {
+  multiplierWeights: readonly (readonly [number, number])[]
+  airRaid: {
+    triggerWeights: readonly [number, number]
+    squadronSizes: readonly number[]
+    squadronWeights: readonly number[]
+    hitWeights: readonly [number, number]
+  }
+}
+
+interface RawMode {
+  multiplier_pool: { values: number[]; weights: number[] }
+  air_raid: {
+    trigger_weights: number[]
+    squadron_sizes: number[]
+    squadron_weights: number[]
+    hit_weights: number[]
+  }
+}
+
+function buildModeConfig(m: RawMode): ModeConfig {
+  return {
+    multiplierWeights: m.multiplier_pool.values.map(
+      (v, i) => [v, m.multiplier_pool.weights[i]!] as const,
+    ),
+    airRaid: {
+      triggerWeights: [m.air_raid.trigger_weights[0]!, m.air_raid.trigger_weights[1]!],
+      squadronSizes: m.air_raid.squadron_sizes,
+      squadronWeights: m.air_raid.squadron_weights,
+      hitWeights: [m.air_raid.hit_weights[0]!, m.air_raid.hit_weights[1]!],
+    },
+  }
+}
+
+export const MODE_CONFIGS: Record<ModeId, ModeConfig> = {
+  recon: buildModeConfig(config.modes.recon),
+  assault: buildModeConfig(config.modes.assault),
+  siege: buildModeConfig(config.modes.siege),
+}
 
 // ─── Feature Buy menu ───────────────────────────────────────────────────────
 
