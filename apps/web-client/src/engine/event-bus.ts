@@ -13,6 +13,7 @@ export interface GameEventMap {
   'feature-modal:open': EmptyPayload
   'feature-buy:requested': { optionId: string }
   'volatility:selected': { mode: string }
+  'bet:changed': { multiplier: number }
   'error:api': { message: string }
 
   // Audio specific events

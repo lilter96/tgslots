@@ -288,6 +288,10 @@ async function mountGame(gameId: string): Promise<void> {
   eventBus.on('feature-buy:requested', ({ optionId }) => {
     orchestrator.buyFeature(optionId, session.betMultiplier).catch(console.error)
   })
+  eventBus.on('bet:changed', ({ multiplier }) => {
+    session.setBetMultiplier(multiplier)
+    hud.updateTexts()
+  })
 
   autoSpinPanel.on('start', (config: AutoSpinConfig) => {
     orchestrator.startAutoSpin(config)

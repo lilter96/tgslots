@@ -5,62 +5,78 @@ import type { ModeId } from '@tgslots/le-militare'
 import type { GameEventBus } from '../../engine/event-bus.js'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
 
-// Hacksaw-style feature menu: a dark, minimal modal with a volatility segmented
-// selector and a stack of feature-buy cards (cost + buy affordance).
+// Hacksaw-style BONUS BUY menu: dimmed game, a centered BET +/- card, a
+// volatility segmented control, and a row of white feature cards — each with
+// an icon, description, volatility, price and a full-width ACTIVATE/BUY button.
 
-interface FeatureOption {
+type Kind = 'activate' | 'buy'
+
+interface OptionMeta {
   id: string
   name: string
   desc: string
+  icon: string
+  kind: Kind
   costMultiplier: number
 }
 
-const OPTIONS: FeatureOption[] = [
+const OPTIONS: OptionMeta[] = [
+  {
+    id: 'chance',
+    name: 'RECON STRIKE',
+    desc: 'One spin · 5× chance to trigger free spins',
+    icon: '5×',
+    kind: 'activate',
+    costMultiplier: BUY_OPTIONS.chanceSpin.cost,
+  },
+  {
+    id: 'airraid',
+    name: 'AIR RAID',
+    desc: 'One spin with a guaranteed Air Raid',
+    icon: 'RAID',
+    kind: 'activate',
+    costMultiplier: BUY_OPTIONS.airRaidSpin.cost,
+  },
   {
     id: 'standard',
     name: 'COMBAT OP',
     desc: 'Free spins — standard entry',
+    icon: 'FS',
+    kind: 'buy',
     costMultiplier: BUY_OPTIONS.standard.cost,
   },
   {
     id: 'elite',
     name: 'ELITE OP',
-    desc: 'More free spins',
+    desc: 'Free spins — more spins',
+    icon: 'FS+',
+    kind: 'buy',
     costMultiplier: BUY_OPTIONS.elite.cost,
   },
   {
     id: 'super',
     name: 'SUPER OP',
-    desc: 'Max spins + ×3 start multiplier',
+    desc: 'Max spins + ×3 starting multiplier',
+    icon: 'FS++',
+    kind: 'buy',
     costMultiplier: BUY_OPTIONS.super.cost,
-  },
-  {
-    id: 'chance',
-    name: 'RECON SPIN',
-    desc: 'One spin · ×5 bonus chance',
-    costMultiplier: BUY_OPTIONS.chanceSpin.cost,
-  },
-  {
-    id: 'airraid',
-    name: 'AIR RAID SPIN',
-    desc: 'One spin · guaranteed Air Raid',
-    costMultiplier: BUY_OPTIONS.airRaidSpin.cost,
   },
 ]
 
-const MODE_LABELS: Record<ModeId, string> = {
-  recon: 'RECON',
-  assault: 'ASSAULT',
-  siege: 'SIEGE',
-}
-const MODE_SUBLABELS: Record<ModeId, string> = {
-  recon: 'LOW VOL',
-  assault: 'STANDARD',
-  siege: 'HIGH VOL',
-}
+const MODE_LABELS: Record<ModeId, string> = { recon: 'RECON', assault: 'ASSAULT', siege: 'SIEGE' }
+const MODE_SUB: Record<ModeId, string> = { recon: 'LOW', assault: 'MEDIUM', siege: 'HIGH' }
 
+const ACTIVATE_COLOR = 0xf0820f
+const BUY_COLOR = 0x2cb742
 const ACCENT = 0xffb02e
-const GREEN = 0x1f9d57
+const ICON_BG = 0x8b5cf6
+
+// Design-space dimensions (the whole panel is scaled to fit the modal bounds).
+const PANEL_W = 980
+const PAD = 32
+const CARD_GAP = 16
+const CARD_H = 286
+const CARDS_TOP = 250
 
 interface ModePill {
   id: ModeId
@@ -70,34 +86,43 @@ interface ModePill {
   sub: Text
 }
 
-interface OptionCard {
-  id: string
-  costMultiplier: number
+interface CardView {
+  meta: OptionMeta
   container: Container
   bg: Graphics
+  iconBg: Graphics
+  iconLabel: Text
   name: Text
   desc: Text
-  buyBg: Graphics
-  buyLabel: Text
+  vol: Text
+  price: Text
+  btnBg: Graphics
+  btnLabel: Text
 }
 
 export class BuyFeatureModal extends Container {
   private readonly _inner = new Container()
   private readonly _backdrop = new Graphics()
-  private readonly _panelBg = new Graphics()
   private readonly _title: Text
-  private readonly _volLabel: Text
-  private readonly _featLabel: Text
   private readonly _closeBtn = new Container()
-  private readonly _closeBg = new Graphics()
-  private readonly _closeLabel: Text
+  private readonly _closeRing = new Graphics()
+  private readonly _closeX: Text
+
+  private readonly _betCard = new Container()
+  private readonly _betBg = new Graphics()
+  private readonly _betLabel: Text
+  private readonly _betValue: Text
+  private readonly _minusBtn = new Container()
+  private readonly _minusBg = new Graphics()
+  private readonly _plusBtn = new Container()
+  private readonly _plusBg = new Graphics()
+
+  private readonly _volLabel: Text
   private readonly _modePills: ModePill[] = []
-  private readonly _cards: OptionCard[] = []
+  private readonly _cards: CardView[] = []
 
   private _selectedMode: ModeId = DEFAULT_MODE
   private _innerBaseY = 0
-  private _pillW = 100
-  private _pillH = 44
 
   constructor(
     private readonly _eventBus: GameEventBus,
@@ -107,18 +132,24 @@ export class BuyFeatureModal extends Container {
     this.visible = false
 
     this._title = new Text({
-      text: 'COMBAT OPS',
-      style: { fill: '#ffd166', fontSize: 24, fontWeight: '900', letterSpacing: 4 },
+      text: 'BONUS BUY',
+      style: { fill: '#ffffff', fontSize: 30, fontWeight: '900', letterSpacing: 4 },
     })
-    this._volLabel = this._sectionLabel('VOLATILITY')
-    this._featLabel = this._sectionLabel('FEATURE BUY')
-    this._closeLabel = new Text({ text: '✕', style: { fill: '#8a93a0', fontSize: 16 } })
+    this._closeX = new Text({ text: '✕', style: { fill: '#ffffff', fontSize: 20 } })
+    this._betLabel = new Text({
+      text: 'BET',
+      style: { fill: '#8a8a8a', fontSize: 14, fontWeight: '700', letterSpacing: 2 },
+    })
+    this._betValue = new Text({
+      text: '',
+      style: { fill: '#141414', fontSize: 28, fontWeight: '900' },
+    })
+    this._volLabel = new Text({
+      text: 'VOLATILITY',
+      style: { fill: '#c9cdd3', fontSize: 13, fontWeight: '700', letterSpacing: 3 },
+    })
 
     this._build()
-  }
-
-  private _sectionLabel(text: string): Text {
-    return new Text({ text, style: { fill: '#6b7682', fontSize: 12, letterSpacing: 3 } })
   }
 
   private _build(): void {
@@ -126,17 +157,22 @@ export class BuyFeatureModal extends Container {
     this._backdrop.on('pointerdown', () => this.hide())
     this.addChild(this._backdrop)
 
-    this._panelBg.interactive = true
-    this._panelBg.on('pointerdown', (e) => e.stopPropagation())
-    this._inner.addChild(this._panelBg)
+    this._panelChrome()
+    this._buildBetCard()
+    this._buildModePills()
+    this._buildCards()
 
+    this.addChild(this._inner)
+    this._refreshModePills()
+  }
+
+  private _panelChrome(): void {
     this._title.anchor.set(0.5, 0)
-    this._volLabel.anchor.set(0, 0)
-    this._featLabel.anchor.set(0, 0)
-    this._inner.addChild(this._title, this._volLabel, this._featLabel)
+    this._inner.addChild(this._title)
 
-    this._closeLabel.anchor.set(0.5)
-    this._closeBtn.addChild(this._closeBg, this._closeLabel)
+    this._closeX.anchor.set(0.5)
+    this._closeRing.circle(0, 0, 20).stroke({ width: 2, color: 0xffffff, alpha: 0.7 })
+    this._closeBtn.addChild(this._closeRing, this._closeX)
     this._closeBtn.interactive = true
     this._closeBtn.cursor = 'pointer'
     this._closeBtn.on('pointerdown', (e) => {
@@ -144,17 +180,46 @@ export class BuyFeatureModal extends Container {
       this.hide()
     })
     this._inner.addChild(this._closeBtn)
+  }
 
+  private _buildBetCard(): void {
+    this._betLabel.anchor.set(0.5, 0)
+    this._betValue.anchor.set(0.5, 0)
+    this._betCard.addChild(this._betBg, this._betLabel, this._betValue)
+
+    const mkStep = (btn: Container, bg: Graphics, glyph: string, delta: number) => {
+      const label = new Text({
+        text: glyph,
+        style: { fill: '#ffffff', fontSize: 26, fontWeight: '900' },
+      })
+      label.anchor.set(0.5)
+      btn.addChild(bg, label)
+      btn.interactive = true
+      btn.cursor = 'pointer'
+      btn.on('pointerdown', (e) => {
+        e.stopPropagation()
+        this._stepBet(delta)
+      })
+    }
+    mkStep(this._minusBtn, this._minusBg, '−', -1)
+    mkStep(this._plusBtn, this._plusBg, '+', 1)
+    this._betCard.addChild(this._minusBtn, this._plusBtn)
+    this._inner.addChild(this._betCard)
+  }
+
+  private _buildModePills(): void {
+    this._volLabel.anchor.set(0.5, 0)
+    this._inner.addChild(this._volLabel)
     for (const id of MODE_IDS) {
       const bg = new Graphics()
       const label = new Text({
         text: MODE_LABELS[id],
-        style: { fill: '#ffffff', fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+        style: { fill: '#ffffff', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
       })
       label.anchor.set(0.5)
       const sub = new Text({
-        text: MODE_SUBLABELS[id],
-        style: { fill: '#8a93a0', fontSize: 10, letterSpacing: 1 },
+        text: MODE_SUB[id],
+        style: { fill: '#9aa0a8', fontSize: 9, letterSpacing: 1 },
       })
       sub.anchor.set(0.5)
       const container = new Container()
@@ -168,180 +233,245 @@ export class BuyFeatureModal extends Container {
       this._modePills.push({ id, container, bg, label, sub })
       this._inner.addChild(container)
     }
+  }
 
-    for (const opt of OPTIONS) {
+  private _buildCards(): void {
+    for (const meta of OPTIONS) {
       const bg = new Graphics()
+      const iconBg = new Graphics()
+      const iconLabel = new Text({
+        text: meta.icon,
+        style: { fill: '#ffffff', fontSize: 26, fontWeight: '900' },
+      })
+      iconLabel.anchor.set(0.5)
       const name = new Text({
-        text: opt.name,
-        style: { fill: '#f2f5f8', fontSize: 17, fontWeight: '800', letterSpacing: 1 },
+        text: meta.name,
+        style: { fill: '#161616', fontSize: 18, fontWeight: '900', align: 'center' },
       })
-      name.anchor.set(0, 0.5)
+      name.anchor.set(0.5, 0)
       const desc = new Text({
-        text: opt.desc,
-        style: { fill: '#7e8a96', fontSize: 12 },
+        text: meta.desc,
+        style: {
+          fill: '#6a6f76',
+          fontSize: 13,
+          align: 'center',
+          wordWrap: true,
+          wordWrapWidth: 10,
+        },
       })
-      desc.anchor.set(0, 0.5)
-      const buyBg = new Graphics()
-      const buyLabel = new Text({
+      desc.anchor.set(0.5, 0)
+      const vol = new Text({
         text: '',
-        style: { fill: '#ffffff', fontSize: 15, fontWeight: '900' },
+        style: { fill: '#9aa0a8', fontSize: 12, fontStyle: 'italic' },
       })
-      buyLabel.anchor.set(0.5)
+      vol.anchor.set(0.5, 0)
+      const price = new Text({
+        text: '',
+        style: { fill: '#111111', fontSize: 24, fontWeight: '900' },
+      })
+      price.anchor.set(0.5, 0)
+      const btnBg = new Graphics()
+      const btnLabel = new Text({
+        text: meta.kind === 'activate' ? 'ACTIVATE' : 'BUY',
+        style: { fill: '#ffffff', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+      })
+      btnLabel.anchor.set(0.5)
+
       const container = new Container()
-      container.addChild(bg, name, desc, buyBg, buyLabel)
+      container.addChild(bg, iconBg, iconLabel, name, desc, vol, price, btnBg, btnLabel)
       container.interactive = true
       container.cursor = 'pointer'
-      container.on('pointerover', () => (bg.tint = 0xc9d2dc))
+      container.on('pointerover', () => (bg.tint = 0xeef1f4))
       container.on('pointerout', () => (bg.tint = 0xffffff))
       container.on('pointerdown', (e) => {
         e.stopPropagation()
-        this._eventBus.emit('feature-buy:requested', { optionId: opt.id })
+        this._eventBus.emit('feature-buy:requested', { optionId: meta.id })
         this.hide()
       })
       this._cards.push({
-        id: opt.id,
-        costMultiplier: opt.costMultiplier,
+        meta,
         container,
         bg,
+        iconBg,
+        iconLabel,
         name,
         desc,
-        buyBg,
-        buyLabel,
+        vol,
+        price,
+        btnBg,
+        btnLabel,
       })
       this._inner.addChild(container)
     }
+  }
 
-    this.addChild(this._inner)
-    this._refreshModePills()
+  private _stepBet(delta: number): void {
+    const next = Math.max(1, this._getBet() + delta)
+    this._eventBus.emit('bet:changed', { multiplier: next })
+    this._refreshBet()
+    this._refreshCards()
   }
 
   private _selectMode(id: ModeId): void {
     this._selectedMode = id
     this._eventBus.emit('volatility:selected', { mode: id })
     this._refreshModePills()
+    this._refreshCards()
+  }
+
+  private _refreshBet(): void {
+    this._betValue.text = String(this._getBet())
   }
 
   private _refreshModePills(): void {
     for (const pill of this._modePills) {
-      this._drawPill(pill, pill.id === this._selectedMode)
+      const active = pill.id === this._selectedMode
+      pill.label.style.fill = active ? '#1a1205' : '#cfd3d9'
+      pill.sub.style.fill = active ? '#5a4413' : '#9aa0a8'
     }
   }
 
-  private _drawPill(pill: ModePill, active: boolean): void {
-    const width = this._pillW
-    const height = this._pillH
-    pill.bg.clear()
-    pill.bg.roundRect(0, 0, width, height, 10)
-    pill.bg.fill(active ? ACCENT : 0x171c22)
-    pill.bg.stroke({ width: active ? 0 : 1.5, color: 0x2c343d })
-    pill.label.style.fill = active ? '#1a1205' : '#c2cad2'
-    pill.sub.style.fill = active ? '#5a4413' : '#8a93a0'
-    pill.label.x = width / 2
-    pill.label.y = height / 2 - 7
-    pill.sub.x = width / 2
-    pill.sub.y = height / 2 + 11
-  }
-
-  private _refreshCosts(): void {
+  private _refreshCards(): void {
     const bet = this._getBet()
+    const volText = `Volatility: ${MODE_SUB[this._selectedMode][0]}${MODE_SUB[this._selectedMode]
+      .slice(1)
+      .toLowerCase()}`
     for (const card of this._cards) {
-      const credits = card.costMultiplier * bet
-      const creditText = Number.isInteger(credits) ? String(credits) : credits.toFixed(2)
-      card.buyLabel.text = creditText
+      const credits = card.meta.costMultiplier * bet
+      card.price.text = Number.isInteger(credits) ? String(credits) : credits.toFixed(2)
+      card.vol.text = volText
     }
   }
 
   public resize(layout: UILayoutSnapshot): void {
     this._backdrop.clear()
     this._backdrop.rect(0, 0, layout.screenWidth, layout.screenHeight)
-    this._backdrop.fill({ color: 0x000000, alpha: 0.72 })
+    this._backdrop.fill({ color: 0x000000, alpha: 0.6 })
 
-    const panelWidth = Math.max(320, Math.min(540, layout.modalBounds.width))
-    const pad = 24
-    const innerW = panelWidth - pad * 2
-
-    const titleY = 26
-    const volLabelY = 66
-    const pillTop = 86
-    const pillGap = 10
-    this._pillH = 44
-    this._pillW = (innerW - pillGap * 2) / 3
-    const featLabelY = pillTop + this._pillH + 20
-    const cardTop = featLabelY + 22
-    const cardH = 58
-    const cardGap = 10
-    const panelHeight = cardTop + OPTIONS.length * (cardH + cardGap) + 14
+    const innerW = PANEL_W - PAD * 2
+    const cardW = (innerW - CARD_GAP * (OPTIONS.length - 1)) / OPTIONS.length
+    const panelHeight = CARDS_TOP + CARD_H + PAD
 
     const innerScale = Math.min(
       1,
-      layout.modalBounds.height / panelHeight,
-      layout.modalBounds.width / panelWidth,
+      (layout.modalBounds.width || layout.screenWidth) / PANEL_W,
+      (layout.modalBounds.height || layout.screenHeight) / panelHeight,
     )
     this._inner.scale.set(innerScale)
     this._inner.x = layout.modalBounds.x + layout.modalBounds.width / 2
     this._innerBaseY = layout.modalBounds.y + layout.modalBounds.height / 2
     this._inner.y = this._innerBaseY
 
-    const left = -panelWidth / 2
+    const left = -PANEL_W / 2
     const top = -panelHeight / 2
 
-    this._panelBg.clear()
-    this._panelBg.roundRect(left, top, panelWidth, panelHeight, 16)
-    this._panelBg.fill(0x0d1014)
-    this._panelBg.stroke({ width: 1.5, color: 0x29313b })
-
     this._title.x = 0
-    this._title.y = top + titleY
+    this._title.y = top + 8
 
-    const closeSize = 30
-    this._closeBg.clear()
-    this._closeBg.roundRect(-closeSize / 2, -closeSize / 2, closeSize, closeSize, 7)
-    this._closeBg.fill(0x1a2027)
-    this._closeBtn.x = panelWidth / 2 - pad
-    this._closeBtn.y = top + titleY + 8
+    this._closeBtn.x = PANEL_W / 2 - 12
+    this._closeBtn.y = top + 24
 
-    this._volLabel.x = left + pad
-    this._volLabel.y = top + volLabelY
-    this._featLabel.x = left + pad
-    this._featLabel.y = top + featLabelY
+    // BET +/- card (centered)
+    const betW = 240
+    const betH = 96
+    const betX = -betW / 2
+    const betY = top + 62
+    this._betBg.clear()
+    this._betBg.roundRect(betX, betY, betW, betH, 14)
+    this._betBg.fill(0xffffff)
+    this._betLabel.x = 0
+    this._betLabel.y = betY + 14
+    this._betValue.x = 0
+    this._betValue.y = betY + 34
+    const stepSize = 40
+    this._drawStep(this._minusBg, stepSize)
+    this._minusBtn.x = betX + 18 + stepSize / 2
+    this._minusBtn.y = betY + betH / 2
+    this._drawStep(this._plusBg, stepSize)
+    this._plusBtn.x = betX + betW - 18 - stepSize / 2
+    this._plusBtn.y = betY + betH / 2
 
+    // Volatility selector
+    const volY = top + 176
+    this._volLabel.x = 0
+    this._volLabel.y = volY
+    const pillW = 150
+    const pillH = 40
+    const pillGap = 12
+    const pillsW = pillW * 3 + pillGap * 2
+    const pillsLeft = -pillsW / 2
     this._modePills.forEach((pill, i) => {
-      pill.container.x = left + pad + i * (this._pillW + pillGap)
-      pill.container.y = top + pillTop
-      this._drawPill(pill, pill.id === this._selectedMode)
+      pill.container.x = pillsLeft + i * (pillW + pillGap)
+      pill.container.y = volY + 22
+      const active = pill.id === this._selectedMode
+      pill.bg.clear()
+      pill.bg.roundRect(0, 0, pillW, pillH, 10)
+      pill.bg.fill(active ? ACCENT : 0x20262e)
+      pill.bg.stroke({ width: 1.5, color: active ? ACCENT : 0x39414b })
+      pill.label.x = pillW / 2
+      pill.label.y = pillH / 2 - 5
+      pill.sub.x = pillW / 2
+      pill.sub.y = pillH / 2 + 11
     })
+    this._refreshModePills()
 
-    this._refreshCosts()
+    // Cards
+    this._refreshCards()
+    this._refreshBet()
     this._cards.forEach((card, i) => {
-      const y = top + cardTop + i * (cardH + cardGap)
-      card.container.x = left + pad
-      card.container.y = y
+      const x = left + PAD + i * (cardW + CARD_GAP)
+      card.container.x = x
+      card.container.y = top + CARDS_TOP
+      const cx = cardW / 2
+
       card.bg.clear()
-      card.bg.roundRect(0, 0, innerW, cardH, 10)
-      card.bg.fill(0x141a20)
-      card.bg.stroke({ width: 1, color: 0x262f38 })
-      card.name.x = 16
-      card.name.y = cardH / 2 - 9
-      card.desc.x = 16
-      card.desc.y = cardH / 2 + 12
-      const buyW = 92
-      const buyH = 36
-      const buyX = innerW - buyW - 12
-      card.buyBg.clear()
-      card.buyBg.roundRect(buyX, (cardH - buyH) / 2, buyW, buyH, 8)
-      card.buyBg.fill(GREEN)
-      card.buyLabel.x = buyX + buyW / 2
-      card.buyLabel.y = cardH / 2
+      card.bg.roundRect(0, 0, cardW, CARD_H, 12)
+      card.bg.fill(0xffffff)
+
+      card.name.x = cx
+      card.name.y = 18
+      card.name.style.wordWrap = true
+      card.name.style.wordWrapWidth = cardW - 20
+
+      card.desc.x = cx
+      card.desc.y = 64
+      card.desc.style.wordWrapWidth = cardW - 28
+
+      const iconSize = 74
+      card.iconBg.clear()
+      card.iconBg.roundRect(cx - iconSize / 2, 120, iconSize, iconSize, 16)
+      card.iconBg.fill(ICON_BG)
+      card.iconLabel.x = cx
+      card.iconLabel.y = 120 + iconSize / 2
+
+      card.vol.x = cx
+      card.vol.y = 204
+      card.price.x = cx
+      card.price.y = 222
+
+      const btnH = 48
+      card.btnBg.clear()
+      card.btnBg.roundRect(0, CARD_H - btnH, cardW, btnH, 12)
+      card.btnBg.fill(card.meta.kind === 'activate' ? ACTIVATE_COLOR : BUY_COLOR)
+      card.btnLabel.x = cx
+      card.btnLabel.y = CARD_H - btnH / 2
     })
   }
 
+  private _drawStep(bg: Graphics, size: number): void {
+    bg.clear()
+    bg.roundRect(-size / 2, -size / 2, size, size, 8)
+    bg.fill(0x2a2a2a)
+  }
+
   public show(): void {
-    this._refreshCosts()
+    this._refreshBet()
+    this._refreshCards()
     this.visible = true
     this.alpha = 0
     this._inner.y = this._innerBaseY + 24
     gsap.to(this, { alpha: 1, duration: 0.2, ease: 'power2.out' })
-    gsap.to(this._inner, { y: this._innerBaseY, duration: 0.28, ease: 'back.out(1.7)' })
+    gsap.to(this._inner, { y: this._innerBaseY, duration: 0.28, ease: 'back.out(1.6)' })
   }
 
   public hide(): void {
