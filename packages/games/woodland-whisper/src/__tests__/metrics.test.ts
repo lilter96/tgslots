@@ -1,6 +1,124 @@
 import { describe, expect, it } from 'bun:test'
-import type { WoodlandWhisperBaseResult } from '../game-state-machine.js'
+import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
+import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
+import type {
+  WoodlandWhisperBaseResult,
+  WoodlandWhisperFreeResult,
+  WoodlandWhisperBuyResult,
+} from '../game-state-machine.js'
 import { woodlandWhisperTestEngine as engine } from './test-engine.js'
+import { woodlandWhisperMetrics } from '../metrics.js'
+
+const testWager = new Wager(1, new BetConfiguration(100, 10, 10, 0))
+
+function makeBaseResult(overrides?: Partial<WoodlandWhisperBaseResult>): WoodlandWhisperBaseResult {
+  return {
+    type: 'BASE',
+    win: 0,
+    sc: 2,
+    scatterWin: 0,
+    grid: [],
+    hits: [],
+    pickedBonus: 0,
+    triggeredPickBonus: false,
+    state: { freeSpinsLeft: 0, totalFreeSpinWin: 0 },
+    ...overrides,
+  }
+}
+
+function makeFreeResult(overrides?: Partial<WoodlandWhisperFreeResult>): WoodlandWhisperFreeResult {
+  return {
+    type: 'FREE',
+    win: 100,
+    sc: 1,
+    scatterWin: 10,
+    grid: [],
+    hits: [],
+    pickedBonus: 0,
+    retriggeredPickBonus: false,
+    state: { freeSpinsLeft: 3, totalFreeSpinWin: 100 },
+    ...overrides,
+  }
+}
+
+describe('woodlandWhisperMetrics (direct)', () => {
+  it('records BASE scatter distribution and pick-bonus triggers', () => {
+    const collector = new ModernDataCollector()
+    collector.beginRound(100)
+
+    woodlandWhisperMetrics.recordResultMetrics(
+      collector,
+      makeBaseResult({ sc: 3, triggeredPickBonus: true, pickedBonus: 8 }),
+      { phase: 'spin', wager: testWager },
+    )
+
+    const raw = collector.getRawMetrics()
+    expect(raw.rootScope.scopes['base-game']!.metrics['scatter-count']).toBeDefined()
+    expect(
+      raw.rootScope.scopes['features']!.scopes['free-spins']!.metrics['triggers'],
+    ).toBeDefined()
+  })
+
+  it('records FREE spin metrics with scatter-win', () => {
+    const collector = new ModernDataCollector()
+    collector.beginRound(100)
+
+    woodlandWhisperMetrics.recordResultMetrics(
+      collector,
+      makeFreeResult({ sc: 4, win: 200, scatterWin: 20 }),
+      { phase: 'next', wager: testWager },
+    )
+
+    const raw = collector.getRawMetrics()
+    const freeScope = raw.rootScope.scopes['features']!.scopes['free-spins']!
+    expect(freeScope.metrics['spins-played']).toBeDefined()
+    expect(freeScope.metrics['spin-win']).toBeDefined()
+    expect(freeScope.metrics['scatter-win']).toBeDefined()
+  })
+
+  it('records BUY bonus metrics', () => {
+    const collector = new ModernDataCollector()
+    collector.beginRound(500)
+
+    const buyResult: WoodlandWhisperBuyResult = {
+      type: 'BUY',
+      win: 0,
+      sc: 4,
+      scatterWin: 0,
+      grid: [],
+      hits: [],
+      pickedBonus: 8,
+      triggeredPickBonus: true,
+      state: { freeSpinsLeft: 0, totalFreeSpinWin: 0 },
+    }
+    woodlandWhisperMetrics.recordResultMetrics(collector, buyResult, {
+      phase: 'spin',
+      wager: testWager,
+    })
+
+    const raw = collector.getRawMetrics()
+    expect(
+      raw.rootScope.scopes['features']!.scopes['buy-bonus']!.metrics['purchases'],
+    ).toBeDefined()
+  })
+
+  it('records round-level RTP including scatter-rtp', () => {
+    const collector = new ModernDataCollector()
+    collector.beginRound(100)
+    collector.collect(makeBaseResult({ win: 30, scatterWin: 5 }))
+    collector.collect(makeFreeResult({ win: 200, scatterWin: 40 }))
+    collector.endRound()
+    const round = collector.getLastRoundSnapshot()!
+
+    woodlandWhisperMetrics.recordRoundMetrics(collector, round, testWager)
+
+    const raw = collector.getRawMetrics()
+    expect(raw.rootScope.scopes['base-game']!.metrics['scatter-win']).toBeDefined()
+    expect(
+      raw.rootScope.scopes['features']!.scopes['free-spins']!.metrics['scatter-rtp'],
+    ).toBeDefined()
+  })
+})
 
 describe('metrics', () => {
   it('records scatter-win metrics through the shared harness', () => {

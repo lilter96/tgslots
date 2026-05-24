@@ -12,6 +12,7 @@ import {
   type StateMachine,
   type DataCollector,
   type SpinResult,
+  type GameMetrics,
 } from '../core/state-machine.js'
 import type { Rng } from '@tgslots/math/rng/types'
 import { BetConfiguration, Wager } from '@tgslots/slots-core/betting'
@@ -187,6 +188,7 @@ export function performWarmup<T extends SpinResult>(
 /** Standardized worker simulation loop with progress snapshots */
 export function runWorkerLoop<T extends SpinResult>(
   sm: StateMachine<T>,
+  metrics: GameMetrics<T>,
   rng: Rng,
   collector: DataCollector,
   config: {
@@ -218,7 +220,7 @@ export function runWorkerLoop<T extends SpinResult>(
     const batchEnd = Math.min(spinsDone + config.snapshotBatchSize, config.numSpins)
 
     for (let i = spinsDone; i < batchEnd; i++) {
-      runCycle(sm, rng, collector, wager)
+      runCycle(sm, metrics, rng, collector, wager)
     }
 
     spinsDone = batchEnd

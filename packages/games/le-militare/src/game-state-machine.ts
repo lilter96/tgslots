@@ -1,10 +1,5 @@
 import type { Rng } from '@tgslots/math/rng/types'
-import type {
-  DataCollector,
-  RoundMetricsSnapshot,
-  SpinResult,
-  StateMachine,
-} from '@tgslots/slots-simulation-engine'
+import type { SpinResult, StateMachine } from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
 import { MIN_SCATTERS, FREE_SPIN_AWARDS, MAX_WIN_MULTIPLIER } from './constants.js'
 import { LE_MILITARE_SAMPLER, BUY_BONUS_SAMPLER } from './logic.js'
@@ -245,78 +240,5 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
       return this.freeGameSpin(rng)
     }
     return null
-  }
-
-  recordResultMetrics(
-    collector: DataCollector,
-    result: LeMilitareResult,
-    _context: { phase: 'spin' | 'next'; wager: Wager },
-  ): void {
-    const baseScope = collector.scope('base-game')
-    const freeScope = collector.scope(['features', 'free-spins'])
-    const combatScope = collector.scope(['features', 'combat-operation'])
-
-    if (result.type === 'BASE') {
-      if (result.win > 0) baseScope.count('hits')
-      baseScope.distribution('scatter-count', String(result.scatterCount))
-      if (result.triggeredFreeSpins) {
-        freeScope.count('triggers')
-        freeScope.value('spins-awarded', result.freeSpinsAwarded)
-      }
-      if (result.multiplierSum > 0) {
-        combatScope.count('activations')
-        combatScope.distribution(
-          'multiplier-sum-per-spin',
-          String(Math.round(result.multiplierSum)),
-        )
-      }
-      return
-    }
-
-    if (result.type === 'BUY') {
-      const buyScope = collector.scope(['features', 'buy-bonus'])
-      buyScope.count('purchases')
-      buyScope.value('spins-awarded', result.freeSpinsAwarded)
-      return
-    }
-
-    if (result.type === 'FREE') {
-      freeScope.count('spins-played')
-      freeScope.payout('spin-win', result.win)
-      freeScope.distribution('scatter-count', String(result.scatterCount))
-      if (result.win > 0) freeScope.count('hits')
-      if (result.retriggered) {
-        freeScope.count('retriggers')
-        freeScope.value('spins-awarded', result.freeSpinsAwarded)
-      }
-      if (result.multiplierSum > 0) {
-        combatScope.count('free-activations')
-        combatScope.distribution(
-          'multiplier-sum-per-free-spin',
-          String(Math.round(result.multiplierSum)),
-        )
-      }
-    }
-  }
-
-  recordRoundMetrics(collector: DataCollector, round: RoundMetricsSnapshot, _wager: Wager): void {
-    const baseScope = collector.scope('base-game')
-    const freeScope = collector.scope(['features', 'free-spins'])
-
-    const baseWins = round.winsByType['BASE']
-    const freeWins = round.winsByType['FREE']
-
-    const baseTotalWin = baseWins?.total ?? 0
-    const freeTotalWin = freeWins?.total ?? 0
-    const freeCount = round.countsByType['FREE'] ?? 0
-
-    baseScope.rtp('win', baseTotalWin)
-    freeScope.rtp('feature-rtp', freeTotalWin)
-
-    if (freeCount > 0) {
-      freeScope.payout('session-win', freeTotalWin)
-      freeScope.payout('triggered-round-win', round.totalWin)
-      freeScope.value('total-spins-per-trigger', freeCount)
-    }
   }
 }

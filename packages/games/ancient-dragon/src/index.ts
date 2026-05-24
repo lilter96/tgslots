@@ -3,7 +3,9 @@ import { BET_CONFIG } from './constants.js'
 import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli'
 import parsheetData from '../config/parsheet.json' with { type: 'json' }
 
-export { AncientDragonStateMachine, BET_CONFIG }
+import { ancientDragonMetrics } from './metrics.js'
+
+export { AncientDragonStateMachine, BET_CONFIG, ancientDragonMetrics }
 
 export type {
   AncientDragonState,
@@ -13,7 +15,7 @@ export type {
   AncientDragonFreeResult,
 } from './game-state-machine.js'
 
-/** Standardized simulation metadata for the unified runner */
+/** Consumed by the CLI via dynamic `import(packageName).SIM_CONFIG`. Do not remove. */
 export const SIM_CONFIG = {
   name: 'ANCIENT DRAGON',
   parsheet: parsheetData as ParsheetConfig,

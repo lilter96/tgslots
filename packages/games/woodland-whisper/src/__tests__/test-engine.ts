@@ -7,6 +7,7 @@ import { BET_CONFIG } from '../constants.js'
 import type { FreeSpinState, PickBonusState } from '../game-state-machine.js'
 import type { WoodlandWhisperBuyResult, WoodlandWhisperPickResult } from '../game-state-machine.js'
 import { WoodlandWhisperStateMachine } from '../game-state-machine.js'
+import { woodlandWhisperMetrics } from '../metrics.js'
 
 interface PickBonusScenario {
   board: PickBonusState['board']
@@ -85,6 +86,7 @@ const withPickBonusScenario: SlotsTestScenarioHandler<
 export const woodlandWhisperTestEngine = createSlotsTestEngine(
   WoodlandWhisperStateMachine,
   BET_CONFIG,
+  woodlandWhisperMetrics,
 )
   .registerAction('initInitialGrid', initInitialGridAction)
   .registerAction('buyBonus', buyBonusAction)

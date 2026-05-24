@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import { mt19937 } from '@tgslots/math'
-import { LeMilitareStateMachine } from '@tgslots/le-militare'
+import { LeMilitareStateMachine, leMilitareMetrics } from '@tgslots/le-militare'
 import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
 import {
   performWarmup,
@@ -27,6 +27,7 @@ performWarmup(sm, rng, warmup, wager)
 
 runWorkerLoop(
   sm,
+  leMilitareMetrics,
   rng,
   new ModernDataCollector(),
   {
