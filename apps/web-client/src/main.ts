@@ -4,7 +4,10 @@ import { BET_CONFIG as AD_BET_CONFIG } from '@tgslots/ancient-dragon'
 import {
   BET_CONFIG as LM_BET_CONFIG,
   BUY_BONUS_COST_MULTIPLIER as LM_BUY_BONUS_COST_MULTIPLIER,
+  BUY_OPTIONS as LM_BUY_OPTIONS,
+  DEFAULT_MODE as LM_DEFAULT_MODE,
 } from '@tgslots/le-militare'
+import type { ModeId as LMModeId } from '@tgslots/le-militare'
 import { Wager } from '@tgslots/slots-core'
 import type { GameId } from '@tgslots/shared-contracts'
 import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
@@ -128,13 +131,42 @@ async function mountGame(gameId: string): Promise<void> {
     )
   } else if (gameId === 'le-militare') {
     const d = dispatcher as GameDispatcher<'le-militare'>
+    let lmMode: LMModeId = LM_DEFAULT_MODE
+    const lmFeatureCost = (optionId: string, m: number): number => {
+      const bet = new Wager(m, LM_BET_CONFIG).totalWager
+      const cost =
+        optionId === 'standard'
+          ? LM_BUY_OPTIONS.standard.cost
+          : optionId === 'elite'
+            ? LM_BUY_OPTIONS.elite.cost
+            : optionId === 'super'
+              ? LM_BUY_OPTIONS.super.cost
+              : optionId === 'chance'
+                ? LM_BUY_OPTIONS.chanceSpin.cost
+                : LM_BUY_OPTIONS.airRaidSpin.cost
+      return bet * cost
+    }
     const lmActions: OrchestratorActions<'le-militare'> = {
       spinCost: (m) => new Wager(m, LM_BET_CONFIG).totalWager,
-      doSpin: (m) => d.dispatch('spin', { multiplier: m }),
+      doSpin: (m) => d.dispatch('spin', { multiplier: m, mode: lmMode }),
       buyBonusCost: (m) => new Wager(m, LM_BET_CONFIG).totalWager * LM_BUY_BONUS_COST_MULTIPLIER,
-      doBuyBonus: (m) => d.dispatch('buybonus', { multiplier: m }),
+      doBuyBonus: (m) => d.dispatch('buybonus', { multiplier: m, mode: lmMode }),
       doFreeSpin: () => d.dispatch('freespin', {}),
+      featureCost: lmFeatureCost,
+      doFeatureBuy: (optionId, m) => {
+        if (optionId === 'chance') return d.dispatch('chancespin', { multiplier: m, mode: lmMode })
+        if (optionId === 'airraid')
+          return d.dispatch('airraidspin', { multiplier: m, mode: lmMode })
+        return d.dispatch('buybonus', {
+          multiplier: m,
+          option: optionId as 'standard' | 'elite' | 'super',
+          mode: lmMode,
+        })
+      },
     }
+    eventBus.on('volatility:selected', ({ mode }) => {
+      lmMode = mode as LMModeId
+    })
     orchestrator = new SpinOrchestrator(
       fsm,
       session,
@@ -252,6 +284,9 @@ async function mountGame(gameId: string): Promise<void> {
   })
   eventBus.on('buy-bonus:requested', () => {
     orchestrator.buyBonus(session.betMultiplier).catch(console.error)
+  })
+  eventBus.on('feature-buy:requested', ({ optionId }) => {
+    orchestrator.buyFeature(optionId, session.betMultiplier).catch(console.error)
   })
 
   autoSpinPanel.on('start', (config: AutoSpinConfig) => {

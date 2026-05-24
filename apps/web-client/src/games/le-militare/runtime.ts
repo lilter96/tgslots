@@ -4,7 +4,7 @@ import type { GameRuntime, GameUIContext } from '../../engine/game-client.js'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
 import { ReelSet } from '../../engine/reel-set.js'
 import { WinOverlay } from '../../engine/win-overlay.js'
-import { Symbols, BUY_BONUS_COST_MULTIPLIER } from '@tgslots/le-militare'
+import { Symbols } from '@tgslots/le-militare'
 import type { LeMilitareResult } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
 import type { ActionType } from '@tgslots/shared-contracts'
@@ -21,7 +21,8 @@ import { CombatOperationView } from './combat/index.js'
 import './events.js'
 import type { CombatLayout } from './combat/combat-layout.js'
 import { MultiplierHud } from './multiplier-hud.js'
-import { BuyBonusControl } from './buy-bonus-control.js'
+import { BuyFeatureControl } from './buy-feature-control.js'
+import { BuyFeatureModal } from './buy-feature-modal.js'
 import { S300Mascot } from './mascot/index.js'
 import { ReelFrame } from './reel-frame/reel-frame.js'
 
@@ -54,7 +55,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private _spinSpeedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
   private _combatOpView!: CombatOperationView
   private _multiplierHud!: MultiplierHud
-  private _buyBonusControl?: BuyBonusControl
+  private _buyFeatureControl?: BuyFeatureControl
+  private _buyFeatureModal?: BuyFeatureModal
   private _mascot!: S300Mascot
   private _destroyed = false
   private readonly _unsubs: Array<() => void> = []
@@ -103,8 +105,12 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._multiplierHud = new MultiplierHud()
     ctx.scene.overlays.addChild(this._multiplierHud)
 
-    this._buyBonusControl = new BuyBonusControl(ctx.eventBus, ctx.fsm, BUY_BONUS_COST_MULTIPLIER)
-    ctx.hud.slot('control-right').addChild(this._buyBonusControl)
+    this._buyFeatureControl = new BuyFeatureControl(ctx.eventBus, ctx.fsm)
+    ctx.hud.slot('control-right').addChild(this._buyFeatureControl)
+
+    this._buyFeatureModal = new BuyFeatureModal(ctx.eventBus, () => ctx.session.betMultiplier)
+    ctx.scene.overlays.addChild(this._buyFeatureModal)
+    this._unsubs.push(ctx.eventBus.on('feature-modal:open', () => this._buyFeatureModal?.show()))
 
     this._frame = new ReelFrame({
       reels: GRID_CONFIG.reels,
@@ -174,6 +180,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._frame.update(layout, reelScale)
 
     this._overlay.resize(layout)
+    this._buyFeatureModal?.resize(layout)
     this._mascot.resize(layout)
 
     const lp = this._mascot.getLaunchPoint()
@@ -219,7 +226,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._bgSprite.destroy()
     this._mask.destroy()
     this._frame.destroy()
-    this._buyBonusControl?.destroy({ children: true })
+    this._buyFeatureControl?.destroy({ children: true })
+    this._buyFeatureModal?.destroy({ children: true })
     this._mascot.destroy({ children: true })
   }
 

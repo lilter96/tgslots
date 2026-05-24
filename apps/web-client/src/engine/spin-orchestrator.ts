@@ -14,6 +14,10 @@ export interface OrchestratorActions<G extends GameId> {
   buyBonusCost?(betMultiplier: number): number
   doBuyBonus?(betMultiplier: number): Promise<ActionResponse<G>>
   doFreeSpin?(): Promise<ActionResponse<G>>
+  /** Cost (in credits) of a feature-menu option for the given bet. */
+  featureCost?(optionId: string, betMultiplier: number): number
+  /** Dispatch a feature-menu purchase; resolves like a spin (may enter free spins). */
+  doFeatureBuy?(optionId: string, betMultiplier: number): Promise<ActionResponse<G>>
 }
 
 export class SpinOrchestrator<G extends GameId> {
@@ -110,6 +114,31 @@ export class SpinOrchestrator<G extends GameId> {
 
     if (response.result !== undefined) {
       await this._runtime.presentResult('buybonus' as ActionType<G>, response.result)
+    }
+
+    await this._runFreeSpins()
+    this._finishCycle()
+  }
+
+  // Generic feature-menu purchase (bonus-buy tiers or enhanced single spins).
+  // Resolves like a base spin: it may enter free spins, which then play out.
+  async buyFeature(optionId: string, betMultiplier: number): Promise<void> {
+    if (this._fsm.state !== GameUIState.IDLE) return
+    if (!this._actions.doFeatureBuy || !this._actions.featureCost) return
+
+    const cost = this._actions.featureCost(optionId, betMultiplier)
+    if (!this._session.deductWager(cost)) return
+
+    this._wonThisCycle = false
+    this._bonusTriggeredThisCycle = false
+    this._fsm.transitionTo(GameUIState.SPINNING)
+
+    const response = await this._actions.doFeatureBuy(optionId, betMultiplier)
+    this._runtime.applyState(response.state)
+    this._fsm.transitionTo(GameUIState.STOPPING)
+
+    if (response.result !== undefined) {
+      await this._runtime.presentResult('spin' as ActionType<G>, response.result)
     }
 
     await this._runFreeSpins()

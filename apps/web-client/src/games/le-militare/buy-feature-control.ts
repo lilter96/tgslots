@@ -4,44 +4,31 @@ import type { DestroyOptions } from 'pixi.js'
 import type { GameEventBus } from '../../engine/event-bus.js'
 import type { GameStateMachine } from '../../engine/state-machine.js'
 import type { GameUIState } from '../../types.js'
-import { isBuyBonusEnabled, formatBuyBonusCostLabel } from './helpers/buy-bonus-rules.js'
+import { isBuyBonusEnabled } from './helpers/buy-bonus-rules.js'
 
 const CONTROL_W = 120
 const CONTROL_H = 60
-const TITLE_TEXT = 'BUY BONUS'
-const DEBOUNCE_MS = 500
+const DEBOUNCE_MS = 400
 
-export class BuyBonusControl extends Container {
+// Hacksaw-style "Buy Feature" entry button: opens the feature menu modal.
+export class BuyFeatureControl extends Container {
   private readonly _background = new Graphics()
   private readonly _title = new Text({
-    text: TITLE_TEXT,
-    style: {
-      fontFamily: 'serif',
-      fill: '#ffffff',
-      fontSize: 14,
-      fontWeight: '900',
-    },
+    text: 'BUY',
+    style: { fontFamily: 'serif', fill: '#1a1205', fontSize: 16, fontWeight: '900' },
   })
-  private readonly _subtitle: Text
+  private readonly _subtitle = new Text({
+    text: 'FEATURE',
+    style: { fontFamily: 'serif', fill: '#1a1205', fontSize: 12, fontWeight: '700' },
+  })
   private readonly _unsubs: Array<() => void> = []
 
   private _freeSpinsRemaining = 0
   private _isAutoSpin = false
   private _lastClickTime = 0
 
-  constructor(eventBus: GameEventBus, fsm: GameStateMachine, costMultiplier: number) {
+  constructor(eventBus: GameEventBus, fsm: GameStateMachine) {
     super()
-
-    this._subtitle = new Text({
-      text: formatBuyBonusCostLabel(costMultiplier),
-      style: {
-        fontFamily: 'serif',
-        fill: '#d4af37',
-        fontSize: 12,
-        fontWeight: '700',
-      },
-    })
-
     this._build()
     this._sync(fsm.state)
 
@@ -62,7 +49,7 @@ export class BuyBonusControl extends Container {
       const now = performance.now()
       if (now - this._lastClickTime < DEBOUNCE_MS) return
       this._lastClickTime = now
-      eventBus.emit('buy-bonus:requested', {})
+      eventBus.emit('feature-modal:open', {})
     })
   }
 
@@ -75,12 +62,10 @@ export class BuyBonusControl extends Container {
   private _build(): void {
     this._title.anchor.set(0.5)
     this._title.x = CONTROL_W / 2
-    this._title.y = 18
-
+    this._title.y = 22
     this._subtitle.anchor.set(0.5)
     this._subtitle.x = CONTROL_W / 2
-    this._subtitle.y = 42
-
+    this._subtitle.y = 40
     this.cursor = 'pointer'
     this.addChild(this._background, this._title, this._subtitle)
   }
@@ -91,19 +76,13 @@ export class BuyBonusControl extends Container {
       isAutoSpin: this._isAutoSpin,
       freeSpinsRemaining: this._freeSpinsRemaining,
     })
-
-    const targetAlpha = enabled ? 1 : 0.55
     this.eventMode = enabled ? 'static' : 'none'
     this.cursor = enabled ? 'pointer' : 'default'
     gsap.killTweensOf(this)
-    gsap.to(this, { alpha: targetAlpha, duration: 0.2 })
-    this._drawBackground(enabled)
-  }
-
-  private _drawBackground(enabled: boolean): void {
+    gsap.to(this, { alpha: enabled ? 1 : 0.55, duration: 0.2 })
     this._background.clear()
-    this._background.roundRect(0, 0, CONTROL_W, CONTROL_H, 4)
-    this._background.fill(enabled ? 0xc41e1e : 0x3a1a1a)
-    this._background.stroke({ width: 2, color: 0xd4af37 })
+    this._background.roundRect(0, 0, CONTROL_W, CONTROL_H, 8)
+    this._background.fill(enabled ? 0xffb02e : 0x4a3a14)
+    this._background.stroke({ width: 1.5, color: 0x29313b })
   }
 }
