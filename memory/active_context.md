@@ -30,9 +30,16 @@ tuned via `scripts/buy-rtp.ts` so each option's EV/cost ≈ 0.984 (standard 184,
 1795, chance 4.2, air-raid 1.9; the old 100× buy was badly underpriced). API routes/module/reg
 updated. Buy options don't touch `spin`/`next`, so base-game total RTP is unchanged.
 
+**Phase 3 (selectable volatility modes) — done** (see [[decision_010_le_militare_player_control_kit]]).
+recon/assault/siege share strips + paytable + trigger and differ only in multiplier pool + Air
+Raid intensity; each tuned to 98.4% (3M: recon 98.67% / assault 97.96% / siege 98.34%) with the
+right variance ordering (stdDev 19.4 < 19.8 < 24.2). Mode-aware `MODE_SAMPLERS` threaded through
+the cascade engine; `LeMilitareStateMachine(initialState?, mode)`; API payload/state + sim worker
+`LM_MODE` carry the mode. Tuned via `scripts/mode-rtp.ts`; per-mode regression test added.
+
 Earlier baseline (Phase: pre-kit, [[decision_008_le_militare_math_rebalance]]): rebalanced from a
-broken ~8368% to 98.4% with S300 gated to free spins. Remaining kit work: Phase 3 (selectable
-volatility modes) and the web client buy-menu UI (needs browser verification).
+broken ~8368% to 98.4% with S300 gated to free spins. Remaining: the web client buy-menu + mode-
+selector UI (needs browser verification).
 
 `packages/slots-simulation-engine/src/testing/slots-test-engine.ts` is a fluent, extensible gameplay test harness. Ancient Dragon, Woodland Whisper, and Le Militare state-machine/gameplay suites use registered actions/scenarios/probes instead of direct `_state` mutation or hand-rolled round execution.
 
