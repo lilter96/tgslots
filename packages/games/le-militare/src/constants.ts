@@ -61,12 +61,12 @@ export const GRID_AREA = REEL_COUNT * ROW_COUNT
 
 export const MIN_SCATTERS = 4 as const
 
-export const FREE_SPIN_AWARDS: Record<number, number> = {
-  4: 10,
-  5: 15,
-  6: 20,
-  7: 25,
-}
+export const FREE_SPIN_AWARDS: Record<number, number> = Object.fromEntries(
+  Object.entries(config.scatter_definition.free_spins_awarded).map(([count, spins]) => [
+    Number(count),
+    spins as number,
+  ]),
+)
 
 export const MAX_CASCADE_STEPS = 100 as const
 
@@ -81,6 +81,18 @@ export const MULTIPLIER_POOL = config.multiplier_pool.values as readonly number[
 export const MULTIPLIER_POOL_WEIGHTS: readonly (readonly [number, number])[] = MULTIPLIER_POOL.map(
   (val, i) => [val, config.multiplier_pool.weights[i]!] as const,
 )
+
+// ─── Air Raid (base-game Combat Operation) ──────────────────────────────────
+// Probabilities are integer weight ratios (never floats).
+export const AIR_RAID = {
+  triggerWeights: [
+    config.air_raid.trigger_weights[0]!,
+    config.air_raid.trigger_weights[1]!,
+  ] as const,
+  squadronSizes: config.air_raid.squadron_sizes as readonly number[],
+  squadronWeights: config.air_raid.squadron_weights as readonly number[],
+  hitWeights: [config.air_raid.hit_weights[0]!, config.air_raid.hit_weights[1]!] as const,
+} as const
 
 // ─── Reel Strips ─────────────────────────────────────────────────────────
 

@@ -1,9 +1,10 @@
 import { Array1 } from '@tgslots/math/functional/array1'
-import { Sampler } from '@tgslots/math/probability'
+import { Sampler, Distributions } from '@tgslots/math/probability'
 import { collectVanishPositions, EMPTY_SYMBOL, evaluateClusters } from '@tgslots/slots-core'
 import type { MutableCascadeGrid } from '@tgslots/slots-core'
 import { engine } from './engine.js'
 import {
+  AIR_RAID,
   MULTIPLIER_POOL_WEIGHTS,
   PLANE_ID,
   REEL_COUNT,
@@ -21,6 +22,71 @@ import { snapshotGrid } from './helpers.js'
 export const multiplierSampler: Sampler<number> = Sampler.fromWeighted(
   Array1.unsafeFromArray(MULTIPLIER_POOL_WEIGHTS) as Array1<readonly [number, number]>,
 )
+
+// ─── Air Raid Sampler (base-game Combat Operation) ──────────────────────────
+// A squadron flies over; the S300 intercepts some planes; each interception
+// drops a multiplier-WILD on a random cell. Missed planes fly off. The summed
+// multiplier seeds the spin's multiplier (per-spin in base; resets each spin).
+
+export interface AirRaidPlacement {
+  reel: number
+  row: number
+  multiplier: number
+}
+
+export interface AirRaidResult {
+  placements: readonly AirRaidPlacement[]
+  multiplierSum: number
+}
+
+const NO_AIR_RAID: AirRaidResult = { placements: [], multiplierSum: 0 }
+
+const airRaidFireSampler = Sampler.fromWeighted(
+  Array1.unsafeFromArray([
+    [true, AIR_RAID.triggerWeights[0]],
+    [false, AIR_RAID.triggerWeights[1]],
+  ]) as Array1<readonly [boolean, number]>,
+)
+
+const squadronSizeSampler = Sampler.fromWeighted(
+  Array1.unsafeFromArray(
+    AIR_RAID.squadronSizes.map((size, i) => [size, AIR_RAID.squadronWeights[i]!] as const),
+  ) as Array1<readonly [number, number]>,
+)
+
+const planeHitSampler = Sampler.fromWeighted(
+  Array1.unsafeFromArray([
+    [true, AIR_RAID.hitWeights[0]],
+    [false, AIR_RAID.hitWeights[1]],
+  ]) as Array1<readonly [boolean, number]>,
+)
+
+const raidReelSampler = Distributions.uniformInt(0, REEL_COUNT - 1)
+const raidRowSampler = Distributions.uniformInt(0, ROW_COUNT - 1)
+
+const planeSampler: Sampler<AirRaidPlacement | null> = planeHitSampler.flatMap((hit) =>
+  hit
+    ? raidReelSampler.flatMap((reel) =>
+        raidRowSampler.flatMap((row) =>
+          multiplierSampler.map((multiplier): AirRaidPlacement => ({ reel, row, multiplier })),
+        ),
+      )
+    : Sampler.pure<AirRaidPlacement | null>(null),
+)
+
+export const airRaidSampler: Sampler<AirRaidResult> = airRaidFireSampler.flatMap((fire) => {
+  if (!fire) return Sampler.pure(NO_AIR_RAID)
+  return squadronSizeSampler.flatMap((size) =>
+    Sampler.traverse(
+      Array.from({ length: size }, (_, i) => i),
+      () => planeSampler,
+    ).map((planes) => {
+      const placements = planes.filter((p): p is AirRaidPlacement => p !== null)
+      const multiplierSum = placements.reduce((sum, p) => sum + p.multiplier, 0)
+      return { placements, multiplierSum }
+    }),
+  )
+})
 
 // ─── Sticky Wild Helpers ──────────────────────────────────────────────────
 // stickyGrid[reel][row] === true means that cell holds a shootdown-converted

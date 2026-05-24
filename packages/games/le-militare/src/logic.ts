@@ -12,10 +12,13 @@ import {
 import type { CombatCascadeStep, LeMilitareSpinResult } from './types.ts'
 import { buildGridSampler } from './grid-samplers.js'
 import { countScatters, freeSpinsAwarded, snapshotGrid } from './helpers.js'
-import { combatCascadeLoopSampler } from './combat.js'
+import { combatCascadeLoopSampler, airRaidSampler } from './combat.js'
+import type { AirRaidResult } from './combat.js'
 
 export { makeStripChunkSampler } from './grid-samplers.js'
 export { multiplierSampler } from './combat.js'
+
+const NO_AIR_RAID: AirRaidResult = { placements: [], multiplierSum: 0 }
 
 function createSpinSampler(
   wager: Wager,
@@ -25,55 +28,64 @@ function createSpinSampler(
 ): Sampler<LeMilitareSpinResult> {
   const strips = isFreeSpin ? INT_STRIPS_FREE : INT_STRIPS_BASE
   const gridSampler = buildGridSampler(strips)
+  // The Air Raid is a base-game Combat Operation; free spins keep the
+  // persistent armed-reel / accumulating-multiplier version.
+  const raidSampler = isFreeSpin ? Sampler.pure(NO_AIR_RAID) : airRaidSampler
 
-  return gridSampler.flatMap((grid) => {
-    for (const reel of carryArmedReels) {
-      for (let row = 0; row < ROW_COUNT; row++) {
-        grid.setSymbol(reel, row, WILD_ID)
+  return gridSampler.flatMap((grid) =>
+    raidSampler.flatMap((raid) => {
+      for (const reel of carryArmedReels) {
+        for (let row = 0; row < ROW_COUNT; row++) {
+          grid.setSymbol(reel, row, WILD_ID)
+        }
       }
-    }
 
-    const initialScatterCount = countScatters(grid)
-    const initialSnapshot = snapshotGrid(grid)
+      for (const p of raid.placements) {
+        grid.setSymbol(p.reel, p.row, WILD_ID)
+      }
 
-    const armedReels = new Set<number>(carryArmedReels)
-    const stickyGrid: boolean[][] = Array.from({ length: REEL_COUNT }, () =>
-      new Array(ROW_COUNT).fill(false),
-    )
-    const steps: CombatCascadeStep[] = []
+      const initialScatterCount = countScatters(grid)
+      const initialSnapshot = snapshotGrid(grid)
 
-    return combatCascadeLoopSampler(
-      grid,
-      strips,
-      armedReels,
-      stickyGrid,
-      carryMultiplierSum,
-      initialScatterCount,
-      steps,
-      MAX_CASCADE_STEPS,
-    ).map(({ finalArmedReels, finalMultSum, finalScatterCount }) => {
-      const baseClusterWin = steps.reduce((sum, s) => sum + s.stepWin, 0)
-      const multiplierSum = finalMultSum - carryMultiplierSum
-      const effectiveMultiplier = Math.max(1, finalMultSum)
-      const finalWin = baseClusterWin * effectiveMultiplier * wager.multiplier
+      const armedReels = new Set<number>(carryArmedReels)
+      const stickyGrid: boolean[][] = Array.from({ length: REEL_COUNT }, () =>
+        new Array(ROW_COUNT).fill(false),
+      )
+      const steps: CombatCascadeStep[] = []
 
-      const triggered = finalScatterCount >= MIN_SCATTERS
-      const spinsAwarded = triggered ? freeSpinsAwarded(finalScatterCount) : 0
-
-      return {
-        initialGrid: initialSnapshot,
+      return combatCascadeLoopSampler(
+        grid,
+        strips,
+        armedReels,
+        stickyGrid,
+        carryMultiplierSum + raid.multiplierSum,
+        initialScatterCount,
         steps,
-        scatterCount: finalScatterCount,
-        baseClusterWin,
-        multiplierSum,
-        finalWin,
-        triggeredFreeSpins: triggered,
-        freeSpinsAwarded: spinsAwarded,
-        endArmedReels: Array.from(finalArmedReels),
-        endMultiplierSum: finalMultSum,
-      }
-    })
-  })
+        MAX_CASCADE_STEPS,
+      ).map(({ finalArmedReels, finalMultSum, finalScatterCount }) => {
+        const baseClusterWin = steps.reduce((sum, s) => sum + s.stepWin, 0)
+        const multiplierSum = finalMultSum - carryMultiplierSum
+        const effectiveMultiplier = Math.max(1, finalMultSum)
+        const finalWin = baseClusterWin * effectiveMultiplier * wager.multiplier
+
+        const triggered = finalScatterCount >= MIN_SCATTERS
+        const spinsAwarded = triggered ? freeSpinsAwarded(finalScatterCount) : 0
+
+        return {
+          initialGrid: initialSnapshot,
+          steps,
+          scatterCount: finalScatterCount,
+          baseClusterWin,
+          multiplierSum,
+          finalWin,
+          triggeredFreeSpins: triggered,
+          freeSpinsAwarded: spinsAwarded,
+          endArmedReels: Array.from(finalArmedReels),
+          endMultiplierSum: finalMultSum,
+        }
+      })
+    }),
+  )
 }
 
 export const LE_MILITARE_SAMPLER = (
