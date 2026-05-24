@@ -9,4 +9,6 @@ export interface LMFreeSpinSerialized {
 export interface LeMilitareSerializedState {
   lastGrid: number[][] | null
   freeSpins: LMFreeSpinSerialized | null
+  /** Selected volatility mode for the session. */
+  mode?: 'recon' | 'assault' | 'siege'
 }

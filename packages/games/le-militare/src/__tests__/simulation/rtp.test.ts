@@ -29,5 +29,23 @@ describe('le-militare RTP simulation', () => {
     expect(rtp).toBeGreaterThan(TARGET - 0.04)
     expect(rtp).toBeLessThan(TARGET + 0.04)
     expect(maxRoundWinMultiplier).toBeLessThanOrEqual(MAX_WIN)
+    // Every win is an integer (no decimal/float payouts).
+    expect(Number.isInteger(Metrics.finalize(collector.getRawMetrics()).summary.maxRoundWin)).toBe(
+      true,
+    )
   }, 120_000)
+
+  it('all configured payouts are integers (no decimals)', () => {
+    for (const counts of Object.values(config.paytable)) {
+      for (const payout of Object.values(counts)) {
+        expect(Number.isInteger(payout)).toBe(true)
+      }
+    }
+    for (const value of config.multiplier_pool.values) {
+      expect(Number.isInteger(value)).toBe(true)
+    }
+    for (const spins of Object.values(config.scatter_definition.free_spins_awarded)) {
+      expect(Number.isInteger(spins)).toBe(true)
+    }
+  })
 })

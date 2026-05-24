@@ -12,8 +12,10 @@ import type { LeMilitareSerializedState, LMFreeSpinSerialized } from './le-milit
 // Ensure declaration merge is loaded
 import '../types/le-militare.reg.js'
 
-type LMAction = 'spin' | 'buybonus' | 'freespin' | 'state'
-type LMPayload = { multiplier?: number }
+type LMAction = 'spin' | 'buybonus' | 'chancespin' | 'airraidspin' | 'freespin' | 'state'
+type LMBuyOption = 'standard' | 'elite' | 'super'
+type LMMode = 'recon' | 'assault' | 'siege'
+type LMPayload = { multiplier?: number; option?: LMBuyOption; mode?: LMMode }
 
 export class LeMilitareModule implements IGameModule<'le-militare'> {
   readonly gameId = 'le-militare' as const
@@ -29,9 +31,21 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
   ): string | null {
     switch (action) {
       case 'spin':
-      case 'buybonus': {
+      case 'buybonus':
+      case 'chancespin':
+      case 'airraidspin': {
         if (typeof payload.multiplier !== 'number' || payload.multiplier < 1) {
           return 'multiplier must be a positive integer'
+        }
+        if (
+          action === 'buybonus' &&
+          payload.option !== undefined &&
+          !['standard', 'elite', 'super'].includes(payload.option)
+        ) {
+          return 'option must be one of: standard, elite, super'
+        }
+        if (payload.mode !== undefined && !['recon', 'assault', 'siege'].includes(payload.mode)) {
+          return 'mode must be one of: recon, assault, siege'
         }
         return null
       }
@@ -58,7 +72,11 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       return { state }
     }
 
-    const machine = this.hydrate(state)
+    // A new round adopts the mode selected in the payload (defaults to the
+    // session's current mode, then assault). Free spins keep the session mode.
+    const roundStarter = action !== 'freespin'
+    const mode: LMMode = (roundStarter && payload.mode) || state.mode || 'assault'
+    const machine = this.hydrate({ ...state, mode })
 
     switch (action) {
       case 'spin': {
@@ -68,7 +86,17 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       }
       case 'buybonus': {
         const wager = new Wager(payload.multiplier!, BET_CONFIG)
-        const result = machine.buyBonus(rng, wager)
+        const result = machine.buyBonus(rng, wager, payload.option ?? 'standard')
+        return { state: this.dehydrate(machine), result }
+      }
+      case 'chancespin': {
+        const wager = new Wager(payload.multiplier!, BET_CONFIG)
+        const result = machine.buyChanceSpin(rng, wager)
+        return { state: this.dehydrate(machine), result }
+      }
+      case 'airraidspin': {
+        const wager = new Wager(payload.multiplier!, BET_CONFIG)
+        const result = machine.buyAirRaidSpin(rng, wager)
         return { state: this.dehydrate(machine), result }
       }
       case 'freespin': {
@@ -97,7 +125,7 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       lastSpinResult: null,
       roundWin: 0,
     }
-    return new LeMilitareStateMachine(runtimeState)
+    return new LeMilitareStateMachine(runtimeState, s.mode ?? 'assault')
   }
 
   private dehydrate(machine: LeMilitareStateMachine): LeMilitareSerializedState {
@@ -113,6 +141,6 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
         }
       : null
 
-    return { lastGrid: s.lastGrid, freeSpins }
+    return { lastGrid: s.lastGrid, freeSpins, mode: machine.mode }
   }
 }

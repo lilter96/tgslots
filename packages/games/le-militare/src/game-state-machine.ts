@@ -6,8 +6,21 @@ import type {
   StateMachine,
 } from '@tgslots/slots-simulation-engine'
 import { Wager } from '@tgslots/slots-core/betting'
-import { MIN_SCATTERS, FREE_SPIN_AWARDS, MAX_WIN_MULTIPLIER } from './constants.js'
-import { LE_MILITARE_SAMPLER, BUY_BONUS_SAMPLER } from './logic.js'
+import {
+  MIN_SCATTERS,
+  FREE_SPIN_AWARDS,
+  MAX_WIN_MULTIPLIER,
+  BUY_OPTIONS,
+  DEFAULT_MODE,
+  type BuyOptionId,
+  type ModeId,
+} from './constants.js'
+import {
+  LE_MILITARE_SAMPLER,
+  BUY_BONUS_SAMPLER,
+  CHANCE_SPIN_SAMPLER,
+  AIR_RAID_SPIN_SAMPLER,
+} from './logic.js'
 import type { LeMilitareSpinResult } from './types.js'
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -70,14 +83,20 @@ export type LeMilitareResult = LeMilitareBaseResult | LeMilitareFreeResult | LeM
 
 export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, LeMilitareState> {
   private _state: LeMilitareState
+  private readonly _mode: ModeId
 
-  constructor(initialState?: LeMilitareState) {
+  constructor(initialState?: LeMilitareState, mode: ModeId = DEFAULT_MODE) {
+    this._mode = mode
     this._state = initialState ?? {
       lastGrid: null,
       freeSpins: null,
       lastSpinResult: null,
       roundWin: 0,
     }
+  }
+
+  get mode(): ModeId {
+    return this._mode
   }
 
   get state(): LeMilitareState {
@@ -96,17 +115,17 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     }
   }
 
-  spin(rng: Rng, wager: Wager): LeMilitareBaseResult {
-    // Reset any previous session
+  // Shared base-spin driver. `spin`, the ×5-chance spin and the guaranteed
+  // Air-Raid spin differ only in which sampler they run.
+  private _baseSpin(
+    rng: Rng,
+    wager: Wager,
+    sampler: ReturnType<typeof LE_MILITARE_SAMPLER>,
+  ): LeMilitareBaseResult {
     this._state.freeSpins = null
     this._state.lastSpinResult = null
     this._state.roundWin = 0
 
-    const sampler = LE_MILITARE_SAMPLER(wager, {
-      isFreeSpin: false,
-      carryArmedReels: new Set(),
-      carryMultiplierSum: 0,
-    })
     const result = sampler.sample(rng)
 
     this._state.lastGrid = result.initialGrid
@@ -140,6 +159,28 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     }
   }
 
+  spin(rng: Rng, wager: Wager): LeMilitareBaseResult {
+    return this._baseSpin(
+      rng,
+      wager,
+      LE_MILITARE_SAMPLER(this._mode, wager, {
+        isFreeSpin: false,
+        carryArmedReels: new Set(),
+        carryMultiplierSum: 0,
+      }),
+    )
+  }
+
+  /** Buy: one base spin with 5× the Free Spins trigger chance. */
+  buyChanceSpin(rng: Rng, wager: Wager): LeMilitareBaseResult {
+    return this._baseSpin(rng, wager, CHANCE_SPIN_SAMPLER(this._mode, wager))
+  }
+
+  /** Buy: one base spin with a guaranteed Air Raid. */
+  buyAirRaidSpin(rng: Rng, wager: Wager): LeMilitareBaseResult {
+    return this._baseSpin(rng, wager, AIR_RAID_SPIN_SAMPLER(this._mode, wager))
+  }
+
   freeGameSpin(rng: Rng): LeMilitareFreeResult {
     if (!this._state.freeSpins || this._state.freeSpins.spinsRemaining <= 0) {
       throw new Error('No free spins remaining')
@@ -148,7 +189,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     this._state.freeSpins.spinsRemaining--
     const { triggeringWager, armedReels, multiplierSum } = this._state.freeSpins
 
-    const sampler = LE_MILITARE_SAMPLER(triggeringWager, {
+    const sampler = LE_MILITARE_SAMPLER(this._mode, triggeringWager, {
       isFreeSpin: true,
       carryArmedReels: armedReels,
       carryMultiplierSum: multiplierSum,
@@ -205,12 +246,13 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     }
   }
 
-  buyBonus(rng: Rng, wager: Wager): LeMilitareBuyResult {
+  buyBonus(rng: Rng, wager: Wager, option: BuyOptionId = 'standard'): LeMilitareBuyResult {
     this._state.freeSpins = null
     this._state.lastSpinResult = null
     this._state.roundWin = 0
 
-    const result = BUY_BONUS_SAMPLER(wager).sample(rng)
+    const tier = BUY_OPTIONS[option]
+    const result = BUY_BONUS_SAMPLER(this._mode, wager, tier.minScatters).sample(rng)
 
     this._state.lastGrid = result.initialGrid
     this._state.lastSpinResult = result
@@ -218,12 +260,21 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
     const cap = MAX_WIN_MULTIPLIER * wager.totalWager
     const win = Math.min(result.finalWin, cap)
     this._state.roundWin = win
+
+    // Launcher reels (0,2,4) are the S300 reels armed at the start of the session.
+    const armedReels = new Set<number>()
+    for (let i = 0; i < tier.startArmedReels; i++) armedReels.add(i * 2)
+
+    // The purchased tier fixes the spin count (cascade-accumulated scatters on
+    // the forced entry must not inflate it beyond what was paid for).
+    const awardedSpins = FREE_SPIN_AWARDS[tier.minScatters] ?? result.freeSpinsAwarded
+
     this._state.freeSpins = {
       triggeringWager: wager,
-      spinsRemaining: win < cap ? result.freeSpinsAwarded : 0,
+      spinsRemaining: win < cap ? awardedSpins : 0,
       totalWin: 0,
-      armedReels: new Set(),
-      multiplierSum: 0,
+      armedReels,
+      multiplierSum: tier.startMultiplier,
     }
 
     return {
@@ -232,7 +283,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
       components: { total: win },
       scatterCount: result.scatterCount,
       triggeredFreeSpins: true,
-      freeSpinsAwarded: result.freeSpinsAwarded,
+      freeSpinsAwarded: awardedSpins,
       steps: result.steps,
       multiplierSum: result.multiplierSum,
       finalWin: win,

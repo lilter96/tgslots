@@ -16,7 +16,7 @@ export function leMilitareRoutes(server: GameServer) {
           gameId: 'le-militare',
           action: 'spin',
           sessionId: body.sessionId,
-          payload: { multiplier: body.multiplier },
+          payload: { multiplier: body.multiplier, mode: body.mode },
         })
         if (!out.ok) {
           set.status = out.status
@@ -31,6 +31,7 @@ export function leMilitareRoutes(server: GameServer) {
       {
         body: t.Object({
           multiplier: t.Integer({ minimum: 1 }),
+          mode: t.Optional(t.Union([t.Literal('recon'), t.Literal('assault'), t.Literal('siege')])),
           sessionId: t.Optional(t.String()),
         }),
         response: {
@@ -53,7 +54,7 @@ export function leMilitareRoutes(server: GameServer) {
           gameId: 'le-militare',
           action: 'buybonus',
           sessionId: body.sessionId,
-          payload: { multiplier: body.multiplier },
+          payload: { multiplier: body.multiplier, option: body.option, mode: body.mode },
         })
         if (!out.ok) {
           set.status = out.status
@@ -68,6 +69,10 @@ export function leMilitareRoutes(server: GameServer) {
       {
         body: t.Object({
           multiplier: t.Integer({ minimum: 1 }),
+          option: t.Optional(
+            t.Union([t.Literal('standard'), t.Literal('elite'), t.Literal('super')]),
+          ),
+          mode: t.Optional(t.Union([t.Literal('recon'), t.Literal('assault'), t.Literal('siege')])),
           sessionId: t.Optional(t.String()),
         }),
         response: {
@@ -78,7 +83,82 @@ export function leMilitareRoutes(server: GameServer) {
         detail: {
           tags: ['Le Militare'],
           summary: 'Buy Bonus (guaranteed free spins)',
-          description: 'Purchases a guaranteed Free Spins trigger at 100× bet cost.',
+          description:
+            'Purchases a guaranteed Free Spins entry. Tiers: standard, elite (more spins), super (max spins + starting multiplier).',
+        },
+      },
+    )
+    .post(
+      '/chancespin',
+      ({ body, set }) => {
+        const out = server.execute({
+          gameId: 'le-militare',
+          action: 'chancespin',
+          sessionId: body.sessionId,
+          payload: { multiplier: body.multiplier, mode: body.mode },
+        })
+        if (!out.ok) {
+          set.status = out.status
+          return { error: out.error }
+        }
+        return {
+          sessionId: out.response.sessionId,
+          result: out.response.result!,
+          state: out.response.state,
+        }
+      },
+      {
+        body: t.Object({
+          multiplier: t.Integer({ minimum: 1 }),
+          mode: t.Optional(t.Union([t.Literal('recon'), t.Literal('assault'), t.Literal('siege')])),
+          sessionId: t.Optional(t.String()),
+        }),
+        response: {
+          200: LeMilitareSpinResponseSchema,
+          400: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+        },
+        detail: {
+          tags: ['Le Militare'],
+          summary: 'Buy a ×5 Chance spin',
+          description: 'One base spin with 5× the Free Spins trigger probability.',
+        },
+      },
+    )
+    .post(
+      '/airraidspin',
+      ({ body, set }) => {
+        const out = server.execute({
+          gameId: 'le-militare',
+          action: 'airraidspin',
+          sessionId: body.sessionId,
+          payload: { multiplier: body.multiplier, mode: body.mode },
+        })
+        if (!out.ok) {
+          set.status = out.status
+          return { error: out.error }
+        }
+        return {
+          sessionId: out.response.sessionId,
+          result: out.response.result!,
+          state: out.response.state,
+        }
+      },
+      {
+        body: t.Object({
+          multiplier: t.Integer({ minimum: 1 }),
+          mode: t.Optional(t.Union([t.Literal('recon'), t.Literal('assault'), t.Literal('siege')])),
+          sessionId: t.Optional(t.String()),
+        }),
+        response: {
+          200: LeMilitareSpinResponseSchema,
+          400: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+        },
+        detail: {
+          tags: ['Le Militare'],
+          summary: 'Buy a guaranteed Air Raid spin',
+          description: 'One base spin where the Air Raid always fires (S300 intercepts planes).',
         },
       },
     )

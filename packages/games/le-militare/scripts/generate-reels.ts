@@ -28,13 +28,44 @@ interface Spec {
   // so the symbol can stack vertically and connect into clusters. Run length 1
   // = fully spread (rarely clusters). Commons get longer runs, high pays stay 1.
   runLen: Record<string, number>
-  // Global multiplier applied to every paytable entry — the master RTP scaler.
-  paytableScale: number
+  // Per-symbol integer payout curve. `start`/`step` are design knobs; every
+  // emitted payout is rounded to a whole number (payouts are INTEGERS only).
   paytable: Record<string, { start: number; step: number }>
-  multiplierPool: { values: number[]; weights: number[] }
+  // Selectable volatility modes. Modes share strips + paytable and differ only in
+  // multiplier pool + Air Raid intensity; each is tuned to the same 98.4% RTP.
+  // `assault` is the standard/default profile.
+  modes: { recon: ModeTuning; assault: ModeTuning; siege: ModeTuning }
   freeSpinsAwarded: Record<string, number>
+  // Feature buy menu. Costs are × stake (integers); each tuned so EV/cost ≈ RTP.
+  buyOptions: {
+    standard: BuyTier
+    elite: BuyTier
+    super: BuyTier
+    chanceSpin: { cost: number; forceWeights: [number, number] }
+    airRaidSpin: { cost: number }
+  }
   maxWinMultiplier: number
   jitterSeed: number
+}
+
+interface BuyTier {
+  cost: number
+  minScatters: number
+  startArmedReels: number
+  startMultiplier: number
+}
+
+// Per-mode tuning. Integer weights only (probabilities are weight ratios).
+interface ModeTuning {
+  multiplierPool: { values: number[]; weights: number[] }
+  // Air Raid: a squadron flies over, the S300 intercepts some planes, each
+  // interception drops a multiplier-WILD on a random cell.
+  airRaid: {
+    triggerWeights: [number, number] // [fire, skip]
+    squadronSizes: number[]
+    squadronWeights: number[]
+    hitWeights: [number, number] // [hit, miss]
+  }
 }
 
 // ── Tunable math spec ────────────────────────────────────────────────────────
@@ -45,22 +76,22 @@ const SPEC: Spec = {
   base: {
     // launcher reels (0,2,4): no S300, no PLANE
     launcher: {
-      BULLET: 32,
-      GRENADE: 28,
-      HELMET: 25,
-      MEDAL: 23,
+      BULLET: 26,
+      GRENADE: 22,
+      HELMET: 22,
+      MEDAL: 22,
       RIFLE: 18,
       TANK: 12,
       SOLDIER: 8,
       GENERAL: 5,
-      SCATTER: 4,
+      SCATTER: 3,
     },
     // target reels (1,3,5): has PLANE (paying symbol only in base)
     target: {
-      BULLET: 32,
-      GRENADE: 28,
-      HELMET: 25,
-      MEDAL: 23,
+      BULLET: 26,
+      GRENADE: 22,
+      HELMET: 22,
+      MEDAL: 22,
       RIFLE: 18,
       TANK: 12,
       SOLDIER: 8,
@@ -79,7 +110,7 @@ const SPEC: Spec = {
       TANK: 15,
       SOLDIER: 10,
       GENERAL: 6,
-      S300: 1,
+      S300: 2,
       SCATTER: 3,
     },
     target: {
@@ -108,24 +139,61 @@ const SPEC: Spec = {
     S300: 1,
     SCATTER: 1,
   },
-  paytableScale: 0.771,
-  // paytable[size] = scale * (start + step * (size - 6)), for size 6..30.
+  // paytable[size] = round(start + step * (size - 6)), size 6..30. Integer output.
   paytable: {
-    BULLET: { start: 1, step: 0.15 },
-    GRENADE: { start: 2, step: 0.2 },
-    HELMET: { start: 3, step: 0.3 },
-    MEDAL: { start: 4, step: 0.45 },
-    RIFLE: { start: 6, step: 0.6 },
-    TANK: { start: 9, step: 0.9 },
-    SOLDIER: { start: 14, step: 1.5 },
-    GENERAL: { start: 20, step: 2.5 },
-    PLANE: { start: 3, step: 0.45 },
+    BULLET: { start: 1, step: 0.1 },
+    GRENADE: { start: 2, step: 0.13 },
+    HELMET: { start: 2, step: 0.2 },
+    MEDAL: { start: 3, step: 0.3 },
+    RIFLE: { start: 4, step: 0.4 },
+    TANK: { start: 6, step: 0.55 },
+    SOLDIER: { start: 9, step: 0.9 },
+    GENERAL: { start: 12, step: 1.5 },
+    PLANE: { start: 2, step: 0.3 },
   },
-  multiplierPool: {
-    values: [1, 2, 3, 5, 10, 25],
-    weights: [600, 250, 90, 35, 20, 5],
+  modes: {
+    // Low volatility: frequent Air Raids, small multipliers, tamer tail.
+    recon: {
+      multiplierPool: { values: [1, 2, 3, 5, 10, 25], weights: [660, 270, 50, 14, 5, 1] },
+      airRaid: {
+        triggerWeights: [20, 80],
+        squadronSizes: [1, 2, 3],
+        squadronWeights: [52, 33, 15],
+        hitWeights: [6, 4],
+      },
+    },
+    // Standard (default): the converged 98.4% profile.
+    assault: {
+      multiplierPool: { values: [1, 2, 3, 5, 10, 25], weights: [620, 252, 82, 27, 16, 5] },
+      airRaid: {
+        triggerWeights: [7, 93],
+        squadronSizes: [1, 2, 3],
+        squadronWeights: [50, 35, 15],
+        hitWeights: [6, 4],
+      },
+    },
+    // High volatility: rarer but heavier Air Raids, heavy multiplier tail.
+    siege: {
+      multiplierPool: {
+        values: [1, 2, 3, 5, 10, 25, 50, 100],
+        weights: [650, 275, 50, 12, 5, 4, 3, 1],
+      },
+      airRaid: {
+        triggerWeights: [6, 94],
+        squadronSizes: [1, 2, 3],
+        squadronWeights: [40, 35, 25],
+        hitWeights: [6, 4],
+      },
+    },
   },
-  freeSpinsAwarded: { '4': 10, '5': 15, '6': 20, '7': 25 },
+  freeSpinsAwarded: { '4': 9, '5': 13, '6': 17, '7': 21 },
+  buyOptions: {
+    standard: { cost: 184, minScatters: 4, startArmedReels: 0, startMultiplier: 0 },
+    elite: { cost: 874, minScatters: 6, startArmedReels: 0, startMultiplier: 0 },
+    super: { cost: 1795, minScatters: 7, startArmedReels: 0, startMultiplier: 3 },
+    chanceSpin: { cost: 4.2, forceWeights: [9, 991] },
+    airRaidSpin: { cost: 1.9 },
+  },
   maxWinMultiplier: 15000,
   jitterSeed: 0x9e3779b9,
 }
@@ -188,8 +256,7 @@ function buildPaytable(): Record<string, Record<string, number>> {
   for (const [sym, { start, step }] of Object.entries(SPEC.paytable)) {
     const map: Record<string, number> = {}
     for (let size = MIN_CLUSTER; size <= GRID_MAX_CLUSTER; size++) {
-      const raw = SPEC.paytableScale * (start + step * (size - MIN_CLUSTER))
-      map[String(size)] = Math.round(raw * 100) / 100
+      map[String(size)] = Math.max(1, Math.round(start + step * (size - MIN_CLUSTER)))
     }
     out[sym] = map
   }
@@ -213,8 +280,42 @@ function main(): void {
   config.game_metadata.min_cluster = MIN_CLUSTER
   config.game_metadata.max_win_multiplier = SPEC.maxWinMultiplier
   config.paytable = buildPaytable()
-  config.multiplier_pool = SPEC.multiplierPool
+  const emitMode = (m: ModeTuning) => ({
+    multiplier_pool: m.multiplierPool,
+    air_raid: {
+      trigger_weights: m.airRaid.triggerWeights,
+      squadron_sizes: m.airRaid.squadronSizes,
+      squadron_weights: m.airRaid.squadronWeights,
+      hit_weights: m.airRaid.hitWeights,
+    },
+  })
+  config.modes = {
+    recon: emitMode(SPEC.modes.recon),
+    assault: emitMode(SPEC.modes.assault),
+    siege: emitMode(SPEC.modes.siege),
+  }
+  // Top-level keys mirror the default (assault) mode for any reader that does
+  // not select a mode.
+  config.multiplier_pool = config.modes.assault.multiplier_pool
+  config.air_raid = config.modes.assault.air_raid
   config.scatter_definition.free_spins_awarded = SPEC.freeSpinsAwarded
+  const tier = (t: BuyTier) => ({
+    cost: t.cost,
+    min_scatters: t.minScatters,
+    start_armed_reels: t.startArmedReels,
+    start_multiplier: t.startMultiplier,
+  })
+  config.buy_options = {
+    standard: tier(SPEC.buyOptions.standard),
+    elite: tier(SPEC.buyOptions.elite),
+    super: tier(SPEC.buyOptions.super),
+    chance_spin: {
+      cost: SPEC.buyOptions.chanceSpin.cost,
+      force_weights: SPEC.buyOptions.chanceSpin.forceWeights,
+    },
+    air_raid_spin: { cost: SPEC.buyOptions.airRaidSpin.cost },
+  }
+  config.buy_bonus_cost_multiplier = SPEC.buyOptions.standard.cost
   config.reel_strips_base = reelsToObject(buildPhase(SPEC.base, rand))
   config.reel_strips_free = reelsToObject(buildPhase(SPEC.free, rand))
 

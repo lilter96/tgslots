@@ -61,12 +61,12 @@ export const GRID_AREA = REEL_COUNT * ROW_COUNT
 
 export const MIN_SCATTERS = 4 as const
 
-export const FREE_SPIN_AWARDS: Record<number, number> = {
-  4: 10,
-  5: 15,
-  6: 20,
-  7: 25,
-}
+export const FREE_SPIN_AWARDS: Record<number, number> = Object.fromEntries(
+  Object.entries(config.scatter_definition.free_spins_awarded).map(([count, spins]) => [
+    Number(count),
+    spins as number,
+  ]),
+)
 
 export const MAX_CASCADE_STEPS = 100 as const
 
@@ -76,11 +76,92 @@ export const BUY_BONUS_COST_MULTIPLIER: number = config.buy_bonus_cost_multiplie
 export const MAX_WIN_MULTIPLIER: number = config.game_metadata.max_win_multiplier
 
 // ─── Multiplier Pool ───────────────────────────────────────────────────────
-
+// Default (assault) values — used by tests/UI; per-mode pools live in MODE_CONFIGS.
 export const MULTIPLIER_POOL = config.multiplier_pool.values as readonly number[]
-export const MULTIPLIER_POOL_WEIGHTS: readonly (readonly [number, number])[] = MULTIPLIER_POOL.map(
-  (val, i) => [val, config.multiplier_pool.weights[i]!] as const,
-)
+
+// ─── Selectable volatility modes ────────────────────────────────────────────
+// Modes share strips + paytable and differ only in multiplier pool + Air Raid
+// intensity. Probabilities are integer weight ratios (never floats).
+
+export type ModeId = 'recon' | 'assault' | 'siege'
+export const MODE_IDS = ['recon', 'assault', 'siege'] as const
+export const DEFAULT_MODE: ModeId = 'assault'
+
+export interface ModeConfig {
+  multiplierWeights: readonly (readonly [number, number])[]
+  airRaid: {
+    triggerWeights: readonly [number, number]
+    squadronSizes: readonly number[]
+    squadronWeights: readonly number[]
+    hitWeights: readonly [number, number]
+  }
+}
+
+interface RawMode {
+  multiplier_pool: { values: number[]; weights: number[] }
+  air_raid: {
+    trigger_weights: number[]
+    squadron_sizes: number[]
+    squadron_weights: number[]
+    hit_weights: number[]
+  }
+}
+
+function buildModeConfig(m: RawMode): ModeConfig {
+  return {
+    multiplierWeights: m.multiplier_pool.values.map(
+      (v, i) => [v, m.multiplier_pool.weights[i]!] as const,
+    ),
+    airRaid: {
+      triggerWeights: [m.air_raid.trigger_weights[0]!, m.air_raid.trigger_weights[1]!],
+      squadronSizes: m.air_raid.squadron_sizes,
+      squadronWeights: m.air_raid.squadron_weights,
+      hitWeights: [m.air_raid.hit_weights[0]!, m.air_raid.hit_weights[1]!],
+    },
+  }
+}
+
+export const MODE_CONFIGS: Record<ModeId, ModeConfig> = {
+  recon: buildModeConfig(config.modes.recon),
+  assault: buildModeConfig(config.modes.assault),
+  siege: buildModeConfig(config.modes.siege),
+}
+
+// ─── Feature Buy menu ───────────────────────────────────────────────────────
+
+export interface BuyTierConfig {
+  cost: number
+  minScatters: number
+  startArmedReels: number
+  startMultiplier: number
+}
+
+const toTier = (t: {
+  cost: number
+  min_scatters: number
+  start_armed_reels: number
+  start_multiplier: number
+}): BuyTierConfig => ({
+  cost: t.cost,
+  minScatters: t.min_scatters,
+  startArmedReels: t.start_armed_reels,
+  startMultiplier: t.start_multiplier,
+})
+
+export const BUY_OPTIONS = {
+  standard: toTier(config.buy_options.standard),
+  elite: toTier(config.buy_options.elite),
+  super: toTier(config.buy_options.super),
+  chanceSpin: { cost: config.buy_options.chance_spin.cost },
+  airRaidSpin: { cost: config.buy_options.air_raid_spin.cost },
+} as const
+
+export type BuyOptionId = 'standard' | 'elite' | 'super'
+
+export const CHANCE_SPIN_FORCE_WEIGHTS = [
+  config.buy_options.chance_spin.force_weights[0]!,
+  config.buy_options.chance_spin.force_weights[1]!,
+] as const
 
 // ─── Reel Strips ─────────────────────────────────────────────────────────
 

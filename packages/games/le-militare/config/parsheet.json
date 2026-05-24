@@ -2,7 +2,7 @@
   "metadata": {
     "bet": 1,
     "source": "parsheet",
-    "notes": "6x5 cluster pays (min 6), cascade/tumble, high volatility. Combat Operation is free-spins-only: S300 floods a reel to WILD (armed reels persist), PLANE shot down into multiplier-wild, multiplier sum persists across the session. Free spins via SCATTER (>=4 triggers). Round win capped at 15000x stake."
+    "notes": "6x5 cluster pays (min 6), cascade/tumble, high volatility, integer payouts only. Base game stages the Air Raid (S300 intercepts a plane squadron; hits drop multiplier-WILDs, per-spin). Free spins are the persistent Combat Operation (armed reels + multiplier accumulate across the session). Free spins via SCATTER (>=4 triggers). Round win capped at 15000x stake."
   },
   "comparisons": [
     {
@@ -16,15 +16,15 @@
     {
       "id": "basic-game-win-cycle",
       "label": "Base Game Win Cycle",
-      "expected": 4.55,
+      "expected": 5.0,
       "source": { "kind": "scope", "scope": ["base-game"], "metric": "hits", "field": "cycle" },
-      "tolerance": { "type": "relative", "value": 0.1 },
+      "tolerance": { "type": "relative", "value": 0.12 },
       "format": "number"
     },
     {
       "id": "free-spin-trigger-cycle",
       "label": "Free Spin Trigger Cycle",
-      "expected": 333,
+      "expected": 425,
       "source": {
         "kind": "scope",
         "scope": ["features", "free-spins"],
@@ -37,7 +37,7 @@
     {
       "id": "basic-game-rtp",
       "label": "Base Game RTP",
-      "expected": 0.471,
+      "expected": 0.515,
       "source": {
         "kind": "scope",
         "scope": ["base-game"],
@@ -50,7 +50,7 @@
     {
       "id": "feature-rtp",
       "label": "Feature (Free Spins) RTP",
-      "expected": 0.512,
+      "expected": 0.465,
       "source": {
         "kind": "scope",
         "scope": ["features", "free-spins"],

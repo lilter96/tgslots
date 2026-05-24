@@ -1,10 +1,11 @@
 import { Array1 } from '@tgslots/math/functional/array1'
-import { Sampler } from '@tgslots/math/probability'
+import { Sampler, Distributions } from '@tgslots/math/probability'
 import { collectVanishPositions, EMPTY_SYMBOL, evaluateClusters } from '@tgslots/slots-core'
 import type { MutableCascadeGrid } from '@tgslots/slots-core'
 import { engine } from './engine.js'
 import {
-  MULTIPLIER_POOL_WEIGHTS,
+  MODE_CONFIGS,
+  DEFAULT_MODE,
   PLANE_ID,
   REEL_COUNT,
   ROW_COUNT,
@@ -12,15 +13,92 @@ import {
   SCATTER_ID,
   WILD_ID,
 } from './constants.js'
+import type { ModeConfig, ModeId } from './constants.js'
 import type { ActivationEvent, CombatCascadeStep, ShootdownEvent } from './types.ts'
 import { makeStripChunkSampler } from './grid-samplers.js'
 import { snapshotGrid } from './helpers.js'
 
-// ─── Multiplier Sampler ───────────────────────────────────────────────────
+// ─── Mode-aware samplers ────────────────────────────────────────────────────
+// Each volatility mode has its own multiplier pool + Air Raid intensity. The
+// Air Raid is the base-game Combat Operation: a squadron flies over, the S300
+// intercepts some planes, each interception drops a multiplier-WILD on a random
+// cell, misses fly off. The summed multiplier seeds the spin's multiplier.
 
-export const multiplierSampler: Sampler<number> = Sampler.fromWeighted(
-  Array1.unsafeFromArray(MULTIPLIER_POOL_WEIGHTS) as Array1<readonly [number, number]>,
-)
+export interface AirRaidPlacement {
+  reel: number
+  row: number
+  multiplier: number
+}
+
+export interface AirRaidResult {
+  placements: readonly AirRaidPlacement[]
+  multiplierSum: number
+}
+
+export interface ModeSamplers {
+  multiplierSampler: Sampler<number>
+  airRaidSampler: Sampler<AirRaidResult>
+  forcedAirRaidSampler: Sampler<AirRaidResult>
+}
+
+const NO_AIR_RAID: AirRaidResult = { placements: [], multiplierSum: 0 }
+const raidReelSampler = Distributions.uniformInt(0, REEL_COUNT - 1)
+const raidRowSampler = Distributions.uniformInt(0, ROW_COUNT - 1)
+
+function buildModeSamplers(cfg: ModeConfig): ModeSamplers {
+  const multiplierSampler = Sampler.fromWeighted(
+    Array1.unsafeFromArray(cfg.multiplierWeights) as Array1<readonly [number, number]>,
+  )
+  const fireSampler = Sampler.fromWeighted(
+    Array1.unsafeFromArray([
+      [true, cfg.airRaid.triggerWeights[0]],
+      [false, cfg.airRaid.triggerWeights[1]],
+    ]) as Array1<readonly [boolean, number]>,
+  )
+  const squadronSampler = Sampler.fromWeighted(
+    Array1.unsafeFromArray(
+      cfg.airRaid.squadronSizes.map((size, i) => [size, cfg.airRaid.squadronWeights[i]!] as const),
+    ) as Array1<readonly [number, number]>,
+  )
+  const hitSampler = Sampler.fromWeighted(
+    Array1.unsafeFromArray([
+      [true, cfg.airRaid.hitWeights[0]],
+      [false, cfg.airRaid.hitWeights[1]],
+    ]) as Array1<readonly [boolean, number]>,
+  )
+  const planeSampler: Sampler<AirRaidPlacement | null> = hitSampler.flatMap((hit) =>
+    hit
+      ? raidReelSampler.flatMap((reel) =>
+          raidRowSampler.flatMap((row) =>
+            multiplierSampler.map((multiplier): AirRaidPlacement => ({ reel, row, multiplier })),
+          ),
+        )
+      : Sampler.pure<AirRaidPlacement | null>(null),
+  )
+  const raidBody: Sampler<AirRaidResult> = squadronSampler.flatMap((size) =>
+    Sampler.traverse(
+      Array.from({ length: size }, (_, i) => i),
+      () => planeSampler,
+    ).map((planes) => {
+      const placements = planes.filter((p): p is AirRaidPlacement => p !== null)
+      const multiplierSum = placements.reduce((sum, p) => sum + p.multiplier, 0)
+      return { placements, multiplierSum }
+    }),
+  )
+  const airRaidSampler = fireSampler.flatMap((fire) =>
+    fire ? raidBody : Sampler.pure(NO_AIR_RAID),
+  )
+  return { multiplierSampler, airRaidSampler, forcedAirRaidSampler: raidBody }
+}
+
+export const MODE_SAMPLERS: Record<ModeId, ModeSamplers> = {
+  recon: buildModeSamplers(MODE_CONFIGS.recon),
+  assault: buildModeSamplers(MODE_CONFIGS.assault),
+  siege: buildModeSamplers(MODE_CONFIGS.siege),
+}
+
+// Default multiplier sampler for callers that don't select a mode.
+export const multiplierSampler: Sampler<number> = MODE_SAMPLERS[DEFAULT_MODE].multiplierSampler
 
 // ─── Sticky Wild Helpers ──────────────────────────────────────────────────
 // stickyGrid[reel][row] === true means that cell holds a shootdown-converted
@@ -61,6 +139,7 @@ function runCombatOperationSampler(
   grid: MutableCascadeGrid,
   armedReels: Set<number>,
   stickyGrid: boolean[][],
+  multiplierSampler: Sampler<number>,
 ): Sampler<{
   activations: readonly ActivationEvent[]
   shootdowns: readonly ShootdownEvent[]
@@ -171,6 +250,7 @@ export function combatCascadeLoopSampler(
   accScatterCount: number,
   accSteps: CombatCascadeStep[],
   remaining: number,
+  multiplierSampler: Sampler<number>,
 ): Sampler<{
   steps: CombatCascadeStep[]
   finalArmedReels: Set<number>
@@ -188,7 +268,7 @@ export function combatCascadeLoopSampler(
 
   const preCombatSnapshot = snapshotGrid(grid)
 
-  return runCombatOperationSampler(grid, armedReels, stickyGrid).flatMap(
+  return runCombatOperationSampler(grid, armedReels, stickyGrid, multiplierSampler).flatMap(
     ({ activations, shootdowns, multiplierDelta }) => {
       const postCombatSnapshot = snapshotGrid(grid)
       const newMultSum = multSum + multiplierDelta
@@ -265,6 +345,7 @@ export function combatCascadeLoopSampler(
           accScatterCount + newScatters,
           accSteps,
           remaining - 1,
+          multiplierSampler,
         )
       })
     },

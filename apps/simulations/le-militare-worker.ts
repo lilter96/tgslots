@@ -1,6 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import { mt19937 } from '@tgslots/math'
-import { LeMilitareStateMachine } from '@tgslots/le-militare'
+import { LeMilitareStateMachine, DEFAULT_MODE, MODE_IDS } from '@tgslots/le-militare'
+import type { ModeId } from '@tgslots/le-militare'
 import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
 import {
   performWarmup,
@@ -22,7 +23,11 @@ const bConfig = new BetConfiguration(
 )
 const wager = new Wager(betMultiplier, bConfig)
 
-const sm = new LeMilitareStateMachine()
+// Select the volatility mode for verification via env, e.g. LM_MODE=siege.
+const envMode = process.env.LM_MODE as ModeId | undefined
+const mode: ModeId = envMode && MODE_IDS.includes(envMode) ? envMode : DEFAULT_MODE
+
+const sm = new LeMilitareStateMachine(undefined, mode)
 performWarmup(sm, rng, warmup, wager)
 
 runWorkerLoop(
