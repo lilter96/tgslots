@@ -75,8 +75,8 @@ const ICON_BG = 0x8b5cf6
 const PANEL_W = 980
 const PAD = 32
 const CARD_GAP = 16
-const CARD_H = 286
-const CARDS_TOP = 250
+const CARD_H = 300
+const CARDS_TOP = 252
 
 interface ModePill {
   id: ModeId
@@ -127,6 +127,7 @@ export class BuyFeatureModal extends Container {
   constructor(
     private readonly _eventBus: GameEventBus,
     private readonly _getBet: () => number,
+    private readonly _getBalance: () => number,
   ) {
     super()
     this.visible = false
@@ -285,6 +286,7 @@ export class BuyFeatureModal extends Container {
       container.on('pointerout', () => (bg.tint = 0xffffff))
       container.on('pointerdown', (e) => {
         e.stopPropagation()
+        if (this._getBalance() < meta.costMultiplier * this._getBet()) return
         this._eventBus.emit('feature-buy:requested', { optionId: meta.id })
         this.hide()
       })
@@ -336,10 +338,15 @@ export class BuyFeatureModal extends Container {
     const volText = `Volatility: ${MODE_SUB[this._selectedMode][0]}${MODE_SUB[this._selectedMode]
       .slice(1)
       .toLowerCase()}`
+    const balance = this._getBalance()
     for (const card of this._cards) {
       const credits = card.meta.costMultiplier * bet
+      const affordable = balance >= credits
       card.price.text = Number.isInteger(credits) ? String(credits) : credits.toFixed(2)
+      card.price.style.fill = affordable ? '#111111' : '#c0392b'
       card.vol.text = volText
+      // Dim the whole card when it can't be afforded (clear "disabled" affordance).
+      card.container.alpha = affordable ? 1 : 0.45
     }
   }
 
@@ -352,14 +359,17 @@ export class BuyFeatureModal extends Container {
     const cardW = (innerW - CARD_GAP * (OPTIONS.length - 1)) / OPTIONS.length
     const panelHeight = CARDS_TOP + CARD_H + PAD
 
+    // Center on the full screen and scale to fit with a small margin — more
+    // reliable than the reel-area modal bounds (which can be short/offset).
+    const margin = 32
     const innerScale = Math.min(
       1,
-      (layout.modalBounds.width || layout.screenWidth) / PANEL_W,
-      (layout.modalBounds.height || layout.screenHeight) / panelHeight,
+      (layout.screenWidth - margin * 2) / PANEL_W,
+      (layout.screenHeight - margin * 2) / panelHeight,
     )
     this._inner.scale.set(innerScale)
-    this._inner.x = layout.modalBounds.x + layout.modalBounds.width / 2
-    this._innerBaseY = layout.modalBounds.y + layout.modalBounds.height / 2
+    this._inner.x = layout.screenWidth / 2
+    this._innerBaseY = layout.screenHeight / 2
     this._inner.y = this._innerBaseY
 
     const left = -PANEL_W / 2
@@ -373,9 +383,9 @@ export class BuyFeatureModal extends Container {
 
     // BET +/- card (centered)
     const betW = 240
-    const betH = 96
+    const betH = 92
     const betX = -betW / 2
-    const betY = top + 62
+    const betY = top + 56
     this._betBg.clear()
     this._betBg.roundRect(betX, betY, betW, betH, 14)
     this._betBg.fill(0xffffff)
@@ -392,7 +402,7 @@ export class BuyFeatureModal extends Container {
     this._plusBtn.y = betY + betH / 2
 
     // Volatility selector
-    const volY = top + 176
+    const volY = top + 164
     this._volLabel.x = 0
     this._volLabel.y = volY
     const pillW = 150
@@ -429,32 +439,42 @@ export class BuyFeatureModal extends Container {
       card.bg.fill(0xffffff)
 
       card.name.x = cx
-      card.name.y = 18
+      card.name.y = 16
       card.name.style.wordWrap = true
       card.name.style.wordWrapWidth = cardW - 20
 
       card.desc.x = cx
-      card.desc.y = 64
-      card.desc.style.wordWrapWidth = cardW - 28
+      card.desc.y = 58
+      card.desc.style.wordWrapWidth = cardW - 26
 
-      const iconSize = 74
+      const iconSize = 66
       card.iconBg.clear()
-      card.iconBg.roundRect(cx - iconSize / 2, 120, iconSize, iconSize, 16)
+      card.iconBg.roundRect(cx - iconSize / 2, 102, iconSize, iconSize, 16)
       card.iconBg.fill(ICON_BG)
       card.iconLabel.x = cx
-      card.iconLabel.y = 120 + iconSize / 2
+      card.iconLabel.y = 102 + iconSize / 2
 
       card.vol.x = cx
-      card.vol.y = 204
+      card.vol.y = 182
       card.price.x = cx
-      card.price.y = 222
+      card.price.y = 202
 
-      const btnH = 48
+      // Button flush with the card bottom (only bottom corners rounded).
+      const btnH = 54
+      const btnTop = CARD_H - btnH
+      const r = 12
       card.btnBg.clear()
-      card.btnBg.roundRect(0, CARD_H - btnH, cardW, btnH, 12)
-      card.btnBg.fill(card.meta.kind === 'activate' ? ACTIVATE_COLOR : BUY_COLOR)
+      card.btnBg
+        .moveTo(0, btnTop)
+        .lineTo(cardW, btnTop)
+        .lineTo(cardW, CARD_H - r)
+        .arcTo(cardW, CARD_H, cardW - r, CARD_H, r)
+        .lineTo(r, CARD_H)
+        .arcTo(0, CARD_H, 0, CARD_H - r, r)
+        .closePath()
+        .fill(card.meta.kind === 'activate' ? ACTIVATE_COLOR : BUY_COLOR)
       card.btnLabel.x = cx
-      card.btnLabel.y = CARD_H - btnH / 2
+      card.btnLabel.y = btnTop + btnH / 2
     })
   }
 

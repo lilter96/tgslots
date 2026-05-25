@@ -108,7 +108,11 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._buyFeatureControl = new BuyFeatureControl(ctx.eventBus, ctx.fsm)
     ctx.hud.slot('control-right').addChild(this._buyFeatureControl)
 
-    this._buyFeatureModal = new BuyFeatureModal(ctx.eventBus, () => ctx.session.betMultiplier)
+    this._buyFeatureModal = new BuyFeatureModal(
+      ctx.eventBus,
+      () => ctx.session.betMultiplier,
+      () => ctx.session.balance,
+    )
     ctx.scene.overlays.addChild(this._buyFeatureModal)
     this._unsubs.push(ctx.eventBus.on('feature-modal:open', () => this._buyFeatureModal?.show()))
 

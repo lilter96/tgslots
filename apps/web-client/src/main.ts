@@ -75,7 +75,7 @@ async function mountGame(gameId: string): Promise<void> {
 
   const scene = new PixiScene(app.stage)
   const fsm = new GameStateMachine()
-  const session = new SessionManager(10000)
+  const session = new SessionManager(1_000_000)
   const eventBus = new GameEventBus()
   const assetRegistry = new AssetRegistry()
   const spinSpeed = new SpinSpeedController()
