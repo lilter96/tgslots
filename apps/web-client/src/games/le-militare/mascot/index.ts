@@ -56,7 +56,7 @@ export class S300Mascot extends Container {
     }
     this.visible = true
 
-    const scale = Math.min(availW / NATURAL_W, availH / NATURAL_H, 1.4)
+    const scale = Math.min(availW / NATURAL_W, availH / NATURAL_H, 1.0)
     this.scale.set(scale)
     this.x = rightEdge - 82 * scale
     this.y = layout.reelBounds.y + layout.reelBounds.height - GND * scale

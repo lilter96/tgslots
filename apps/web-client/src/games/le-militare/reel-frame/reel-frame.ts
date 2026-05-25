@@ -1,7 +1,8 @@
 import { Graphics } from 'pixi.js'
 import type { UILayoutSnapshot } from '../../../engine/layout.js'
 
-const FRAME_PAD = 4
+const FRAME_PAD = 8
+const FRAME_RADIUS = 14
 
 export interface ReelFrameConfig {
   reels: number
@@ -20,28 +21,29 @@ export class ReelFrame extends Graphics {
 
   update(layout: UILayoutSnapshot, reelScale: number): void {
     const { reels, rows, symbolSize, reelSpacing } = this._cfg
+    const { x, y, width, height } = layout.reelBounds
     this.clear()
 
-    this.rect(
-      layout.reelBounds.x - FRAME_PAD,
-      layout.reelBounds.y - FRAME_PAD,
-      layout.reelBounds.width + FRAME_PAD * 2,
-      layout.reelBounds.height + FRAME_PAD * 2,
-    ).stroke({ color: 0xc41e1e, width: 4, alpha: 1 })
-
+    // Faint cell separators (kept very low so symbols read cleanly).
     for (let col = 1; col < reels; col++) {
-      const sepX =
-        layout.reelBounds.x + (col * (symbolSize + reelSpacing) - reelSpacing / 2) * reelScale
-      this.moveTo(sepX, layout.reelBounds.y)
-        .lineTo(sepX, layout.reelBounds.y + layout.reelBounds.height)
-        .stroke({ color: 0xc41e1e, width: 1, alpha: 0.4 })
+      const sepX = x + (col * (symbolSize + reelSpacing) - reelSpacing / 2) * reelScale
+      this.moveTo(sepX, y)
+        .lineTo(sepX, y + height)
+        .stroke({ color: 0xffffff, width: 1, alpha: 0.05 })
+    }
+    for (let row = 1; row < rows; row++) {
+      const sepY = y + row * symbolSize * reelScale
+      this.moveTo(x, sepY)
+        .lineTo(x + width, sepY)
+        .stroke({ color: 0xffffff, width: 1, alpha: 0.05 })
     }
 
-    for (let row = 1; row < rows; row++) {
-      const sepY = layout.reelBounds.y + row * symbolSize * reelScale
-      this.moveTo(layout.reelBounds.x, sepY)
-        .lineTo(layout.reelBounds.x + layout.reelBounds.width, sepY)
-        .stroke({ color: 0xc41e1e, width: 1, alpha: 0.4 })
-    }
+    // Clean board frame: a dark outer edge with a soft brass inner line.
+    const fx = x - FRAME_PAD
+    const fy = y - FRAME_PAD
+    const fw = width + FRAME_PAD * 2
+    const fh = height + FRAME_PAD * 2
+    this.roundRect(fx, fy, fw, fh, FRAME_RADIUS).stroke({ color: 0x140d07, width: 6, alpha: 0.9 })
+    this.roundRect(fx, fy, fw, fh, FRAME_RADIUS).stroke({ color: 0x8a6a3a, width: 2, alpha: 0.55 })
   }
 }
