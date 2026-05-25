@@ -24,7 +24,7 @@ export function wirePath(
   const rx = i * (symbolWidth + reelSpacing) + symbolWidth / 2
   const ry = totalHeight
   const cpX = (rx + connX) / 2
-  const cpY = Math.max(ry, connY) + 70 * scale
+  const cpY = Math.max(ry, connY) + 40 * scale
   return { rx, ry, cpX, cpY, ex: connX, ey: connY }
 }
 
@@ -64,10 +64,10 @@ export function drawWires(
   for (let i = 0; i < activeStates.length; i++) {
     if (!activeStates[i]) continue
     const p = wirePath(i, symbolWidth, reelSpacing, totalHeight, scale, connX, connY)
-    strokePath(g, p, 0x0d1206, 9, scale, 0.85) // casing shadow
-    strokePath(g, p, 0x3a2a0e, 6, scale) // insulation
-    strokePath(g, p, 0xffb43c, 3, scale, 0.95) // powered amber core
-    strokePath(g, p, 0xfff1c0, 1, scale, 0.6) // sheen
+    strokePath(g, p, 0x0d1206, 14, scale, 0.85) // casing shadow
+    strokePath(g, p, 0x3a2a0e, 10, scale) // insulation
+    strokePath(g, p, 0xffb43c, 5, scale, 0.95) // powered amber core
+    strokePath(g, p, 0xfff1c0, 2, scale, 0.6) // sheen
   }
 }
 

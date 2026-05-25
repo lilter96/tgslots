@@ -2,7 +2,7 @@ import type { GameManifest } from '@tgslots/shared-contracts'
 
 export const manifest: GameManifest = {
   gameId: 'le-militare',
-  displayName: 'Le Militare',
+  displayName: 'Le Militaire',
   grid: { reels: 6, rows: 5 },
   reelNaturalWidth: 740,
   reelNaturalHeight: 600,

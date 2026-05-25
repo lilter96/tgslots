@@ -2,7 +2,7 @@ import { Container, Graphics, Text, TextStyle } from 'pixi.js'
 import { gsap } from 'gsap'
 
 const STYLE = new TextStyle({
-  fontFamily: 'serif',
+  fontFamily: 'Cinzel, serif',
   fontSize: 24,
   fontWeight: '900',
   fill: '#d4af37',
@@ -23,7 +23,7 @@ export class MultiplierHud extends Container {
     this._label = new Text({
       text: 'MULTIPLIER',
       style: {
-        fontFamily: 'serif',
+        fontFamily: 'Cinzel, serif',
         fontSize: 12,
         fontWeight: '900',
         fill: '#b0b0b0',

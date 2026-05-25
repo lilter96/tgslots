@@ -15,11 +15,11 @@ export class BuyFeatureControl extends Container {
   private readonly _background = new Graphics()
   private readonly _title = new Text({
     text: 'BUY',
-    style: { fontFamily: 'serif', fill: '#1a1205', fontSize: 16, fontWeight: '900' },
+    style: { fontFamily: 'Cinzel, serif', fill: '#1a1205', fontSize: 16, fontWeight: '900' },
   })
   private readonly _subtitle = new Text({
     text: 'FEATURE',
-    style: { fontFamily: 'serif', fill: '#1a1205', fontSize: 12, fontWeight: '700' },
+    style: { fontFamily: 'Cinzel, serif', fill: '#1a1205', fontSize: 12, fontWeight: '700' },
   })
   private readonly _unsubs: Array<() => void> = []
 

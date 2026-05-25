@@ -1,4 +1,4 @@
-import { Container } from 'pixi.js'
+import { Container, Graphics } from 'pixi.js'
 import type { UILayoutSnapshot } from '../../../engine/layout.js'
 import { PALETTE } from './palette.js'
 import { GND, NATURAL_W, NATURAL_H } from './design.js'
@@ -18,6 +18,9 @@ import { killAllTweens } from '../helpers/tween-utils.js'
 // Minimum side-gap width (px) needed to stand the launcher beside the reels;
 // below this we dock a compact version in the bottom-right corner instead.
 const SIDE_MIN_W = 190
+
+// Rightmost extent of the chassis in design space (exhaust pipes + back-cab).
+const CHASSIS_RIGHT = 856
 
 export class S300Mascot extends Container {
   readonly masterContainer: Container
@@ -46,6 +49,14 @@ export class S300Mascot extends Container {
     drawChassis(this.chassisContainer, PALETTE)
     drawRadar(this.radarContainer, PALETTE)
     drawLauncher(this.launcherContainer, PALETTE)
+
+    // Ground shadow for visual separation from the dark radar background.
+    const shadow = new Graphics()
+    shadow.ellipse(NATURAL_W / 2 + 28, GND - 8, NATURAL_W * 0.55, 18)
+    shadow.fill({ color: 0x000000, alpha: 0.35 })
+    shadow.filters = [] // no-op for now; keeps the container flat
+    this.masterContainer.addChildAt(shadow, 0)
+
     this._idle = startIdleTweens(this.masterContainer, this.radarContainer)
   }
 
@@ -61,6 +72,12 @@ export class S300Mascot extends Container {
       this.scale.set(scale)
       this.x = rightEdge - 82 * scale
       this.y = reelBottom - GND * scale
+      // Prevent exhaust pipes and back-cab from clipping past the right viewport edge.
+      const maxRight = layout.screenWidth - layout.safePadding
+      const contentRight = this.x + CHASSIS_RIGHT * scale
+      if (contentRight > maxRight) {
+        this.x = maxRight - CHASSIS_RIGHT * scale
+      }
       return
     }
 
@@ -73,6 +90,12 @@ export class S300Mascot extends Container {
     this.x = rightEdge - NATURAL_W * scale
     this.y =
       (belowH > 40 ? layout.gameplayArea.y + layout.gameplayArea.height : reelBottom) - GND * scale
+    // Prevent clipping past the right viewport edge.
+    const maxRight = layout.screenWidth - layout.safePadding
+    const contentRight = this.x + CHASSIS_RIGHT * scale
+    if (contentRight > maxRight) {
+      this.x = maxRight - CHASSIS_RIGHT * scale
+    }
   }
 
   getLaunchPoint(): { x: number; y: number } {

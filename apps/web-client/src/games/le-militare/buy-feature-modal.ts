@@ -66,6 +66,7 @@ const OPTIONS: OptionMeta[] = [
 const MODE_LABELS: Record<ModeId, string> = { recon: 'RECON', assault: 'ASSAULT', siege: 'SIEGE' }
 const MODE_SUB: Record<ModeId, string> = { recon: 'LOW', assault: 'MEDIUM', siege: 'HIGH' }
 
+const FONT = 'Cinzel, serif'
 const ACTIVATE_COLOR = 0xf0820f
 const BUY_COLOR = 0x2cb742
 const ACCENT = 0xffb02e
@@ -134,20 +135,41 @@ export class BuyFeatureModal extends Container {
 
     this._title = new Text({
       text: 'BONUS BUY',
-      style: { fill: '#ffffff', fontSize: 30, fontWeight: '900', letterSpacing: 4 },
+      style: {
+        fill: '#ffffff',
+        fontSize: 30,
+        fontWeight: '900',
+        letterSpacing: 4,
+        fontFamily: FONT,
+      },
     })
-    this._closeX = new Text({ text: '✕', style: { fill: '#ffffff', fontSize: 20 } })
+    this._closeX = new Text({
+      text: '✕',
+      style: { fill: '#ffffff', fontSize: 20, fontFamily: FONT },
+    })
     this._betLabel = new Text({
       text: 'BET',
-      style: { fill: '#8a8a8a', fontSize: 14, fontWeight: '700', letterSpacing: 2 },
+      style: {
+        fill: '#8a8a8a',
+        fontSize: 14,
+        fontWeight: '700',
+        letterSpacing: 2,
+        fontFamily: FONT,
+      },
     })
     this._betValue = new Text({
       text: '',
-      style: { fill: '#141414', fontSize: 28, fontWeight: '900' },
+      style: { fill: '#141414', fontSize: 28, fontWeight: '900', fontFamily: FONT },
     })
     this._volLabel = new Text({
       text: 'VOLATILITY',
-      style: { fill: '#c9cdd3', fontSize: 13, fontWeight: '700', letterSpacing: 3 },
+      style: {
+        fill: '#c9cdd3',
+        fontSize: 13,
+        fontWeight: '700',
+        letterSpacing: 3,
+        fontFamily: FONT,
+      },
     })
 
     this._build()
@@ -191,7 +213,7 @@ export class BuyFeatureModal extends Container {
     const mkStep = (btn: Container, bg: Graphics, glyph: string, delta: number) => {
       const label = new Text({
         text: glyph,
-        style: { fill: '#ffffff', fontSize: 26, fontWeight: '900' },
+        style: { fill: '#ffffff', fontSize: 26, fontWeight: '900', fontFamily: FONT },
       })
       label.anchor.set(0.5)
       btn.addChild(bg, label)
@@ -215,12 +237,18 @@ export class BuyFeatureModal extends Container {
       const bg = new Graphics()
       const label = new Text({
         text: MODE_LABELS[id],
-        style: { fill: '#ffffff', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
+        style: {
+          fill: '#ffffff',
+          fontSize: 15,
+          fontWeight: '800',
+          letterSpacing: 1,
+          fontFamily: FONT,
+        },
       })
       label.anchor.set(0.5)
       const sub = new Text({
         text: MODE_SUB[id],
-        style: { fill: '#9aa0a8', fontSize: 9, letterSpacing: 1 },
+        style: { fill: '#9aa0a8', fontSize: 9, letterSpacing: 1, fontFamily: FONT },
       })
       sub.anchor.set(0.5)
       const container = new Container()
@@ -242,12 +270,18 @@ export class BuyFeatureModal extends Container {
       const iconBg = new Graphics()
       const iconLabel = new Text({
         text: meta.icon,
-        style: { fill: '#ffffff', fontSize: 26, fontWeight: '900' },
+        style: { fill: '#ffffff', fontSize: 26, fontWeight: '900', fontFamily: FONT },
       })
       iconLabel.anchor.set(0.5)
       const name = new Text({
         text: meta.name,
-        style: { fill: '#161616', fontSize: 18, fontWeight: '900', align: 'center' },
+        style: {
+          fill: '#161616',
+          fontSize: 18,
+          fontWeight: '900',
+          align: 'center',
+          fontFamily: FONT,
+        },
       })
       name.anchor.set(0.5, 0)
       const desc = new Text({
@@ -258,23 +292,30 @@ export class BuyFeatureModal extends Container {
           align: 'center',
           wordWrap: true,
           wordWrapWidth: 10,
+          fontFamily: FONT,
         },
       })
       desc.anchor.set(0.5, 0)
       const vol = new Text({
         text: '',
-        style: { fill: '#9aa0a8', fontSize: 12, fontStyle: 'italic' },
+        style: { fill: '#9aa0a8', fontSize: 12, fontStyle: 'italic', fontFamily: FONT },
       })
       vol.anchor.set(0.5, 0)
       const price = new Text({
         text: '',
-        style: { fill: '#111111', fontSize: 24, fontWeight: '900' },
+        style: { fill: '#111111', fontSize: 24, fontWeight: '900', fontFamily: FONT },
       })
       price.anchor.set(0.5, 0)
       const btnBg = new Graphics()
       const btnLabel = new Text({
         text: meta.kind === 'activate' ? 'ACTIVATE' : 'BUY',
-        style: { fill: '#ffffff', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+        style: {
+          fill: '#ffffff',
+          fontSize: 18,
+          fontWeight: '900',
+          letterSpacing: 1,
+          fontFamily: FONT,
+        },
       })
       btnLabel.anchor.set(0.5)
 

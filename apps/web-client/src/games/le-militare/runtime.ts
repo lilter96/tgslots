@@ -85,6 +85,14 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._reelSet.mask = this._mask
     ctx.scene.reels.addChild(this._reelSet)
 
+    this._frame = new ReelFrame({
+      reels: GRID_CONFIG.reels,
+      rows: GRID_CONFIG.rows,
+      symbolSize: REEL_CONFIG.symbolWidth,
+      reelSpacing: GRID_CONFIG.reelSpacing,
+    })
+    ctx.scene.reels.addChild(this._frame)
+
     this._combatOpView = new CombatOperationView(ctx.eventBus)
     ctx.scene.reels.addChild(this._combatOpView)
 
@@ -121,14 +129,6 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     )
     ctx.scene.overlays.addChild(this._buyFeatureModal)
     this._unsubs.push(ctx.eventBus.on('feature-modal:open', () => this._buyFeatureModal?.show()))
-
-    this._frame = new ReelFrame({
-      reels: GRID_CONFIG.reels,
-      rows: GRID_CONFIG.rows,
-      symbolSize: REEL_CONFIG.symbolWidth,
-      reelSpacing: GRID_CONFIG.reelSpacing,
-    })
-    ctx.scene.reels.addChild(this._frame)
 
     this._mascot = new S300Mascot()
     ctx.scene.background.addChild(this._mascot)
@@ -174,7 +174,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._combatOpView.y = layout.reelBounds.y
 
     this._multiplierHud.x = layout.reelBounds.x + layout.reelBounds.width - 60 * reelScale
-    this._multiplierHud.y = layout.reelBounds.y - 40 * reelScale
+    this._multiplierHud.y = Math.max(layout.reelBounds.y - 40 * reelScale, layout.safePadding)
     this._multiplierHud.scale.set(reelScale)
 
     this._mask.clear()

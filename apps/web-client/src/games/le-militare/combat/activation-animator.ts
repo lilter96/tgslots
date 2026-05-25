@@ -79,7 +79,7 @@ export async function animateActivations(
       const head = { t: 0 }
       gsap.to(head, {
         t: 1,
-        duration: 0.6,
+        duration: 0.35,
         ease: 'power1.in',
         onUpdate: () => {
           if (parent.destroyed) return
