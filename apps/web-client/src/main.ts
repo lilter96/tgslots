@@ -53,6 +53,8 @@ async function mountGame(gameId: string): Promise<void> {
   if (gameClient === undefined) return
   const client = gameClient
 
+  document.title = client.manifest.displayName
+
   const loader = new GameLoader()
   loader.theme({
     theme: client.manifest.theme,
@@ -85,7 +87,7 @@ async function mountGame(gameId: string): Promise<void> {
     loader.setProgress(loaded, total),
   )
 
-  const hud = new HUD(session, fsm)
+  const hud = new HUD(session, fsm, eventBus)
   scene.hud.addChild(hud)
 
   const autoSpinPanel = new AutoSpinPanel()

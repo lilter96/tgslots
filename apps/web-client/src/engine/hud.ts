@@ -4,6 +4,7 @@ import type { FreeSpinsStatus } from '../types'
 import { GameUIState } from '../types'
 import { GameStateMachine } from './state-machine'
 import { SessionManager } from './session-manager'
+import type { GameEventBus } from './event-bus.js'
 import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
 import type { SpinSpeedMode } from './spin-speed'
 
@@ -84,7 +85,7 @@ export class HUD extends Container {
   private _autoSpinActive = false
   private readonly _slots = new Map<string, Container>()
 
-  constructor(session: SessionManager, fsm: GameStateMachine) {
+  constructor(session: SessionManager, fsm: GameStateMachine, eventBus: GameEventBus) {
     super()
     this._session = session
     this._fsm = fsm
@@ -140,6 +141,7 @@ export class HUD extends Container {
     this._build()
     this.updateTexts()
     this._fsm.addListener(() => this._onStateChange())
+    eventBus.on('win:awarded', () => this.updateTexts())
   }
 
   /** Returns a named slot container inside the button panel for game-specific feature buttons. */
@@ -269,7 +271,22 @@ export class HUD extends Container {
     this._spinButton.x = SPEED_W + BTN_GAP + AUTO_W + BTN_GAP
     this._spinButton.interactive = true
     this._spinButton.cursor = 'pointer'
-    this._spinButton.on('pointerdown', () => this.emit('spin'))
+    this._spinButton.on('pointerdown', () => {
+      gsap.to(this._spinButton.scale, { x: 0.92, y: 0.92, duration: 0.06, ease: 'power2.in' })
+      this.emit('spin')
+    })
+    this._spinButton.on('pointerup', () => {
+      gsap.to(this._spinButton.scale, { x: 1, y: 1, duration: 0.12, ease: 'back.out(2)' })
+    })
+    this._spinButton.on('pointerupoutside', () => {
+      gsap.to(this._spinButton.scale, { x: 1, y: 1, duration: 0.12, ease: 'back.out(2)' })
+    })
+    this._spinButton.on('pointerover', () => {
+      gsap.to(this._spinButton.scale, { x: 1.06, y: 1.06, duration: 0.15, ease: 'power2.out' })
+    })
+    this._spinButton.on('pointerout', () => {
+      gsap.to(this._spinButton.scale, { x: 1, y: 1, duration: 0.15, ease: 'power2.out' })
+    })
     this._buttonPanel.addChild(this._spinButton)
 
     this.addChild(this._buttonPanel)
@@ -430,8 +447,11 @@ export class HUD extends Container {
     this._spinSpeedMode = mode
     this._drawSpeedButton(this._fastBtnBg, mode === 'fast')
     this._drawSpeedButton(this._turboBtnBg, mode === 'turbo', true)
-    this._fastBtn.alpha = mode === 'turbo' ? 0.72 : 1
-    this._turboBtn.alpha = mode === 'fast' ? 0.82 : 1
+    this._fastBtn.alpha = mode === 'turbo' ? 0.55 : 1
+    this._turboBtn.alpha = mode === 'fast' ? 0.55 : 1
+    // Bold stroke for active, subtle for inactive
+    this._fastBtnBg.alpha = mode === 'fast' ? 1 : 0.7
+    this._turboBtnBg.alpha = mode === 'turbo' ? 1 : 0.7
   }
 
   public syncSound(isMuted: boolean) {
