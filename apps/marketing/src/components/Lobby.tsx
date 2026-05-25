@@ -1,7 +1,11 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { gameRegistry } from '../games/registry'
 
 export default function Lobby() {
+  useEffect(() => {
+    document.title = 'TGSlots'
+  }, [])
   const games = Object.values(gameRegistry)
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { GamePresentation } from '../types'
 import HeroSection from './HeroSection'
@@ -13,6 +13,10 @@ interface Props {
 
 export default function GamePresentationPage({ game }: Props) {
   const [isPlaying, setIsPlaying] = useState(false)
+
+  useEffect(() => {
+    document.title = game.title
+  }, [game.title])
 
   if (isPlaying) {
     return (
