@@ -5,7 +5,7 @@ import type { UILayoutSnapshot } from '../../engine/layout.js'
 import { ReelSet } from '../../engine/reel-set.js'
 import { WinOverlay } from '../../engine/win-overlay.js'
 import { Symbols } from '@tgslots/le-militare'
-import type { LeMilitareResult } from '@tgslots/le-militare'
+import type { LeMilitareResult, AirRaidPresentation } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
 import type { ActionType } from '@tgslots/shared-contracts'
 import { manifest } from './manifest.js'
@@ -248,11 +248,17 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     if (plan.preAnnounce) {
       await this._overlay.announce(plan.preAnnounce.text, plan.preAnnounce.ms)
     }
+
+    // Base-game Air Raid: stop the reels on the pre-raid grid so the planes fly
+    // over the original symbols and reveal each multiplier-WILD as they crash.
+    const airRaid = result.type === 'BASE' ? result.airRaid : null
     this._reelSet.spin()
     await this._wait(this._spinSpeedProfile.reelSpinMs)
-    await this._reelSet.stop(transposeGrid(result.steps[0]?.preCombatGrid ?? []))
+    await this._reelSet.stop(
+      transposeGrid(airRaid ? airRaid.preRaidGrid : (result.steps[0]?.preCombatGrid ?? [])),
+    )
 
-    await this._playCascadeSteps(result)
+    await this._playCascadeSteps(result, airRaid)
 
     if (plan.retriggerAnnounce) {
       await this._overlay.announce(plan.retriggerAnnounce.text, plan.retriggerAnnounce.ms)
@@ -273,7 +279,10 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
   }
 
-  private async _playCascadeSteps(result: LeMilitareResult): Promise<void> {
+  private async _playCascadeSteps(
+    result: LeMilitareResult,
+    airRaid: AirRaidPresentation | null = null,
+  ): Promise<void> {
     const bus = this._ctx.eventBus
     this._reelSet.clearAllMultipliers()
 
@@ -282,6 +291,20 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // FIX 2.3: push carry value immediately so HUD is correct even when the first
     // step has no shootdowns (otherwise the HUD lags until the first multiplier event).
     this._multiplierHud.setValue(currentMultiplier)
+
+    // Base Air Raid plays before the cascade highlights: planes crash onto cells
+    // and convert them to multiplier-WILDs (matching steps[0].preCombatGrid).
+    const raidActive = !!airRaid && airRaid.placements.length > 0
+    if (raidActive) {
+      const deployPromise = this._mascot.triggerS300Feature()
+      bus.emit('le-militare:mascot:deployed', { stepIndex: 0 })
+      await Promise.all([
+        deployPromise,
+        this._combatOpView.animateAirRaid(airRaid!.placements, WILD_ID),
+      ])
+      for (const pl of airRaid!.placements) currentMultiplier += pl.multiplier
+      this._multiplierHud.setValue(currentMultiplier)
+    }
 
     if (result.steps.length === 0) {
       bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
@@ -381,7 +404,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     }
 
     // Retract launcher after all animations if it was deployed this spin
-    if (hasAnyCombatOp) {
+    if (hasAnyCombatOp || raidActive) {
       this._combatOpView.deactivateAllWires()
       // Fire-and-forget retraction — it's slow (1.8s) and non-blocking for the next spin
       // because retractLauncher serializes via its internal promise chain

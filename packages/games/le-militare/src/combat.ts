@@ -14,7 +14,12 @@ import {
   WILD_ID,
 } from './constants.js'
 import type { ModeConfig, ModeId } from './constants.js'
-import type { ActivationEvent, CombatCascadeStep, ShootdownEvent } from './types.ts'
+import type {
+  ActivationEvent,
+  AirRaidPlacement,
+  CombatCascadeStep,
+  ShootdownEvent,
+} from './types.ts'
 import { makeStripChunkSampler } from './grid-samplers.js'
 import { snapshotGrid } from './helpers.js'
 
@@ -23,12 +28,6 @@ import { snapshotGrid } from './helpers.js'
 // Air Raid is the base-game Combat Operation: a squadron flies over, the S300
 // intercepts some planes, each interception drops a multiplier-WILD on a random
 // cell, misses fly off. The summed multiplier seeds the spin's multiplier.
-
-export interface AirRaidPlacement {
-  reel: number
-  row: number
-  multiplier: number
-}
 
 export interface AirRaidResult {
   placements: readonly AirRaidPlacement[]

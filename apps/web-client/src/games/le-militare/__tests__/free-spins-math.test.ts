@@ -32,6 +32,7 @@ function baseResult(): LeMilitareBaseResult {
     steps: [],
     multiplierSum: 0,
     finalWin: 0,
+    airRaid: null,
     state: { freeSpinsLeft: 0, totalFreeSpinWin: 0, sessionMultiplierSum: 0 },
   }
 }

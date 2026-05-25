@@ -6,6 +6,8 @@ import { killAllTweens } from '../helpers/tween-utils.js'
 import { drawWires } from './wire-renderer.js'
 import { animateActivations } from './activation-animator.js'
 import { fireMissile } from './missile.js'
+import { playAirRaid } from './air-raid.js'
+import type { AirRaidPlacement } from '@tgslots/le-militare'
 import type { CombatLayout } from './combat-layout.js'
 
 export class CombatOperationView extends Container {
@@ -107,6 +109,23 @@ export class CombatOperationView extends Container {
 
       await new Promise((r) => setTimeout(r, ANIMATION_CONFIG.INTER_MISSILE_PAUSE_MS))
     }
+  }
+
+  async animateAirRaid(placements: readonly AirRaidPlacement[], wildId: number): Promise<void> {
+    if (placements.length === 0 || this._layout.symbolWidth === 0) return
+    const { symbolWidth: sw, symbolHeight: sh, reelSpacing: rs } = this._layout
+    await playAirRaid({
+      parent: this,
+      lx: this._mascotLaunchX,
+      ly: this._mascotLaunchY,
+      sw,
+      sh,
+      rs,
+      reelCount: this._wireActiveStates.length,
+      placements,
+      wildId,
+      bus: this._bus,
+    })
   }
 
   override destroy(options?: {

@@ -52,6 +52,7 @@ export interface LeMilitareBaseResult extends SpinResult {
   steps: LeMilitareSpinResult['steps']
   multiplierSum: number
   finalWin: number
+  airRaid: LeMilitareSpinResult['airRaid']
   state: { freeSpinsLeft: number; totalFreeSpinWin: number; sessionMultiplierSum: number }
 }
 
@@ -155,6 +156,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
       steps: result.steps,
       multiplierSum: result.multiplierSum,
       finalWin: win,
+      airRaid: result.airRaid,
       state: this._freeSpinState(),
     }
   }

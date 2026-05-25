@@ -53,6 +53,9 @@ export class MultiplierHud extends Container {
   public setValue(value: number) {
     const safe = Number.isFinite(value) ? value : 1
     const targetValue = Math.max(1, Math.round(safe))
+    // Only meaningful when a multiplier is actually in play (×2+); otherwise the
+    // box just reads a permanent "×1", which looks broken.
+    this.visible = targetValue > 1
     if (this._currentValue === targetValue) return
 
     gsap.killTweensOf(this.scale)

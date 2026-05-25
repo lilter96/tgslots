@@ -84,17 +84,22 @@ export class SpinOrchestrator<G extends GameId> {
     this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
-    const response = await this._actions.doSpin(betMultiplier)
-    this._runtime.applyState(response.state)
-    this._fsm.transitionTo(GameUIState.STOPPING)
+    try {
+      const response = await this._actions.doSpin(betMultiplier)
+      this._runtime.applyState(response.state)
+      this._fsm.transitionTo(GameUIState.STOPPING)
 
-    if (response.result !== undefined) {
-      await this._runtime.presentResult('spin' as ActionType<G>, response.result)
+      if (response.result !== undefined) {
+        await this._runtime.presentResult('spin' as ActionType<G>, response.result)
+      }
+
+      await this._runFreeSpins()
+    } catch (err) {
+      console.error('spin failed', err)
+    } finally {
+      this._finishCycle()
+      this._scheduleAutoSpin()
     }
-
-    await this._runFreeSpins()
-    this._finishCycle()
-    this._scheduleAutoSpin()
   }
 
   async buyBonus(betMultiplier: number): Promise<void> {
@@ -108,16 +113,21 @@ export class SpinOrchestrator<G extends GameId> {
     this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
-    const response = await this._actions.doBuyBonus(betMultiplier)
-    this._runtime.applyState(response.state)
-    this._fsm.transitionTo(GameUIState.STOPPING)
+    try {
+      const response = await this._actions.doBuyBonus(betMultiplier)
+      this._runtime.applyState(response.state)
+      this._fsm.transitionTo(GameUIState.STOPPING)
 
-    if (response.result !== undefined) {
-      await this._runtime.presentResult('buybonus' as ActionType<G>, response.result)
+      if (response.result !== undefined) {
+        await this._runtime.presentResult('buybonus' as ActionType<G>, response.result)
+      }
+
+      await this._runFreeSpins()
+    } catch (err) {
+      console.error('buy bonus failed', err)
+    } finally {
+      this._finishCycle()
     }
-
-    await this._runFreeSpins()
-    this._finishCycle()
   }
 
   // Generic feature-menu purchase (bonus-buy tiers or enhanced single spins).
@@ -133,16 +143,21 @@ export class SpinOrchestrator<G extends GameId> {
     this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
-    const response = await this._actions.doFeatureBuy(optionId, betMultiplier)
-    this._runtime.applyState(response.state)
-    this._fsm.transitionTo(GameUIState.STOPPING)
+    try {
+      const response = await this._actions.doFeatureBuy(optionId, betMultiplier)
+      this._runtime.applyState(response.state)
+      this._fsm.transitionTo(GameUIState.STOPPING)
 
-    if (response.result !== undefined) {
-      await this._runtime.presentResult('spin' as ActionType<G>, response.result)
+      if (response.result !== undefined) {
+        await this._runtime.presentResult('spin' as ActionType<G>, response.result)
+      }
+
+      await this._runFreeSpins()
+    } catch (err) {
+      console.error('feature buy failed', err)
+    } finally {
+      this._finishCycle()
     }
-
-    await this._runFreeSpins()
-    this._finishCycle()
   }
 
   async resumeFreeSpins(): Promise<void> {
@@ -163,24 +178,18 @@ export class SpinOrchestrator<G extends GameId> {
     }
   }
 
+  // Drive the machine back to IDLE through valid transitions from wherever it
+  // is — including SPINNING, when a spin/buy threw before reaching STOPPING.
+  // Without this, an error mid-presentation would leave every button disabled.
   private _finishCycle(): void {
-    const s = this._fsm.state
-    if (s === GameUIState.STOPPING) {
-      if (this._wonThisCycle) {
-        this._fsm.transitionTo(GameUIState.WIN_SHOW)
-        this._fsm.transitionTo(GameUIState.IDLE)
-      } else {
-        this._fsm.transitionTo(GameUIState.IDLE)
-      }
-    } else if (s === GameUIState.WIN_SHOW) {
+    if (this._fsm.state === GameUIState.SPINNING) {
+      this._fsm.transitionTo(GameUIState.STOPPING)
+    }
+    if (this._fsm.state === GameUIState.STOPPING && this._wonThisCycle) {
+      this._fsm.transitionTo(GameUIState.WIN_SHOW)
+    }
+    if (this._fsm.state !== GameUIState.IDLE) {
       this._fsm.transitionTo(GameUIState.IDLE)
-    } else if (s === GameUIState.FEATURE_TRANSITION) {
-      if (this._wonThisCycle) {
-        this._fsm.transitionTo(GameUIState.WIN_SHOW)
-        this._fsm.transitionTo(GameUIState.IDLE)
-      } else {
-        this._fsm.transitionTo(GameUIState.IDLE)
-      }
     }
   }
 
