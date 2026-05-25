@@ -2,7 +2,7 @@ import { Container, Graphics, Text, TextStyle } from 'pixi.js'
 import { gsap } from 'gsap'
 
 const STYLE = new TextStyle({
-  fontFamily: 'serif',
+  fontFamily: 'Cinzel, serif',
   fontSize: 24,
   fontWeight: '900',
   fill: '#d4af37',
@@ -23,7 +23,7 @@ export class MultiplierHud extends Container {
     this._label = new Text({
       text: 'MULTIPLIER',
       style: {
-        fontFamily: 'serif',
+        fontFamily: 'Cinzel, serif',
         fontSize: 12,
         fontWeight: '900',
         fill: '#b0b0b0',
@@ -53,6 +53,9 @@ export class MultiplierHud extends Container {
   public setValue(value: number) {
     const safe = Number.isFinite(value) ? value : 1
     const targetValue = Math.max(1, Math.round(safe))
+    // Only meaningful when a multiplier is actually in play (×2+); otherwise the
+    // box just reads a permanent "×1", which looks broken.
+    this.visible = targetValue > 1
     if (this._currentValue === targetValue) return
 
     gsap.killTweensOf(this.scale)

@@ -38,8 +38,15 @@ the cascade engine; `LeMilitareStateMachine(initialState?, mode)`; API payload/s
 `LM_MODE` carry the mode. Tuned via `scripts/mode-rtp.ts`; per-mode regression test added.
 
 Earlier baseline (Phase: pre-kit, [[decision_008_le_militare_math_rebalance]]): rebalanced from a
-broken ~8368% to 98.4% with S300 gated to free spins. Remaining: the web client buy-menu + mode-
-selector UI (needs browser verification).
+broken ~8368% to 98.4% with S300 gated to free spins.
+
+**Web client UI — done (Hacksaw style).** `BuyFeatureControl` (HUD button) opens `BuyFeatureModal`
+(`apps/web-client/src/games/le-militare/`): a dark minimal modal with a RECON/ASSAULT/SIEGE
+volatility segmented selector + 5 feature-buy cards (standard/elite/super + chance + air-raid) with
+live credit costs. Wired via generic events `feature-modal:open` / `feature-buy:requested` /
+`volatility:selected`; `SpinOrchestrator.buyFeature(optionId)`; main.ts maps options → dispatch
+(buybonus/chancespin/airraidspin) carrying the selected mode. Typechecks, lints, and `vite build`
+passes; not yet visually verified in a browser.
 
 `packages/slots-simulation-engine/src/testing/slots-test-engine.ts` is a fluent, extensible gameplay test harness. Ancient Dragon, Woodland Whisper, and Le Militare state-machine/gameplay suites use registered actions/scenarios/probes instead of direct `_state` mutation or hand-rolled round execution.
 

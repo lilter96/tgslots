@@ -4,8 +4,8 @@ import type { GameRuntime, GameUIContext } from '../../engine/game-client.js'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
 import { ReelSet } from '../../engine/reel-set.js'
 import { WinOverlay } from '../../engine/win-overlay.js'
-import { Symbols, BUY_BONUS_COST_MULTIPLIER } from '@tgslots/le-militare'
-import type { LeMilitareResult } from '@tgslots/le-militare'
+import { Symbols } from '@tgslots/le-militare'
+import type { LeMilitareResult, AirRaidPresentation } from '@tgslots/le-militare'
 import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states'
 import type { ActionType } from '@tgslots/shared-contracts'
 import { manifest } from './manifest.js'
@@ -21,7 +21,8 @@ import { CombatOperationView } from './combat/index.js'
 import './events.js'
 import type { CombatLayout } from './combat/combat-layout.js'
 import { MultiplierHud } from './multiplier-hud.js'
-import { BuyBonusControl } from './buy-bonus-control.js'
+import { BuyFeatureControl } from './buy-feature-control.js'
+import { BuyFeatureModal } from './buy-feature-modal.js'
 import { S300Mascot } from './mascot/index.js'
 import { ReelFrame } from './reel-frame/reel-frame.js'
 
@@ -54,7 +55,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private _spinSpeedProfile: SpinSpeedProfile = getSpinSpeedProfile('normal')
   private _combatOpView!: CombatOperationView
   private _multiplierHud!: MultiplierHud
-  private _buyBonusControl?: BuyBonusControl
+  private _buyFeatureControl?: BuyFeatureControl
+  private _buyFeatureModal?: BuyFeatureModal
   private _mascot!: S300Mascot
   private _destroyed = false
   private readonly _unsubs: Array<() => void> = []
@@ -83,6 +85,14 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._reelSet.mask = this._mask
     ctx.scene.reels.addChild(this._reelSet)
 
+    this._frame = new ReelFrame({
+      reels: GRID_CONFIG.reels,
+      rows: GRID_CONFIG.rows,
+      symbolSize: REEL_CONFIG.symbolWidth,
+      reelSpacing: GRID_CONFIG.reelSpacing,
+    })
+    ctx.scene.reels.addChild(this._frame)
+
     this._combatOpView = new CombatOperationView(ctx.eventBus)
     ctx.scene.reels.addChild(this._combatOpView)
 
@@ -93,6 +103,12 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       ctx.eventBus.on('le-militare:multiplier:stick', (e) => {
         const sym = this._reelSet.getReel(e.reel).getSymbolAt(e.row)
         if (sym) {
+          // The badge was animated in the combat-view's design space; once it
+          // belongs to the symbol it must sit at the symbol-local origin (the
+          // multiplierContainer is already centred on the cell), otherwise it
+          // keeps its old coordinates and lands at a random offset / behind cells.
+          e.badge.position.set(0, 0)
+          e.badge.scale.set(1)
           sym.multiplierContainer.addChild(e.badge)
         } else {
           e.badge.destroy({ children: true })
@@ -103,16 +119,16 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._multiplierHud = new MultiplierHud()
     ctx.scene.overlays.addChild(this._multiplierHud)
 
-    this._buyBonusControl = new BuyBonusControl(ctx.eventBus, ctx.fsm, BUY_BONUS_COST_MULTIPLIER)
-    ctx.hud.slot('control-right').addChild(this._buyBonusControl)
+    this._buyFeatureControl = new BuyFeatureControl(ctx.eventBus, ctx.fsm)
+    ctx.hud.slot('control-right').addChild(this._buyFeatureControl)
 
-    this._frame = new ReelFrame({
-      reels: GRID_CONFIG.reels,
-      rows: GRID_CONFIG.rows,
-      symbolSize: REEL_CONFIG.symbolWidth,
-      reelSpacing: GRID_CONFIG.reelSpacing,
-    })
-    ctx.scene.reels.addChild(this._frame)
+    this._buyFeatureModal = new BuyFeatureModal(
+      ctx.eventBus,
+      () => ctx.session.betMultiplier,
+      () => ctx.session.balance,
+    )
+    ctx.scene.overlays.addChild(this._buyFeatureModal)
+    this._unsubs.push(ctx.eventBus.on('feature-modal:open', () => this._buyFeatureModal?.show()))
 
     this._mascot = new S300Mascot()
     ctx.scene.background.addChild(this._mascot)
@@ -158,7 +174,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._combatOpView.y = layout.reelBounds.y
 
     this._multiplierHud.x = layout.reelBounds.x + layout.reelBounds.width - 60 * reelScale
-    this._multiplierHud.y = layout.reelBounds.y - 40 * reelScale
+    this._multiplierHud.y = Math.max(layout.reelBounds.y - 40 * reelScale, layout.safePadding)
     this._multiplierHud.scale.set(reelScale)
 
     this._mask.clear()
@@ -174,6 +190,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._frame.update(layout, reelScale)
 
     this._overlay.resize(layout)
+    this._buyFeatureModal?.resize(layout)
     this._mascot.resize(layout)
 
     const lp = this._mascot.getLaunchPoint()
@@ -219,7 +236,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._bgSprite.destroy()
     this._mask.destroy()
     this._frame.destroy()
-    this._buyBonusControl?.destroy({ children: true })
+    this._buyFeatureControl?.destroy({ children: true })
+    this._buyFeatureModal?.destroy({ children: true })
     this._mascot.destroy({ children: true })
   }
 
@@ -236,11 +254,22 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     if (plan.preAnnounce) {
       await this._overlay.announce(plan.preAnnounce.text, plan.preAnnounce.ms)
     }
-    this._reelSet.spin()
-    await this._wait(this._spinSpeedProfile.reelSpinMs)
-    await this._reelSet.stop(transposeGrid(result.steps[0]?.preCombatGrid ?? []))
 
-    await this._playCascadeSteps(result)
+    // Base-game Air Raid: stop the reels on the pre-raid grid so the planes fly
+    // over the original symbols and reveal each multiplier-WILD as they crash.
+    const airRaid = result.type === 'BASE' ? result.airRaid : null
+    const stopGrid = transposeGrid(
+      airRaid ? airRaid.preRaidGrid : (result.steps[0]?.preCombatGrid ?? []),
+    )
+    // Reels armed by the S300 are sticky full-row wilds — keep them held so they
+    // don't pointlessly re-spin every free spin, and keep their cables powered.
+    const heldReels = this._heldReels(result, stopGrid)
+    if (heldReels) this._combatOpView.energizeReels(heldReels)
+    this._reelSet.spin(heldReels)
+    await this._wait(this._spinSpeedProfile.reelSpinMs)
+    await this._reelSet.stop(stopGrid, heldReels)
+
+    await this._playCascadeSteps(result, airRaid)
 
     if (plan.retriggerAnnounce) {
       await this._overlay.announce(plan.retriggerAnnounce.text, plan.retriggerAnnounce.ms)
@@ -261,7 +290,25 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
   }
 
-  private async _playCascadeSteps(result: LeMilitareResult): Promise<void> {
+  // Free-spin armed reels are full-row wilds that persist across the session; a
+  // held reel is one whose entire column is already WILD on entry. Base/buy
+  // spins never lock reels (Air Raid wilds are single cells, not full columns).
+  private _heldReels(
+    result: LeMilitareResult,
+    stopGrid: number[][],
+  ): ReadonlySet<number> | undefined {
+    if (result.type !== 'FREE') return undefined
+    const held = new Set<number>()
+    stopGrid.forEach((rows, reel) => {
+      if (rows.length > 0 && rows.every((id) => id === WILD_ID)) held.add(reel)
+    })
+    return held.size > 0 ? held : undefined
+  }
+
+  private async _playCascadeSteps(
+    result: LeMilitareResult,
+    airRaid: AirRaidPresentation | null = null,
+  ): Promise<void> {
     const bus = this._ctx.eventBus
     this._reelSet.clearAllMultipliers()
 
@@ -270,6 +317,20 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // FIX 2.3: push carry value immediately so HUD is correct even when the first
     // step has no shootdowns (otherwise the HUD lags until the first multiplier event).
     this._multiplierHud.setValue(currentMultiplier)
+
+    // Base Air Raid plays before the cascade highlights: planes crash onto cells
+    // and convert them to multiplier-WILDs (matching steps[0].preCombatGrid).
+    const raidActive = !!airRaid && airRaid.placements.length > 0
+    if (raidActive) {
+      const deployPromise = this._mascot.triggerS300Feature()
+      bus.emit('le-militare:mascot:deployed', { stepIndex: 0 })
+      await Promise.all([
+        deployPromise,
+        this._combatOpView.animateAirRaid(airRaid!.placements, WILD_ID),
+      ])
+      for (const pl of airRaid!.placements) currentMultiplier += pl.multiplier
+      this._multiplierHud.setValue(currentMultiplier)
+    }
 
     if (result.steps.length === 0) {
       bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
@@ -369,7 +430,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     }
 
     // Retract launcher after all animations if it was deployed this spin
-    if (hasAnyCombatOp) {
+    if (hasAnyCombatOp || raidActive) {
       this._combatOpView.deactivateAllWires()
       // Fire-and-forget retraction — it's slow (1.8s) and non-blocking for the next spin
       // because retractLauncher serializes via its internal promise chain

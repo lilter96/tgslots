@@ -27,6 +27,8 @@ export type {
   CombatCascadeStep,
   ShootdownEvent,
   ActivationEvent,
+  AirRaidPlacement,
+  AirRaidPresentation,
 } from './types.js'
 
 export const SIM_CONFIG = {

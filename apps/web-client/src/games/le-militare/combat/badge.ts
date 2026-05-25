@@ -4,7 +4,7 @@ import type { GameEventBus } from '../../../engine/event-bus.js'
 import { ANIMATION_CONFIG } from '../animation-config.js'
 
 const BADGE_STYLE_OPTS = {
-  fontFamily: 'serif',
+  fontFamily: 'Cinzel, serif',
   fontSize: 30,
   fontWeight: '900' as const,
   fill: '#ffe066',
@@ -28,6 +28,7 @@ export async function playBadge(
   row: number,
   bus: GameEventBus,
 ): Promise<void> {
+  if (multiplier <= 1) return
   const badge = new Container()
   const label = `×${multiplier}`
   // Scale badge width for large multipliers

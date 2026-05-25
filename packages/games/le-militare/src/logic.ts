@@ -70,6 +70,9 @@ function createSpinSampler(
         }
       }
 
+      // Snapshot the grid before stamping the Air Raid wilds so the client can
+      // fly planes over the original symbols and reveal each wild on crash.
+      const preRaidGrid = raid.placements.length > 0 ? snapshotGrid(grid) : null
       for (const p of raid.placements) {
         grid.setSymbol(p.reel, p.row, WILD_ID)
       }
@@ -115,6 +118,7 @@ function createSpinSampler(
           freeSpinsAwarded: spinsAwarded,
           endArmedReels: Array.from(finalArmedReels),
           endMultiplierSum: finalMultSum,
+          airRaid: preRaidGrid ? { placements: raid.placements, preRaidGrid } : null,
         }
       })
     }),

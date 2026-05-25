@@ -10,6 +10,10 @@ export interface GameEventMap {
   'auto-spin:updated': { active: boolean; remaining: number }
   'pick-card-selected': { index: number }
   'buy-bonus:requested': EmptyPayload
+  'feature-modal:open': EmptyPayload
+  'feature-buy:requested': { optionId: string }
+  'volatility:selected': { mode: string }
+  'bet:changed': { multiplier: number }
   'error:api': { message: string }
 
   // Audio specific events

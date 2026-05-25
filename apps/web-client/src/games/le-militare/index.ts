@@ -13,8 +13,14 @@ declare module '@tgslots/shared-contracts/game-registry' {
       state: LeMilitareSerializedState
       result: LeMilitareResult
       actions: {
-        spin: { multiplier: number }
-        buybonus: { multiplier: number }
+        spin: { multiplier: number; mode?: 'recon' | 'assault' | 'siege' }
+        buybonus: {
+          multiplier: number
+          option?: 'standard' | 'elite' | 'super'
+          mode?: 'recon' | 'assault' | 'siege'
+        }
+        chancespin: { multiplier: number; mode?: 'recon' | 'assault' | 'siege' }
+        airraidspin: { multiplier: number; mode?: 'recon' | 'assault' | 'siege' }
         freespin: EmptyPayload
         state: EmptyPayload
       }

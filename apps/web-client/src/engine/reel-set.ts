@@ -36,8 +36,10 @@ export class ReelSet extends Container {
     }
   }
 
-  public async spin(): Promise<void> {
+  public async spin(held?: ReadonlySet<number>): Promise<void> {
     const promises = this._reels.map((reel, i) => {
+      // Held reels (sticky full-row wilds) stay locked — they don't re-spin.
+      if (held?.has(i)) return Promise.resolve()
       return new Promise<void>((resolve) => {
         setTimeout(async () => {
           await reel.spin()
@@ -48,8 +50,14 @@ export class ReelSet extends Container {
     await Promise.all(promises)
   }
 
-  public async stop(finalGrid: number[][]): Promise<void> {
-    const promises = this._reels.map((_, i) => this.stopReel(i, finalGrid[i]!))
+  public async stop(finalGrid: number[][], held?: ReadonlySet<number>): Promise<void> {
+    const promises = this._reels.map((reel, i) => {
+      if (held?.has(i)) {
+        reel.setSymbols(finalGrid[i]!)
+        return Promise.resolve()
+      }
+      return this.stopReel(i, finalGrid[i]!)
+    })
     await Promise.all(promises)
   }
 

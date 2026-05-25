@@ -6,12 +6,15 @@ import { killAllTweens } from '../helpers/tween-utils.js'
 import { drawWires } from './wire-renderer.js'
 import { animateActivations } from './activation-animator.js'
 import { fireMissile } from './missile.js'
+import { playAirRaid } from './air-raid.js'
+import type { AirRaidPlacement } from '@tgslots/le-militare'
 import type { CombatLayout } from './combat-layout.js'
 
 export class CombatOperationView extends Container {
   private _bus: GameEventBus
   private _overlay: Graphics
   private _wires: Graphics
+  private _current: Graphics
 
   private _mascotLaunchX = 0
   private _mascotLaunchY = 0
@@ -32,6 +35,8 @@ export class CombatOperationView extends Container {
     this._bus = bus
     this._wires = new Graphics()
     this.addChild(this._wires)
+    this._current = new Graphics()
+    this.addChild(this._current)
     this._overlay = new Graphics()
     this.addChild(this._overlay)
   }
@@ -65,12 +70,26 @@ export class CombatOperationView extends Container {
       this,
       this._overlay,
       this._wires,
+      this._current,
       activations,
       this._layout,
       this._mascotConnX,
       this._mascotConnY,
       this._wireActiveStates,
     )
+  }
+
+  // Light up cables for already-armed reels (e.g. carried into a free spin) as a
+  // steady powered line, without replaying the travelling-current animation.
+  energizeReels(reels: Iterable<number>): void {
+    let changed = false
+    for (const reel of reels) {
+      if (reel >= 0 && reel < this._wireActiveStates.length && !this._wireActiveStates[reel]) {
+        this._wireActiveStates[reel] = true
+        changed = true
+      }
+    }
+    if (changed) this._redrawWires()
   }
 
   async animateShootdowns(
@@ -109,6 +128,23 @@ export class CombatOperationView extends Container {
     }
   }
 
+  async animateAirRaid(placements: readonly AirRaidPlacement[], wildId: number): Promise<void> {
+    if (placements.length === 0 || this._layout.symbolWidth === 0) return
+    const { symbolWidth: sw, symbolHeight: sh, reelSpacing: rs } = this._layout
+    await playAirRaid({
+      parent: this,
+      lx: this._mascotLaunchX,
+      ly: this._mascotLaunchY,
+      sw,
+      sh,
+      rs,
+      reelCount: this._wireActiveStates.length,
+      placements,
+      wildId,
+      bus: this._bus,
+    })
+  }
+
   override destroy(options?: {
     children?: boolean
     texture?: boolean
@@ -120,6 +156,7 @@ export class CombatOperationView extends Container {
 
   private _deactivateWires(): void {
     this._wireActiveStates.fill(false)
+    this._current.clear()
     this._redrawWires()
   }
 
