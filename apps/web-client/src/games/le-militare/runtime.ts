@@ -95,6 +95,12 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       ctx.eventBus.on('le-militare:multiplier:stick', (e) => {
         const sym = this._reelSet.getReel(e.reel).getSymbolAt(e.row)
         if (sym) {
+          // The badge was animated in the combat-view's design space; once it
+          // belongs to the symbol it must sit at the symbol-local origin (the
+          // multiplierContainer is already centred on the cell), otherwise it
+          // keeps its old coordinates and lands at a random offset / behind cells.
+          e.badge.position.set(0, 0)
+          e.badge.scale.set(1)
           sym.multiplierContainer.addChild(e.badge)
         } else {
           e.badge.destroy({ children: true })
@@ -252,11 +258,15 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // Base-game Air Raid: stop the reels on the pre-raid grid so the planes fly
     // over the original symbols and reveal each multiplier-WILD as they crash.
     const airRaid = result.type === 'BASE' ? result.airRaid : null
-    this._reelSet.spin()
-    await this._wait(this._spinSpeedProfile.reelSpinMs)
-    await this._reelSet.stop(
-      transposeGrid(airRaid ? airRaid.preRaidGrid : (result.steps[0]?.preCombatGrid ?? [])),
+    const stopGrid = transposeGrid(
+      airRaid ? airRaid.preRaidGrid : (result.steps[0]?.preCombatGrid ?? []),
     )
+    // Reels armed by the S300 are sticky full-row wilds — keep them held so they
+    // don't pointlessly re-spin every free spin.
+    const heldReels = this._heldReels(result, stopGrid)
+    this._reelSet.spin(heldReels)
+    await this._wait(this._spinSpeedProfile.reelSpinMs)
+    await this._reelSet.stop(stopGrid, heldReels)
 
     await this._playCascadeSteps(result, airRaid)
 
@@ -277,6 +287,21 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     }
 
     bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
+  }
+
+  // Free-spin armed reels are full-row wilds that persist across the session; a
+  // held reel is one whose entire column is already WILD on entry. Base/buy
+  // spins never lock reels (Air Raid wilds are single cells, not full columns).
+  private _heldReels(
+    result: LeMilitareResult,
+    stopGrid: number[][],
+  ): ReadonlySet<number> | undefined {
+    if (result.type !== 'FREE') return undefined
+    const held = new Set<number>()
+    stopGrid.forEach((rows, reel) => {
+      if (rows.length > 0 && rows.every((id) => id === WILD_ID)) held.add(reel)
+    })
+    return held.size > 0 ? held : undefined
   }
 
   private async _playCascadeSteps(
