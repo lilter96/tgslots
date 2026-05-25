@@ -15,6 +15,10 @@ import type { IdleTweens } from './tweens.js'
 import { computeLaunchPoint, computeConnectionPoint } from './geometry.js'
 import { killAllTweens } from '../helpers/tween-utils.js'
 
+// Minimum side-gap width (px) needed to stand the launcher beside the reels;
+// below this we dock a compact version in the bottom-right corner instead.
+const SIDE_MIN_W = 190
+
 export class S300Mascot extends Container {
   readonly masterContainer: Container
   readonly chassisContainer: Container
@@ -47,19 +51,28 @@ export class S300Mascot extends Container {
 
   resize(layout: UILayoutSnapshot): void {
     const rightEdge = layout.reelBounds.x + layout.reelBounds.width
-    const availW = layout.screenWidth - rightEdge - layout.safePadding
-    const availH = layout.reelBounds.height
-
-    if (availW < 80) {
-      this.visible = false
-      return
-    }
+    const reelBottom = layout.reelBounds.y + layout.reelBounds.height
+    const sideAvailW = layout.screenWidth - rightEdge - layout.safePadding
     this.visible = true
 
-    const scale = Math.min(availW / NATURAL_W, availH / NATURAL_H, 1.0)
+    // Desktop / wide: stand the launcher in the empty gap beside the reels.
+    if (sideAvailW >= SIDE_MIN_W) {
+      const scale = Math.min(sideAvailW / NATURAL_W, layout.reelBounds.height / NATURAL_H, 1.0)
+      this.scale.set(scale)
+      this.x = rightEdge - 82 * scale
+      this.y = reelBottom - GND * scale
+      return
+    }
+
+    // Compact / mobile: no side room — dock a smaller launcher in the
+    // bottom-right corner, using the strip below the reels when there is one.
+    const belowH = layout.gameplayArea.y + layout.gameplayArea.height - reelBottom
+    const targetH = Math.max(belowH, layout.reelBounds.height * 0.5)
+    const scale = Math.min((layout.reelBounds.width * 0.5) / NATURAL_W, targetH / NATURAL_H, 1.0)
     this.scale.set(scale)
-    this.x = rightEdge - 82 * scale
-    this.y = layout.reelBounds.y + layout.reelBounds.height - GND * scale
+    this.x = rightEdge - NATURAL_W * scale
+    this.y =
+      (belowH > 40 ? layout.gameplayArea.y + layout.gameplayArea.height : reelBottom) - GND * scale
   }
 
   getLaunchPoint(): { x: number; y: number } {

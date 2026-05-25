@@ -262,8 +262,9 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       airRaid ? airRaid.preRaidGrid : (result.steps[0]?.preCombatGrid ?? []),
     )
     // Reels armed by the S300 are sticky full-row wilds — keep them held so they
-    // don't pointlessly re-spin every free spin.
+    // don't pointlessly re-spin every free spin, and keep their cables powered.
     const heldReels = this._heldReels(result, stopGrid)
+    if (heldReels) this._combatOpView.energizeReels(heldReels)
     this._reelSet.spin(heldReels)
     await this._wait(this._spinSpeedProfile.reelSpinMs)
     await this._reelSet.stop(stopGrid, heldReels)
