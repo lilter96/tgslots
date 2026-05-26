@@ -7,7 +7,7 @@ import {
   Symbols,
   BUY_BONUS_COST_MULTIPLIER,
 } from './constants.js'
-import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli'
+import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli/comparison'
 import parsheetData from '../config/parsheet.json' with { type: 'json' }
 
 export {

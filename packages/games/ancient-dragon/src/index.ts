@@ -1,6 +1,6 @@
 import { AncientDragonStateMachine } from './game-state-machine.js'
 import { BET_CONFIG } from './constants.js'
-import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli'
+import type { ParsheetConfig } from '@tgslots/slots-simulation-engine/cli/comparison'
 import parsheetData from '../config/parsheet.json' with { type: 'json' }
 
 export { AncientDragonStateMachine, BET_CONFIG }
