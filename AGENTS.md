@@ -27,9 +27,10 @@ bun run dev:all        # all three concurrently
 
 # Simulations:
 cd apps/simulations
-bun run main.ts --game le-militare --spins 1000000              # full sim
-bun run main.ts --game le-militare --mode sample                # 10 sample spins
-bun run main.ts --game le-militare --spins 1000 --visualize     # HTML report
+bun run main.ts --game le-militare --spins 1000000                  # full sim (assault)
+bun run main.ts --game le-militare --mode sample                    # 10 sample spins
+bun run main.ts --game le-militare --spins 1000 --visualize         # HTML report
+bun run main.ts --game le-militare --spins 1000000 --game-mode siege  # per-mode sim
 ```
 
 ## Monorepo Layout
@@ -64,6 +65,7 @@ Dependency chain: `math` (foundation) → `slots-core` → `slots-simulation-eng
 - No direct `new Wager()` — use `engine.wager(betLevel)`.
 - No direct `new StateMachine()` — use `engine.createMachine()`.
 - Low-level math/sampler unit tests may stay direct (not gameplay tests).
+- **Per-mode tests**: `createSlotsTestEngine(MachineClass, betConfig, [mode])` accepts constructor args. Le Militare exposes `createLeMilitareTestEngine(mode)` in its test-engine for cross-mode testing.
 
 ## Prettier / Lint
 
@@ -87,4 +89,5 @@ ESLint flat config enforces: `@typescript-eslint/no-explicit-any` (error), no `u
 - `@typescript-eslint/no-explicit-any` is an error — use specific types.
 - `unknown` and `never` types are banned by lint (use `void` for absent sides of Either/Result).
 - Web-client tests may need `happy-dom` (configured as devDependency in root).
+- **`ParsheetConfig` import**: import from `@tgslots/slots-simulation-engine/cli/comparison`, NOT from `@tgslots/slots-simulation-engine/cli`. The latter pulls `runner/index.ts` → `node:worker_threads` into the web-client build, which breaks the CI Docker build.
 - For additional context, see `memory/` (ADRs, testing strategy) and `codebase-analysis-docs/CODEBASE_KNOWLEDGE.md`.
