@@ -16,6 +16,7 @@ import { ModernDataCollector, runCycle } from '../core/state-machine.js'
 type AnySlotsStateMachine = StateMachine<SpinResult, object>
 type SlotsTestValue = object | string | number | boolean | symbol | bigint | null | undefined
 type SlotsTestArgList = readonly SlotsTestValue[]
+type MachineConstructorArg = SlotsTestValue
 type ResultOf<TSM extends AnySlotsStateMachine> =
   TSM extends StateMachine<infer TResult, object> ? TResult : SpinResult
 
@@ -463,10 +464,14 @@ export class SlotsTestEngine<
     private readonly actions: SlotsTestActionRegistry<TSM>,
     private readonly scenarios: SlotsTestScenarioRegistry<TSM>,
     private readonly probes: SlotsTestProbeRegistry<TSM>,
+    private readonly constructorArgs: ReadonlyArray<MachineConstructorArg> = [],
   ) {}
 
   createMachine(initialState?: TSM['state']): TSM {
-    return new this.MachineClass(initialState)
+    return new (this.MachineClass as new (...args: MachineConstructorArg[]) => TSM)(
+      initialState,
+      ...this.constructorArgs,
+    )
   }
 
   wager(betLevel = 1): Wager {
@@ -548,10 +553,19 @@ export class SlotsTestEngineBuilder<
   constructor(
     private readonly MachineClass: new (initialState?: TSM['state']) => TSM,
     private readonly betConfig: BetConfiguration,
-    private readonly actions: SlotsTestActionRegistry<TSM> = createDefaultActions<TSM>(),
-    private readonly scenarios: SlotsTestScenarioRegistry<TSM> = {},
-    private readonly probes: SlotsTestProbeRegistry<TSM> = {},
-  ) {}
+    actions?: SlotsTestActionRegistry<TSM>,
+    scenarios?: SlotsTestScenarioRegistry<TSM>,
+    probes?: SlotsTestProbeRegistry<TSM>,
+    private readonly constructorArgs: ReadonlyArray<MachineConstructorArg> = [],
+  ) {
+    this.actions = actions ?? createDefaultActions<TSM>()
+    this.scenarios = scenarios ?? {}
+    this.probes = probes ?? {}
+  }
+
+  private readonly actions: SlotsTestActionRegistry<TSM>
+  private readonly scenarios: SlotsTestScenarioRegistry<TSM>
+  private readonly probes: SlotsTestProbeRegistry<TSM>
 
   registerAction<
     TName extends string,
@@ -572,6 +586,7 @@ export class SlotsTestEngineBuilder<
       { ...this.actions, [name]: handler } as SlotsTestActionRegistry<TSM>,
       this.scenarios,
       this.probes,
+      this.constructorArgs,
     ) as SlotsTestEngineBuilder<
       TSM,
       TActions & Record<TName, SlotsTestActionHandler<TSM, TArgs, TReturn>>,
@@ -599,6 +614,7 @@ export class SlotsTestEngineBuilder<
       this.actions,
       { ...this.scenarios, [name]: handler } as SlotsTestScenarioRegistry<TSM>,
       this.probes,
+      this.constructorArgs,
     ) as SlotsTestEngineBuilder<
       TSM,
       TActions,
@@ -626,6 +642,7 @@ export class SlotsTestEngineBuilder<
       this.actions,
       this.scenarios,
       { ...this.probes, [name]: handler } as SlotsTestProbeRegistry<TSM>,
+      this.constructorArgs,
     ) as SlotsTestEngineBuilder<
       TSM,
       TActions,
@@ -641,6 +658,7 @@ export class SlotsTestEngineBuilder<
       this.actions,
       this.scenarios,
       this.probes,
+      this.constructorArgs,
     )
   }
 }
@@ -648,6 +666,14 @@ export class SlotsTestEngineBuilder<
 export function createSlotsTestEngine<TSM extends AnySlotsStateMachine>(
   MachineClass: new (initialState?: TSM['state']) => TSM,
   betConfig: BetConfiguration,
+  constructorArgs: ReadonlyArray<MachineConstructorArg> = [],
 ): SlotsTestEngineBuilder<TSM> {
-  return new SlotsTestEngineBuilder(MachineClass, betConfig)
+  return new SlotsTestEngineBuilder(
+    MachineClass,
+    betConfig,
+    undefined,
+    undefined,
+    undefined,
+    constructorArgs,
+  )
 }

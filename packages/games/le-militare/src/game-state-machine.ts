@@ -21,6 +21,7 @@ import {
   CHANCE_SPIN_SAMPLER,
   AIR_RAID_SPIN_SAMPLER,
 } from './logic.js'
+import { freeSpinsAwarded } from './helpers.js'
 import type { LeMilitareSpinResult } from './types.js'
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -269,7 +270,7 @@ export class LeMilitareStateMachine implements StateMachine<LeMilitareResult, Le
 
     // The purchased tier fixes the spin count (cascade-accumulated scatters on
     // the forced entry must not inflate it beyond what was paid for).
-    const awardedSpins = FREE_SPIN_AWARDS[tier.minScatters] ?? result.freeSpinsAwarded
+    const awardedSpins = freeSpinsAwarded(tier.minScatters)
 
     this._state.freeSpins = {
       triggeringWager: wager,

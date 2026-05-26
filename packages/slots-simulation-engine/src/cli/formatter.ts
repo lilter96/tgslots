@@ -14,6 +14,7 @@ export interface SimulationJsonReport {
   schemaVersion: 2
   meta: {
     game: string
+    gameMode?: string
     wallMs: number
     throughputMps: number
     usPerSpin: number
@@ -82,6 +83,7 @@ export function formatJson(
   parsheet: ParsheetConfig,
   gameName: string,
   wallMs: number,
+  gameMode?: string,
 ): SimulationJsonReport {
   const normalizedReference = normalizeParsheetConfig(parsheet)
   const spins = metrics.summary.rounds
@@ -90,6 +92,7 @@ export function formatJson(
     schemaVersion: 2,
     meta: {
       game: gameName,
+      gameMode,
       wallMs,
       throughputMps: wallMs > 0 ? spins / 1000 / (wallMs / 1000) : 0,
       usPerSpin: spins > 0 ? (wallMs * 1000) / spins : 0,
@@ -106,14 +109,18 @@ export function formatPretty(
   parsheet: ParsheetConfig,
   gameName: string,
   wallMs: number,
-  opts: { workers: number },
+  opts: { workers: number; gameMode?: string },
 ): void {
   const comparisons = evaluateComparisons(metrics, parsheet)
   const throughput = wallMs > 0 ? metrics.summary.rounds / 1000 / (wallMs / 1000) : 0
   const usPerSpin = metrics.summary.rounds > 0 ? (wallMs * 1000) / metrics.summary.rounds : 0
 
+  const header = opts.gameMode
+    ? `${gameName.toUpperCase()} (${opts.gameMode})`
+    : gameName.toUpperCase()
+
   console.log('═'.repeat(72))
-  console.log(`  SIMULATION REPORT: ${gameName.toUpperCase()}`)
+  console.log(`  SIMULATION REPORT: ${header}`)
   console.log('═'.repeat(72))
   console.log(`  Rounds:           ${metrics.summary.rounds.toLocaleString()}`)
   console.log(`  Avg Bet:          ${metrics.summary.averageBet.toLocaleString()}`)

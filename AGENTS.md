@@ -1,37 +1,90 @@
-# Repository Guidelines
+# AGENTS.md — TGSlots Developer Guide
 
-## Project Structure & Module Organization
-`tgslots` is a Bun-based TypeScript monorepo. Shared logic lives in `packages/`: `math`, `slots-core`, and `slots-simulation-engine`. Game packages live in `packages/games/ancient-dragon` and `packages/games/woodland-whisper`. CLI entrypoints and workers live in `apps/simulations`. Long-term project context lives in `memory/`.
+## Project
 
-## Memory-First Workflow
-Before reading source for any non-trivial task, load `memory/index.md` and `memory/active_context.md`, then only the relevant component, rules, dependency, architecture, or decision docs. For larger changes, create or update a task file in `memory/tasks/`, keep `memory/active_context.md` current, and record completed work in `memory/progress.md`.
+Bun-based TypeScript monorepo for multi-game slot machine platform (API + PixiJS client + React marketing site + Monte Carlo simulation engine).
 
-## Memory Update Rules
-Treat memory as architectural truth and keep it synchronized with code. Update every affected memory file in the same change:
+## Essential Commands
 
-- `memory/tasks/*.md`: create or advance the task record, then add a summary at completion.
-- `memory/active_context.md` and `memory/progress.md`: keep current task state and completion history accurate.
-- `memory/components/*.md`: update any module whose responsibility, API, or behavior changed.
-- `memory/architecture.md`, `memory/dependencies.md`, `memory/decisions/*.md`: update when structure, package relationships, or decisions change.
-- `memory/coding_rules.md` and `memory/testing_strategy.md`: update when conventions, validation, or test policy changes.
+```bash
+bun run setup          # bun install && bun run build
+bun run validate       # typecheck → lint → test (run this before committing)
+bun run build          # build all workspaces
+bun run typecheck      # tsc --noEmit across all workspaces
+bun run eslint:lint    # lint (also runs on pre-commit via husky)
+bun run eslint:fix     # lint + auto-fix
+bun test               # run all tests (Bun's built-in runner)
 
-## Obsidian Vault Conventions
-`memory/` is an Obsidian vault, not plain Markdown notes. Preserve each note's YAML frontmatter, including `title`, `type`, `tags`, `aliases`, and `up`, plus note-specific fields such as `status`, `task_id`, `component`, `decision_id`, or `current_task`. Prefer `[[wikilinks]]` over plain file paths, keep note titles stable so backlinks and aliases stay intact, and update hub notes when adding or renaming memory files.
+# Filter a single workspace:
+bun --filter @tgslots/slots-core test
+bun --filter @tgslots/le-militare test
 
-## Build, Test, and Development Commands
-- `bun install`: install workspace dependencies.
-- `bun run build`: runs each workspace `build` script and validates TypeScript compilation.
-- `bun run typecheck`: checks the root TS graph with `tsc --noEmit`.
-- `bun run lint`: runs ESLint across the repo.
-- `bun test`: runs Bun tests across packages with test files.
-- `bun --filter @tgslots/math test`: run tests for a single workspace.
-- `bun --filter @tgslots/simulations run sim -- --game ancient-dragon`: run a simulation from the shared CLI.
+# Dev servers:
+bun run dev:api        # API on :3001
+bun run dev:client     # PixiJS client on :3002
+bun run dev:marketing  # Marketing on :3004
+bun run dev:all        # all three concurrently
 
-## Coding Style & Naming Conventions
-Use strict TypeScript. Prettier enforces 2-space indentation, single quotes, trailing commas, no semicolons, and `printWidth: 100`. Keep filenames lowercase and descriptive, for example `game-state-machine.ts`. Avoid `any`; prefix intentionally unused parameters with `_`. Follow `memory/coding_rules.md`: game randomness must flow through `Sampler<T>` abstractions, not ad hoc `rng` plumbing.
+# Simulations:
+cd apps/simulations
+bun run main.ts --game le-militare --spins 1000000              # full sim
+bun run main.ts --game le-militare --mode sample                # 10 sample spins
+bun run main.ts --game le-militare --spins 1000 --visualize     # HTML report
+```
 
-## Testing Guidelines
-Tests use Bun’s built-in runner via `bun:test`. Existing tests live in `packages/*/src/__tests__/` and use the `*.test.ts` suffix. Add deterministic tests alongside the package you change, especially for math, betting, evaluation, and state-machine logic. Prefer fixed RNG seeds. When slot math changes, include a targeted simulation or verification run. Target 80%+ coverage, with especially strong coverage on deterministic core logic.
+## Monorepo Layout
 
-## Commit & Pull Request Guidelines
-Recent history follows Conventional Commit style such as `fix(games): ...` and `refactor(betting): ...`. Keep the type lowercase and use a focused scope when possible. Pull requests should summarize the change, list affected packages and memory files, link the relevant issue or task, and include `lint`, `typecheck`, test, or simulation results. UI screenshots are generally unnecessary for this repository.
+```
+apps/api/           → @tgslots/api         (Elysia HTTP server)
+apps/web-client/    → @tgslots/web-client  (PixiJS 8 browser client)
+apps/marketing/     → @tgslots/marketing   (React 18 + Vite + Tailwind)
+apps/simulations/   → @tgslots/simulations (CLI for Monte Carlo sims)
+packages/math/      → @tgslots/math        (RNG, Sampler<T>, Either)
+packages/slots-core/ → @tgslots/slots-core (paylines, clusters, cascades, betting)
+packages/slots-simulation-engine/ → (StateMachine, metrics, test harness, parallel runner)
+packages/shared-contracts/ → (type registries, manifests, serialized states)
+packages/games/ancient-dragon/   → payline slot (5×3, 25 lines)
+packages/games/woodland-whisper/ → payline slot (5×3, 25 lines) + pick bonus
+packages/games/le-militare/      → cluster pays (6×6) + combat cascade
+```
+
+Dependency chain: `math` (foundation) → `slots-core` → `slots-simulation-engine` → game packages. API, web-client, and simulations depend on game packages.
+
+## RNG Discipline (Non-Negotiable)
+
+- **Never** pass `rng: Rng` as a parameter to game logic functions.
+- All randomness must be module-level `Sampler<T>` constants.
+- Only `StateMachine.spin(rng)` and `.next(rng)` consume the raw RNG.
+- Breaking this breaks simulation reproducibility.
+
+## Test Rules
+
+- **All slot gameplay/state-machine tests must use `SlotsTestEngine`** from `@tgslots/slots-simulation-engine/testing/slots-test-engine`.
+- No direct `mt19937()` imports in game tests — use `engine.rng(seed)`.
+- No direct `new Wager()` — use `engine.wager(betLevel)`.
+- No direct `new StateMachine()` — use `engine.createMachine()`.
+- Low-level math/sampler unit tests may stay direct (not gameplay tests).
+
+## Prettier / Lint
+
+```yaml
+semi: false, singleQuote: true, trailingComma: "all", printWidth: 100
+```
+ESLint flat config enforces: `@typescript-eslint/no-explicit-any` (error), no `unknown`/`never` types, `_` prefix for unused args. Pre-commit: lint-staged runs `bun run eslint:fix` on staged `*.{js,ts,jsx,tsx}`.
+
+## Key Conventions
+
+- **Integer wagers**: `Wager` validates `totalLineWager + totalSideBet === totalWager` at construction. All paytable entries and awards are whole numbers.
+- **State serialization**: `Wager` is a class — game modules must hydrate/dehydrate. Serialize `triggeringMultiplier` (number), not the `Wager` instance.
+- **Metrics**: `rtp(name, amount)` is wager-normalized; `payout(name, amount)` is aggregate. Use canonical metric names.
+- **Module system**: `verbatimModuleSyntax: true`, `moduleResolution: "bundler"`, `allowImportingTsExtensions: true`. No runtime emit — all `build` scripts are `tsc --noEmit` (except web-client and marketing which use Vite).
+- **No database**: API sessions are `InMemorySessionManager` (ephemeral `Map`). Game config lives in `config/*.json` files.
+- **Type registry**: `GameRegistry` in `shared-contracts` is extended per-game via TypeScript declaration merging.
+
+## Important Constraints
+
+- Never edit `.env` files or `bun.lock` directly (pre-commit tooling blocks this).
+- `@typescript-eslint/no-explicit-any` is an error — use specific types.
+- `unknown` and `never` types are banned by lint (use `void` for absent sides of Either/Result).
+- Web-client tests may need `happy-dom` (configured as devDependency in root).
+- For additional context, see `memory/` (ADRs, testing strategy) and `codebase-analysis-docs/CODEBASE_KNOWLEDGE.md`.

@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@modelcontextprotocol/server-github": "^2025.4.8",
     "@types/bun": "latest",
     "bun-types": "latest",
     "concurrently": "^9.1.2",

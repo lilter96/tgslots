@@ -281,24 +281,6 @@
       "7": 21
     }
   },
-  "multiplier_pool": {
-    "values": [
-      1,
-      2,
-      3,
-      5,
-      10,
-      25
-    ],
-    "weights": [
-      620,
-      252,
-      82,
-      27,
-      16,
-      5
-    ]
-  },
   "disallow_mixed_wild_clusters": true,
   "buy_bonus_cost_multiplier": 184,
   "reel_strips_base": {
@@ -2229,26 +2211,6 @@
       "RIFLE",
       "MEDAL",
       "MEDAL"
-    ]
-  },
-  "air_raid": {
-    "trigger_weights": [
-      7,
-      93
-    ],
-    "squadron_sizes": [
-      1,
-      2,
-      3
-    ],
-    "squadron_weights": [
-      50,
-      35,
-      15
-    ],
-    "hit_weights": [
-      6,
-      4
     ]
   },
   "buy_options": {

@@ -20,7 +20,16 @@ export class ProjectedGrid implements EvalGrid {
     private readonly positions: readonly number[],
     public readonly rowCount: number,
     public readonly reelCount: number = 5,
-  ) {}
+  ) {
+    if (strips.length < reelCount) {
+      throw new Error(`ProjectedGrid: expected at least ${reelCount} strips, got ${strips.length}`)
+    }
+    if (positions.length < reelCount) {
+      throw new Error(
+        `ProjectedGrid: expected at least ${reelCount} positions, got ${positions.length}`,
+      )
+    }
+  }
 
   getSymbol(reel: number, row: number): SymbolId {
     const strip = this.strips[reel]

@@ -2,7 +2,7 @@
   "metadata": {
     "bet": 1,
     "source": "parsheet",
-    "notes": "6x5 cluster pays (min 6), cascade/tumble, high volatility, integer payouts only. Base game stages the Air Raid (S300 intercepts a plane squadron; hits drop multiplier-WILDs, per-spin). Free spins are the persistent Combat Operation (armed reels + multiplier accumulate across the session). Free spins via SCATTER (>=4 triggers). Round win capped at 15000x stake."
+    "notes": "6x5 cluster pays (min 6), cascade/tumble, high volatility, integer payouts only. Base game stages the Air Raid (S300 intercepts a plane squadron; hits drop multiplier-WILDs, per-spin). Free spins are the persistent Combat Operation (armed reels + multiplier accumulate across the session). Free spins via SCATTER (>=4 triggers). Round win capped at 15000x stake. Per-mode comparisons use the same expected values — all modes target the same RTP."
   },
   "comparisons": [
     {
@@ -11,6 +11,30 @@
       "expected": 0.984,
       "source": { "kind": "summary", "key": "rtp" },
       "tolerance": { "type": "absolute", "value": 0.015 },
+      "format": "percent"
+    },
+    {
+      "id": "total-rtp-recon",
+      "label": "Total RTP (recon)",
+      "expected": 0.984,
+      "source": { "kind": "summary", "key": "rtp" },
+      "tolerance": { "type": "absolute", "value": 0.02 },
+      "format": "percent"
+    },
+    {
+      "id": "total-rtp-assault",
+      "label": "Total RTP (assault)",
+      "expected": 0.984,
+      "source": { "kind": "summary", "key": "rtp" },
+      "tolerance": { "type": "absolute", "value": 0.015 },
+      "format": "percent"
+    },
+    {
+      "id": "total-rtp-siege",
+      "label": "Total RTP (siege)",
+      "expected": 0.984,
+      "source": { "kind": "summary", "key": "rtp" },
+      "tolerance": { "type": "absolute", "value": 0.025 },
       "format": "percent"
     },
     {

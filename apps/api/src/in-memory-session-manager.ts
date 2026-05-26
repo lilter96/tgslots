@@ -8,7 +8,10 @@ export class InMemorySessionManager implements ISessionManager {
 
   create(gameId: GameId, initialState: GameState<GameId>): string {
     this.purgeExpired()
-    const id = crypto.randomUUID()
+    let id: string
+    do {
+      id = crypto.randomUUID()
+    } while (this.store.has(id))
     this.store.set(id, { gameId, state: initialState, lastAccessedAt: Date.now() })
     return id
   }

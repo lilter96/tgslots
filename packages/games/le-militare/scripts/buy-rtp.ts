@@ -8,7 +8,8 @@
 import { mt19937 } from '@tgslots/math'
 import { Wager } from '@tgslots/slots-core/betting'
 import { LeMilitareStateMachine, BET_CONFIG } from '../src/index.js'
-import { BUY_OPTIONS } from '../src/constants.js'
+import { BUY_OPTIONS, MODE_IDS, DEFAULT_MODE } from '../src/constants.js'
+import type { ModeId } from '../src/constants.js'
 
 const ROUNDS = 60_000
 const SEED = 20240524
@@ -16,10 +17,11 @@ const SEED = 20240524
 function rtpOf(
   open: (sm: LeMilitareStateMachine, rng: ReturnType<typeof mt19937>) => number,
   cost: number,
+  mode: ModeId = DEFAULT_MODE,
 ): number {
   const rng = mt19937(SEED)
   const wager = new Wager(1, BET_CONFIG)
-  const sm = new LeMilitareStateMachine()
+  const sm = new LeMilitareStateMachine(undefined, mode)
   let totalWin = 0
   for (let i = 0; i < ROUNDS; i++) {
     totalWin += open(sm, rng)
@@ -61,10 +63,12 @@ const cases: {
   },
 ]
 
-console.log(`Buy-RTP over ${ROUNDS.toLocaleString()} rounds (seed ${SEED}):`)
-for (const c of cases) {
-  const rtp = rtpOf(c.open, c.cost)
-  console.log(
-    `  ${c.label.padEnd(14)} cost=${String(c.cost).padStart(4)}  rtp=${(rtp * 100).toFixed(2)}%`,
-  )
+for (const mode of MODE_IDS) {
+  console.log(`\nBuy-RTP (${mode}) over ${ROUNDS.toLocaleString()} rounds (seed ${SEED}):`)
+  for (const c of cases) {
+    const rtp = rtpOf(c.open, c.cost, mode)
+    console.log(
+      `  ${c.label.padEnd(14)} cost=${String(c.cost).padStart(4)}  rtp=${(rtp * 100).toFixed(2)}%`,
+    )
+  }
 }

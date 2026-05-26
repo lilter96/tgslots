@@ -489,43 +489,49 @@ describe('Free spins — state transitions', () => {
   })
 })
 
-// ─── POST /spin resets in-progress state ─────────────────────────────────────
+// ─── Feature guard: spin/buybonus reject during active features ────────────────
 
-describe('POST /spin — resets in-progress state', () => {
-  it('new spin discards active freeSpins', async () => {
+describe('POST /spin — rejects during active features', () => {
+  it('rejects spin when freeSpins are active', async () => {
     const id = createTestSession({
       freeSpins: makeFreeSpinState({ totalWin: 9999, spinsRemaining: 10 }),
     })
 
-    const { body } = await post('/woodlandwhisper/spin', { sessionId: id, multiplier: 1 })
-    expect(body.result.type).toBe('BASE')
-    if (!body.result.triggeredPickBonus) {
-      expect(body.state.freeSpins).toBeNull()
-    }
-    if (body.state.freeSpins) {
-      expect(body.state.freeSpins!.totalWin).not.toBe(9999)
-    }
+    const { status, body } = await post('/woodlandwhisper/spin', { sessionId: id, multiplier: 1 })
+    expect(status).toBe(400)
+    expect(body.error).toInclude('free spins')
   })
 
-  it('new spin discards active pickBonus', async () => {
+  it('rejects spin when pickBonus is active', async () => {
     const id = createTestSession({ pickBonus: makePickBonusState() })
 
-    const { body } = await post('/woodlandwhisper/spin', { sessionId: id, multiplier: 1 })
-    expect(body.result.type).toBe('BASE')
-    if (!body.result.triggeredPickBonus) {
-      expect(body.state.pickBonus).toBeNull()
-    }
+    const { status, body } = await post('/woodlandwhisper/spin', { sessionId: id, multiplier: 1 })
+    expect(status).toBe(400)
+    expect(body.error).toInclude('pick bonus')
   })
 
-  it('result state after spin reflects a fresh round (no stale totalWin)', async () => {
+  it('rejects buybonus when freeSpins are active', async () => {
     const id = createTestSession({
-      freeSpins: makeFreeSpinState({ totalWin: 99999, spinsRemaining: 10 }),
-      pickBonus: makePickBonusState(),
+      freeSpins: makeFreeSpinState({ spinsRemaining: 5 }),
     })
 
-    const { body } = await post('/woodlandwhisper/spin', { sessionId: id, multiplier: 1 })
-    expect(body.result.state.totalFreeSpinWin).toBe(0)
-    expect(body.result.state.freeSpinsLeft).toBe(0)
+    const { status, body } = await post('/woodlandwhisper/buybonus', {
+      sessionId: id,
+      multiplier: 1,
+    })
+    expect(status).toBe(400)
+    expect(body.error).toInclude('free spins')
+  })
+
+  it('rejects buybonus when pickBonus is active', async () => {
+    const id = createTestSession({ pickBonus: makePickBonusState() })
+
+    const { status, body } = await post('/woodlandwhisper/buybonus', {
+      sessionId: id,
+      multiplier: 1,
+    })
+    expect(status).toBe(400)
+    expect(body.error).toInclude('pick bonus')
   })
 })
 

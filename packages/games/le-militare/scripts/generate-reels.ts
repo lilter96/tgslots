@@ -298,6 +298,10 @@ function main(): void {
   // not select a mode.
   config.multiplier_pool = config.modes.assault.multiplier_pool
   config.air_raid = config.modes.assault.air_raid
+  // Top-level keys mirror the default (assault) mode for any reader that does
+  // not select a mode.
+  config.multiplier_pool = config.modes.assault.multiplier_pool
+  config.air_raid = config.modes.assault.air_raid
   config.scatter_definition.free_spins_awarded = SPEC.freeSpinsAwarded
   const tier = (t: BuyTier) => ({
     cost: t.cost,

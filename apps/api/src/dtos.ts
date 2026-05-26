@@ -134,6 +134,7 @@ export const LMFreeSpinStateSchema = t.Object({
 export const LeMilitareStateSchema = t.Object({
   lastGrid: t.Nullable(GridSchema),
   freeSpins: t.Nullable(LMFreeSpinStateSchema),
+  mode: t.Optional(t.Union([t.Literal('recon'), t.Literal('assault'), t.Literal('siege')])),
 })
 
 export const LeMilitareSpinResponseSchema = t.Object({

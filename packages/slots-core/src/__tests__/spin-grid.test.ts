@@ -47,6 +47,16 @@ describe('ProjectedGrid', () => {
     const grid = new ProjectedGrid(fiveStrips, [0, 0, 0, 0, 0], 1)
     expect(grid.reelCount).toBe(5)
   })
+
+  it('throws when strips length does not match reelCount', () => {
+    const strips = [new Uint8Array([1, 2, 3])]
+    expect(() => new ProjectedGrid(strips, [0], 1, 5)).toThrow(/strips/)
+  })
+
+  it('throws when positions length does not match reelCount', () => {
+    const strips = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]), new Uint8Array([7, 8, 9])]
+    expect(() => new ProjectedGrid(strips, [0], 1, 3)).toThrow(/positions/)
+  })
 })
 
 describe('createGrid', () => {

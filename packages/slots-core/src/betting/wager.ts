@@ -1,5 +1,8 @@
 import { BetConfiguration, MultiFrameBetConfiguration } from './config.js'
 
+/** Maximum allowed bet multiplier to prevent integer overflow in credit calculations. */
+export const MAX_MULTIPLIER = 10_000
+
 /**
  * A breakdown of a wager into component credits used by game math.
  * Immutable and optimized for hot-path access.
@@ -23,6 +26,9 @@ export class Wager {
   ) {
     if (!Number.isInteger(multiplier) || multiplier <= 0) {
       throw new Error(`multiplier must be a positive integer: ${multiplier}`)
+    }
+    if (multiplier > MAX_MULTIPLIER) {
+      throw new Error(`multiplier ${multiplier} exceeds maximum ${MAX_MULTIPLIER}`)
     }
 
     this.creditsPerLine = config.costPerLine * multiplier

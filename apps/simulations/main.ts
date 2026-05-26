@@ -51,7 +51,7 @@ interface GameModule {
     name: string
     parsheet: ParsheetConfig
     betConfig: BetConfiguration
-    StateMachine: new () => StateMachine<SpinResult>
+    StateMachine: new (..._args: (string | undefined)[]) => StateMachine<SpinResult>
   }
 }
 
@@ -125,7 +125,9 @@ async function main() {
     // ── Sample mode ─────────────────────────────────────────────────────────
     const rng = mt19937(opts.seed)
     if (!opts.json) console.log('\n  Sample spins:')
-    const sm = new SIM_CONFIG.StateMachine()
+    const sm = opts.gameMode
+      ? new SIM_CONFIG.StateMachine(undefined, opts.gameMode)
+      : new SIM_CONFIG.StateMachine()
     const wager = new Wager(opts.betMultiplier, SIM_CONFIG.betConfig)
 
     const scattersOf = (spin: SpinResult) => ('sc' in spin ? (spin as { sc: number }).sc : 0)

@@ -57,13 +57,18 @@ export interface WorkerPayload {
     costPerLine: number
     sideBetBase: number
   }
+  gameConfig?: Record<string, string>
 }
 
 // ─── Runner ───────────────────────────────────────────────────────────────
 
 export async function runSimulation(
   workerPath: URL,
-  config: SimRunnerConfig & { betMultiplier?: number; betConfig?: BetConfiguration },
+  config: SimRunnerConfig & {
+    betMultiplier?: number
+    betConfig?: BetConfiguration
+    gameConfig?: Record<string, string>
+  },
   progressCallback?: (snapshot: SimulationMetrics, elapsedSec: number) => void,
 ): Promise<SimRunnerResult> {
   const numWorkers = config.workers === 0 ? cpus().length : config.workers
@@ -119,6 +124,7 @@ export async function runSimulation(
         snapshotBatchSize: batchSize,
         betMultiplier,
         betConfig: betConfig.toJSON(),
+        gameConfig: config.gameConfig,
       }
       const worker = new Worker(workerPath, { workerData: payload })
       workers.push(worker)

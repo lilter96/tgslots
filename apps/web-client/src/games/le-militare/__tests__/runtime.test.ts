@@ -5,7 +5,7 @@ import type { LeMilitareSerializedState } from '@tgslots/shared-contracts/states
 import '../events.js'
 
 function makeBaseState(): LeMilitareSerializedState {
-  return { lastGrid: null, freeSpins: null }
+  return { lastGrid: null, freeSpins: null, roundWin: 0 }
 }
 
 function makeFreeSpinsState(): LeMilitareSerializedState {
@@ -18,6 +18,7 @@ function makeFreeSpinsState(): LeMilitareSerializedState {
       totalWin: 0,
       armedReels: [],
     },
+    roundWin: 0,
   }
 }
 

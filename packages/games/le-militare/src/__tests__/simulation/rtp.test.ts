@@ -41,7 +41,7 @@ describe('le-militare RTP simulation', () => {
         expect(Number.isInteger(payout)).toBe(true)
       }
     }
-    for (const value of config.multiplier_pool.values) {
+    for (const value of config.modes.assault.multiplier_pool.values) {
       expect(Number.isInteger(value)).toBe(true)
     }
     for (const spins of Object.values(config.scatter_definition.free_spins_awarded)) {

@@ -157,17 +157,26 @@ export const WOODLAND_WHISPER_SAMPLER = (
   isFreeSpin: boolean = false,
 ): Sampler<SpinEvaluationResult> => createSpinSampler(wager, isFreeSpin)
 
-function createBuyBonusSampler(wager: Wager): Sampler<SpinEvaluationResult> {
+export function createBuyBonusSampler(
+  wager: Wager,
+  maxAttempts = 500,
+): Sampler<SpinEvaluationResult> {
+  if (maxAttempts <= 0) {
+    throw new Error(`Buy bonus sampler exceeded 500 attempts without triggering`)
+  }
   return WOODLAND_WHISPER_SAMPLER(wager, false).flatMap((result) => {
     if (result.sc >= 3) return Sampler.pure(result)
-    return createBuyBonusSampler(wager)
+    return createBuyBonusSampler(wager, maxAttempts - 1)
   })
 }
 
 export const BUY_BONUS_SAMPLER = (wager: Wager): Sampler<SpinEvaluationResult> =>
   createBuyBonusSampler(wager)
 
-function createInitialGridSampler(): Sampler<SpinEvaluationResult> {
+function createInitialGridSampler(maxAttempts = 200): Sampler<SpinEvaluationResult> {
+  if (maxAttempts <= 0) {
+    throw new Error(`Initial grid sampler exceeded 200 attempts without finding a non-winning grid`)
+  }
   const defaultWager = new Wager(1, BET_CONFIG)
   const baseSampler = innerSampler.flatMap((repSym) => {
     const repIdx = INNER_IDX.get(repSym as number)!
@@ -180,7 +189,7 @@ function createInitialGridSampler(): Sampler<SpinEvaluationResult> {
     if (result.win === 0 && result.sc < 2) {
       return Sampler.pure({ ...result, pickedBonus: 0 })
     }
-    return createInitialGridSampler()
+    return createInitialGridSampler(maxAttempts - 1)
   })
 }
 

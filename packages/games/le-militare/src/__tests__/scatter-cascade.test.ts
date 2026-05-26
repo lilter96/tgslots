@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'bun:test'
-import { SCATTER_ID, ROW_COUNT, MIN_SCATTERS, FREE_SPIN_AWARDS } from '../constants.js'
+import {
+  SCATTER_ID,
+  ROW_COUNT,
+  MIN_SCATTERS,
+  FREE_SPIN_AWARDS,
+  MAX_CASCADE_STEPS,
+} from '../constants.js'
 import { leMilitareTestEngine as engine } from './test-engine.js'
 
 // scatterCount accumulates across cascade refills, not just the initial grid.
@@ -66,6 +72,30 @@ describe('scatter accumulation across cascade refills', () => {
       if (!result.triggeredFreeSpins) continue
       const expected = FREE_SPIN_AWARDS[result.scatterCount] ?? FREE_SPIN_AWARDS[7]!
       expect(result.freeSpinsAwarded).toBe(expected)
+    }
+  })
+})
+
+describe('cascade loop depth', () => {
+  it('completes at max cascade depth without stack overflow', () => {
+    // The cascade loop can run up to MAX_CASCADE_STEPS iterations.
+    // Each step must not build recursive sampler chains that risk
+    // stack overflow. This test runs many spins and verifies the
+    // cascade loop never exceeds its step limit and never crashes.
+    for (let seed = 0; seed < 10_000; seed++) {
+      const session = engine.session({ seed })
+      session.act('spin')
+      const result = session.sm.state.lastSpinResult!
+      // Steps must never exceed the hard cap
+      expect(result.steps.length).toBeLessThanOrEqual(MAX_CASCADE_STEPS)
+      // Verify step invariants
+      for (const step of result.steps) {
+        expect(step.preCombatGrid).toBeDefined()
+        expect(step.postCombatGrid).toBeDefined()
+        expect(Array.isArray(step.hits)).toBe(true)
+        expect(Array.isArray(step.vanishedPositions)).toBe(true)
+        expect(typeof step.stepWin).toBe('number')
+      }
     }
   })
 })

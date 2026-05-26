@@ -48,7 +48,6 @@ export class GameServer {
       request.payload as ActionPayload<G, A>,
     )
     if (error) {
-      this.sessions.save(sessionId, request.gameId, state)
       return { ok: false, status: 400, error }
     }
 

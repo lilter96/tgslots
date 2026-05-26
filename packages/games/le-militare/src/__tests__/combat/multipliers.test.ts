@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { ROW_COUNT } from '../../constants.js'
-import { multiplierSampler } from '../../logic.js'
+import { ROW_COUNT, DEFAULT_MODE } from '../../constants.js'
+import { MODE_SAMPLERS } from '../../combat.js'
 import { leMilitareTestEngine as engine } from '../test-engine.js'
+
+const multiplierSampler = MODE_SAMPLERS[DEFAULT_MODE].multiplierSampler
 
 describe('multiplier sampler', () => {
   it('returns values from the multiplier pool', () => {

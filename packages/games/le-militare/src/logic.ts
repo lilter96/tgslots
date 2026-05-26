@@ -21,7 +21,6 @@ import { combatCascadeLoopSampler, MODE_SAMPLERS } from './combat.js'
 import type { AirRaidResult } from './combat.js'
 
 export { makeStripChunkSampler } from './grid-samplers.js'
-export { multiplierSampler } from './combat.js'
 
 const NO_AIR_RAID: AirRaidResult = { placements: [], multiplierSum: 0 }
 
@@ -34,6 +33,9 @@ interface SpinOptions {
 
 // Deterministic scatter placement that guarantees a trigger count for buys.
 function injectScatters(grid: MutableCascadeGrid, count: number): void {
+  if (count > REEL_COUNT * ROW_COUNT) {
+    throw new Error(`injectScatters: count=${count} exceeds grid area ${REEL_COUNT * ROW_COUNT}`)
+  }
   for (let i = 0; i < count; i++) {
     const reel = i % REEL_COUNT
     const row = Math.floor(i / REEL_COUNT)

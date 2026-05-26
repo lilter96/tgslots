@@ -116,6 +116,7 @@ async function mountGame(gameId: string): Promise<void> {
     | SpinOrchestrator<'woodland-whisper'>
     | SpinOrchestrator<'ancient-dragon'>
     | SpinOrchestrator<'le-militare'>
+  let lmMode: LMModeId = LM_DEFAULT_MODE
   if (gameId === 'ancient-dragon') {
     const d = dispatcher as GameDispatcher<'ancient-dragon'>
     const adActions: OrchestratorActions<'ancient-dragon'> = {
@@ -133,7 +134,7 @@ async function mountGame(gameId: string): Promise<void> {
     )
   } else if (gameId === 'le-militare') {
     const d = dispatcher as GameDispatcher<'le-militare'>
-    let lmMode: LMModeId = LM_DEFAULT_MODE
+    lmMode = LM_DEFAULT_MODE
     const lmFeatureCost = (optionId: string, m: number): number => {
       const bet = new Wager(m, LM_BET_CONFIG).totalWager
       const cost =
@@ -216,6 +217,7 @@ async function mountGame(gameId: string): Promise<void> {
     orchestrator.resumeFreeSpins().catch(console.error)
   } else if (gameId === 'le-militare') {
     const initState = initResponse.state as LeMilitareSerializedState
+    if (initState.mode) lmMode = initState.mode as LMModeId
     runtime.applyState(initState as Parameters<typeof runtime.applyState>[0])
     if (initState.lastGrid && runtime.restoreGrid) {
       runtime.restoreGrid(initState.lastGrid)

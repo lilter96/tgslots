@@ -66,6 +66,12 @@ describe('Betting System', () => {
       expect(() => new BetConfiguration(30, 1.5, 1, 0)).toThrow()
     })
 
+    it('fromBaseCostAndLineCount rejects baseCost < lineCount', () => {
+      expect(() => BetConfiguration.fromBaseCostAndLineCount(15, 30)).toThrow(
+        /baseCost must be >= lineCount/,
+      )
+    })
+
     it('toJSON serializes all fields', () => {
       const config = BetConfiguration.fromLineCount(30)
       const json = config.toJSON()
@@ -93,6 +99,21 @@ describe('Betting System', () => {
     it('should throw on non-integer multiplier', () => {
       const config = BetConfiguration.fromLineCount(30)
       expect(() => new Wager(1.5, config)).toThrow()
+    })
+
+    it('should throw on zero multiplier', () => {
+      const config = BetConfiguration.fromLineCount(30)
+      expect(() => new Wager(0, config)).toThrow()
+    })
+
+    it('should throw on negative multiplier', () => {
+      const config = BetConfiguration.fromLineCount(30)
+      expect(() => new Wager(-1, config)).toThrow()
+    })
+
+    it('should throw on excessively large multiplier', () => {
+      const config = BetConfiguration.fromLineCount(30)
+      expect(() => new Wager(1_000_000, config)).toThrow()
     })
   })
 

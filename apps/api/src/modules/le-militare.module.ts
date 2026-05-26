@@ -1,6 +1,6 @@
 import type { Rng } from '@tgslots/math/rng/types'
 import { Wager } from '@tgslots/slots-core/betting'
-import { LeMilitareStateMachine, BET_CONFIG } from '@tgslots/le-militare'
+import { LeMilitareStateMachine, BET_CONFIG, DEFAULT_MODE } from '@tgslots/le-militare'
 import type {
   LeMilitareResult,
   LeMilitareState,
@@ -21,7 +21,7 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
   readonly gameId = 'le-militare' as const
 
   defaultState(_rng: Rng): LeMilitareSerializedState {
-    return { lastGrid: null, freeSpins: null }
+    return { lastGrid: null, freeSpins: null, roundWin: 0 }
   }
 
   validateAction(
@@ -46,6 +46,9 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
         }
         if (payload.mode !== undefined && !['recon', 'assault', 'siege'].includes(payload.mode)) {
           return 'mode must be one of: recon, assault, siege'
+        }
+        if (state.freeSpins && state.freeSpins.spinsRemaining > 0) {
+          return 'Complete free spins before starting a new round'
         }
         return null
       }
@@ -75,7 +78,7 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
     // A new round adopts the mode selected in the payload (defaults to the
     // session's current mode, then assault). Free spins keep the session mode.
     const roundStarter = action !== 'freespin'
-    const mode: LMMode = (roundStarter && payload.mode) || state.mode || 'assault'
+    const mode: LMMode = (roundStarter && payload.mode) || state.mode || DEFAULT_MODE
     const machine = this.hydrate({ ...state, mode })
 
     switch (action) {
@@ -123,7 +126,7 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
       lastGrid: s.lastGrid,
       freeSpins,
       lastSpinResult: null,
-      roundWin: 0,
+      roundWin: s.roundWin ?? 0,
     }
     return new LeMilitareStateMachine(runtimeState, s.mode ?? 'assault')
   }
@@ -141,6 +144,6 @@ export class LeMilitareModule implements IGameModule<'le-militare'> {
         }
       : null
 
-    return { lastGrid: s.lastGrid, freeSpins, mode: machine.mode }
+    return { lastGrid: s.lastGrid, freeSpins, mode: machine.mode, roundWin: s.roundWin }
   }
 }

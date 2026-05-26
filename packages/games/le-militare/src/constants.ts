@@ -77,7 +77,7 @@ export const MAX_WIN_MULTIPLIER: number = config.game_metadata.max_win_multiplie
 
 // ─── Multiplier Pool ───────────────────────────────────────────────────────
 // Default (assault) values — used by tests/UI; per-mode pools live in MODE_CONFIGS.
-export const MULTIPLIER_POOL = config.multiplier_pool.values as readonly number[]
+export const MULTIPLIER_POOL = config.modes.assault.multiplier_pool.values as readonly number[]
 
 // ─── Selectable volatility modes ────────────────────────────────────────────
 // Modes share strips + paytable and differ only in multiplier pool + Air Raid
@@ -125,6 +125,15 @@ export const MODE_CONFIGS: Record<ModeId, ModeConfig> = {
   recon: buildModeConfig(config.modes.recon),
   assault: buildModeConfig(config.modes.assault),
   siege: buildModeConfig(config.modes.siege),
+}
+
+// Validate at module load that all expected modes exist in config.
+for (const id of MODE_IDS) {
+  if (!config.modes[id]) {
+    throw new Error(
+      `Le Militare config.json is missing mode "${id}". Expected modes: ${MODE_IDS.join(', ')}.`,
+    )
+  }
 }
 
 // ─── Feature Buy menu ───────────────────────────────────────────────────────

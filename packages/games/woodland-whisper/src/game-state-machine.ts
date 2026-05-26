@@ -117,6 +117,8 @@ export class WoodlandWhisperStateMachine implements StateMachine<
   initInitialGrid(rng: Rng): void {
     const result = INITIAL_GRID_SAMPLER.sample(rng)
     this._state.lastGrid = result.grid
+    this._state.freeSpins = null
+    this._state.pickBonus = null
   }
 
   baseGameSpin(rng: Rng, wager: Wager): WoodlandWhisperBaseResult {

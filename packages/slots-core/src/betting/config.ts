@@ -78,6 +78,11 @@ export class BetConfiguration {
    * Note: baseCost MUST be >= lineCount.
    */
   static fromBaseCostAndLineCount(baseCost: number, lineCount: number): BetConfiguration {
+    if (baseCost < lineCount) {
+      throw new Error(
+        `baseCost must be >= lineCount, got baseCost=${baseCost}, lineCount=${lineCount}`,
+      )
+    }
     return new BetConfiguration(baseCost, lineCount, 1, baseCost - lineCount)
   }
 

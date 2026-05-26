@@ -1,11 +1,11 @@
 import { Array1 } from '@tgslots/math/functional/array1'
-import { Sampler, Distributions } from '@tgslots/math/probability'
+import { Sampler, SamplingPlan, Distributions } from '@tgslots/math/probability'
+import type { Rng } from '@tgslots/math/rng/types'
 import { collectVanishPositions, EMPTY_SYMBOL, evaluateClusters } from '@tgslots/slots-core'
 import type { MutableCascadeGrid } from '@tgslots/slots-core'
 import { engine } from './engine.js'
 import {
   MODE_CONFIGS,
-  DEFAULT_MODE,
   PLANE_ID,
   REEL_COUNT,
   ROW_COUNT,
@@ -95,9 +95,6 @@ export const MODE_SAMPLERS: Record<ModeId, ModeSamplers> = {
   assault: buildModeSamplers(MODE_CONFIGS.assault),
   siege: buildModeSamplers(MODE_CONFIGS.siege),
 }
-
-// Default multiplier sampler for callers that don't select a mode.
-export const multiplierSampler: Sampler<number> = MODE_SAMPLERS[DEFAULT_MODE].multiplierSampler
 
 // ─── Sticky Wild Helpers ──────────────────────────────────────────────────
 // stickyGrid[reel][row] === true means that cell holds a shootdown-converted
@@ -239,6 +236,15 @@ function refillGravitySampler(
 }
 
 // ─── Combat Cascade Loop ──────────────────────────────────────────────────
+// Iterative cascade loop inside a single Sampler — no recursive flatMap chains
+// that would grow the call stack proportionally to the number of cascade steps.
+
+interface CascadeLoopResult {
+  steps: CombatCascadeStep[]
+  finalArmedReels: Set<number>
+  finalMultSum: number
+  finalScatterCount: number
+}
 
 export function combatCascadeLoopSampler(
   grid: MutableCascadeGrid,
@@ -250,27 +256,23 @@ export function combatCascadeLoopSampler(
   accSteps: CombatCascadeStep[],
   remaining: number,
   multiplierSampler: Sampler<number>,
-): Sampler<{
-  steps: CombatCascadeStep[]
-  finalArmedReels: Set<number>
-  finalMultSum: number
-  finalScatterCount: number
-}> {
-  if (remaining <= 0) {
-    return Sampler.pure({
-      steps: accSteps,
-      finalArmedReels: armedReels,
-      finalMultSum: multSum,
-      finalScatterCount: accScatterCount,
-    })
-  }
+): Sampler<CascadeLoopResult> {
+  return new Sampler(SamplingPlan.pure({} as CascadeLoopResult), (rng: Rng) => {
+    let currentMultSum = multSum
+    let currentScatterCount = accScatterCount
 
-  const preCombatSnapshot = snapshotGrid(grid)
+    for (let stepRemaining = remaining; stepRemaining > 0; stepRemaining--) {
+      const preCombatSnapshot = snapshotGrid(grid)
 
-  return runCombatOperationSampler(grid, armedReels, stickyGrid, multiplierSampler).flatMap(
-    ({ activations, shootdowns, multiplierDelta }) => {
+      const { activations, shootdowns, multiplierDelta } = runCombatOperationSampler(
+        grid,
+        armedReels,
+        stickyGrid,
+        multiplierSampler,
+      ).sample(rng)
+
       const postCombatSnapshot = snapshotGrid(grid)
-      const newMultSum = multSum + multiplierDelta
+      const newMultSum = currentMultSum + multiplierDelta
 
       const evaluation = evaluateClusters(grid, engine)
 
@@ -285,18 +287,16 @@ export function combatCascadeLoopSampler(
           activations,
           shootdowns,
         })
-        return Sampler.pure({
+        return {
           steps: accSteps,
           finalArmedReels: armedReels,
           finalMultSum: newMultSum,
-          finalScatterCount: accScatterCount,
-        })
+          finalScatterCount: currentScatterCount,
+        }
       }
 
       const vanished = collectVanishPositions(evaluation.hits, grid, engine)
 
-      // FIX 1.3: exclude sticky-wild positions from the vanish set so they
-      // survive the cluster and remain on the grid.
       const filteredVanished = (vanished as number[]).filter((pos) => {
         const reel = Math.floor(pos / ROW_COUNT)
         const row = pos % ROW_COUNT
@@ -326,27 +326,24 @@ export function combatCascadeLoopSampler(
         shootdowns,
       })
 
-      return refillGravitySampler(grid, strips, emptiesPerReel).flatMap(() => {
-        // FIX 1.4: count scatters that landed in the newly refilled cells.
-        let newScatters = 0
-        for (let reel = 0; reel < REEL_COUNT; reel++) {
-          for (let row = 0; row < emptiesPerReel[reel]!; row++) {
-            if (grid.getSymbol(reel, row) === SCATTER_ID) newScatters++
-          }
-        }
+      refillGravitySampler(grid, strips, emptiesPerReel).sample(rng)
 
-        return combatCascadeLoopSampler(
-          grid,
-          strips,
-          armedReels,
-          stickyGrid,
-          newMultSum,
-          accScatterCount + newScatters,
-          accSteps,
-          remaining - 1,
-          multiplierSampler,
-        )
-      })
-    },
-  )
+      let newScatters = 0
+      for (let reel = 0; reel < REEL_COUNT; reel++) {
+        for (let row = 0; row < emptiesPerReel[reel]!; row++) {
+          if (grid.getSymbol(reel, row) === SCATTER_ID) newScatters++
+        }
+      }
+
+      currentScatterCount += newScatters
+      currentMultSum = newMultSum
+    }
+
+    return {
+      steps: accSteps,
+      finalArmedReels: armedReels,
+      finalMultSum: currentMultSum,
+      finalScatterCount: currentScatterCount,
+    }
+  })
 }

@@ -41,6 +41,12 @@ export class WoodlandWhisperModule implements IGameModule<'woodland-whisper'> {
         if (typeof payload.multiplier !== 'number' || payload.multiplier < 1) {
           return 'multiplier must be a positive integer'
         }
+        if (state.freeSpins && state.freeSpins.spinsRemaining > 0) {
+          return 'Complete free spins before starting a new round'
+        }
+        if (state.pickBonus) {
+          return 'Complete pick bonus before starting a new round'
+        }
         return null
       }
       case 'freespin': {

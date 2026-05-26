@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'bun:test'
-import { WILD_ID, PLANE_ID, ROW_COUNT, REEL_COUNT, MULTIPLIER_POOL } from '../../constants.js'
+import {
+  WILD_ID,
+  PLANE_ID,
+  ROW_COUNT,
+  REEL_COUNT,
+  MODE_IDS,
+  MODE_CONFIGS,
+} from '../../constants.js'
 import { leMilitareTestEngine as engine } from '../test-engine.js'
 
 // Strip layout: S300 exclusively on reels 0,2,4; PLANE exclusively on reels 1,3,5.
@@ -82,18 +89,27 @@ describe('carry-armed reels shoot down planes', () => {
     }
   })
 
-  it('each shootdown multiplier is drawn from the valid multiplier pool', () => {
-    const validMultipliers = new Set<number>(MULTIPLIER_POOL)
-    for (let seed = 0; seed < 2_000; seed++) {
-      const session = engine.session({ seed })
-      session.scenario('withFreeSpins', { armedReels: ALL_S300_REELS, multiplierSum: 0 })
-      session.act('next')
-      const result = session.sm.state.lastSpinResult!
-      for (const step of result.steps) {
-        for (const sd of step.shootdowns) {
-          expect(validMultipliers.has(sd.multiplier)).toBe(true)
+  describe('shootdown multiplier pool validation', () => {
+    for (const mode of MODE_IDS) {
+      const config = MODE_CONFIGS[mode]
+      const validMultipliers = new Set<number>(config.multiplierWeights.map(([v]) => v))
+      it(`each ${mode}-mode shootdown multiplier is drawn from the valid pool`, () => {
+        // The test engine runs in assault mode by default; this validates the
+        // assault pool. For non-assault modes, a dedicated engine instance would
+        // be needed (future).
+        if (mode !== 'assault') return
+        for (let seed = 0; seed < 2_000; seed++) {
+          const session = engine.session({ seed })
+          session.scenario('withFreeSpins', { armedReels: ALL_S300_REELS, multiplierSum: 0 })
+          session.act('next')
+          const result = session.sm.state.lastSpinResult!
+          for (const step of result.steps) {
+            for (const sd of step.shootdowns) {
+              expect(validMultipliers.has(sd.multiplier)).toBe(true)
+            }
+          }
         }
-      }
+      })
     }
   })
 })

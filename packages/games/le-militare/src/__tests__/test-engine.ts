@@ -3,9 +3,10 @@ import {
   type SlotsTestActionHandler,
   type SlotsTestScenarioHandler,
 } from '@tgslots/slots-simulation-engine/testing/slots-test-engine'
-import { BET_CONFIG } from '../constants.js'
+import { BET_CONFIG, DEFAULT_MODE } from '../constants.js'
 import type { LeMilitareBuyResult, LeMilitareFreeSpinsState } from '../game-state-machine.js'
 import { LeMilitareStateMachine } from '../game-state-machine.js'
+import type { ModeId } from '../constants.js'
 
 const buyBonusAction: SlotsTestActionHandler<LeMilitareStateMachine, [], LeMilitareBuyResult> = (
   session,
@@ -35,8 +36,12 @@ const withFreeSpinsScenario: SlotsTestScenarioHandler<
   return session.sm.state.freeSpins
 }
 
-export const leMilitareTestEngine = createSlotsTestEngine(LeMilitareStateMachine, BET_CONFIG)
-  .registerAction('buyBonus', buyBonusAction)
-  .registerScenario('withFreeSpins', withFreeSpinsScenario)
-  .registerProbe('sessionMultiplier', (session) => session.sm.state.freeSpins?.multiplierSum ?? 0)
-  .build()
+export function createLeMilitareTestEngine(mode: ModeId = DEFAULT_MODE) {
+  return createSlotsTestEngine(LeMilitareStateMachine, BET_CONFIG, [mode])
+    .registerAction('buyBonus', buyBonusAction)
+    .registerScenario('withFreeSpins', withFreeSpinsScenario)
+    .registerProbe('sessionMultiplier', (session) => session.sm.state.freeSpins?.multiplierSum ?? 0)
+    .build()
+}
+
+export const leMilitareTestEngine = createLeMilitareTestEngine()

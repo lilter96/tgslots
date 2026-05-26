@@ -10,11 +10,12 @@ import { evaluateComparisons, type ParsheetConfig, type ComparisonResult } from 
 
 export type { ParsheetConfig } from './comparison.js'
 
-export type SimMode = 'benchmark' | 'verify' | 'sample'
+export type SimRunMode = 'benchmark' | 'verify' | 'sample'
 
 export interface SimCliOpts extends SimRunnerConfig {
   game?: string
-  mode: SimMode
+  mode: SimRunMode
+  gameMode?: string
   json: boolean
   jsonOutput: string | null
   visualize: string | null
@@ -40,6 +41,7 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
     seed: defaults?.seed ?? 2024,
     warmup: defaults?.warmup ?? 100_000,
     mode: defaults?.mode ?? 'benchmark',
+    gameMode: defaults?.gameMode,
     json: defaults?.json ?? false,
     jsonOutput: defaults?.jsonOutput ?? null,
     visualize: defaults?.visualize ?? null,
@@ -75,7 +77,11 @@ export function parseSimArgs(defaults?: Partial<SimCliOpts>): SimCliOpts {
         i++
         break
       case '--mode':
-        opts.mode = v as SimMode
+        opts.mode = v as SimRunMode
+        i++
+        break
+      case '--game-mode':
+        opts.gameMode = v
         i++
         break
       case '--json':
@@ -164,7 +170,7 @@ export async function printSimResult(
   gameName: string,
 ): Promise<void> {
   const { metrics, wallTime } = result
-  const report = formatJson(metrics, parsheet, gameName, wallTime)
+  const report = formatJson(metrics, parsheet, gameName, wallTime, opts.gameMode)
   const comparisons = evaluateComparisons(metrics, parsheet)
 
   if (opts.visualize) {
@@ -191,7 +197,10 @@ export async function printSimResult(
     }
   }
 
-  formatPretty(metrics, parsheet, gameName, wallTime, { workers: opts.workers })
+  formatPretty(metrics, parsheet, gameName, wallTime, {
+    workers: opts.workers,
+    gameMode: opts.gameMode,
+  })
 
   if (opts.mode === 'verify') {
     printVerification(comparisons)
@@ -207,8 +216,11 @@ export async function printSimResult(
 export function printSimHeader(opts: SimCliOpts, gameName: string): void {
   if (opts.json) return
   const w = opts.workers === 1 ? '1 (single-thread)' : `${opts.workers} (parallel)`
+  const gameMode = opts.gameMode ? ` game-mode=${opts.gameMode}` : ''
   console.log(`\x1b[32m\x1b[1m═══ ${gameName} — Simulation ═══\x1b[0m\n`)
-  console.log(`  mode=${opts.mode}  spins=${fmtSpins(opts.spins)}  workers=${w}  seed=${opts.seed}`)
+  console.log(
+    `  mode=${opts.mode}${gameMode}  spins=${fmtSpins(opts.spins)}  workers=${w}  seed=${opts.seed}`,
+  )
   console.log(`  CPUs available: ${cpus().length}`)
 }
 
@@ -225,9 +237,13 @@ export async function runAndPrint(
     console.log(`\n  Spawning ${opts.workers} workers…`)
   }
 
+  const gameConfig: Record<string, string> | undefined = opts.gameMode
+    ? { mode: opts.gameMode }
+    : undefined
+
   const result = await runSimulation(
     workerURL,
-    { ...opts, betConfig },
+    { ...opts, betConfig, gameConfig },
     opts.snapshotInterval > 0
       ? (metrics, elapsedSec) =>
           printFullSnapshot(metrics, elapsedSec, gameName, opts.workers, parsheet)
