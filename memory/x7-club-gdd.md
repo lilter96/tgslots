@@ -91,6 +91,10 @@ Sessions match this platform's existing ephemeral design: one Go process, virtua
 
 ## Art provenance and promotion
 
-The nightclub background and capybara mascot were generated with the imagegen skill for X7 Club. Local source image: `01a11794-6b57-7fd2-8b4b-018ba79c9fdb/exec-216ac26b-398d-4f08-9ded-7fcb7e9d2f36.png`. The same generated artwork is delivered in the client and marketing assets. Symbol textures and three promotional feature icons are repository-native Pixi graphics / SVG. The marketing registry contains a complete X7 game page and launch link.
+The nightclub background and seven individual transparent reel symbols were generated with the imagegen skill for X7 Club. Source filenames, runtime resolutions, alpha checks and payload sizes are recorded in [art-provenance.json](../apps/web-client/public/assets/images/x7-club/art-provenance.json). Runtime art is encoded as WebP with alpha preserved; seven symbols plus the background total approximately 632 KB. The marketing page uses the same artwork.
+
+Images load through the shared `AssetRegistry`. Native Pixi Reels symbols receive 132px logical textures at 3× pixel density so pool resets and winning pulses preserve their cell size. Credit labels remain separate text overlays driven by authoritative results. Booster plates use repository-native Pixi graphics. The shared `WinOverlay` handles announcements and rolling win counters; its typography can be configured and long fallback labels fit inside the reel bounds.
+
+The client adds particle bursts on coin arrivals, column highlighting, prize-tier lighting, a three-respin meter, individual column completion indicators, turbo-aware win presentations and an attract frame before the first paid spin. The attract frame is presentation-only and does not evaluate a wager or award a prize. Marketing uses an optional foreground mascot in the shared hero/library components.
 
 Mechanical reference: [Konami K-Pow! Pig Brilliant Buddha](https://www.konamigaming.com/games/all-games/details/k-pow%21-pig-brilliant-buddha-kgi).

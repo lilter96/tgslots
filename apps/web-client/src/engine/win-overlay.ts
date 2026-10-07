@@ -64,6 +64,11 @@ export class WinOverlay extends Container {
     this._winTiers = winTiers
   }
 
+  public setTypography(fontFamily: string): void {
+    this._tierText.style.fontFamily = fontFamily
+    this._amountText.style.fontFamily = fontFamily
+  }
+
   public resize(layout: UILayoutSnapshot): void {
     this._reelBounds = layout.reelBounds
     this.x = layout.reelBounds.x + layout.reelBounds.width / 2
@@ -230,6 +235,9 @@ export class WinOverlay extends Container {
       }
     }
     this._tierText.text = text
+    this._tierText.scale.set(1)
+    const maxWidth = this._reelBounds.width * 0.9
+    if (this._tierText.width > maxWidth) this._tierText.scale.set(maxWidth / this._tierText.width)
     this._tierText.visible = true
     this._tierSprite.visible = false
   }

@@ -1,4 +1,4 @@
-import { Application, Container, Text } from 'pixi.js'
+import { Application, Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
 import {
   ReelSetBuilder,
@@ -12,9 +12,21 @@ import type { HwCoin } from 'pixi-reels'
 import { SYMBOLS, PAYLINES, config } from '@tgslots/x7-club'
 import type { ClubCoin, ClubResponse } from '@tgslots/x7-club'
 import { ClubApi, ClubApiError } from './api'
-import { buildTextures } from './symbols'
+import { AssetRegistry } from '../../engine/asset-registry'
+import { WinOverlay } from '../../engine/win-overlay'
+import { getResponsiveLayout } from '../../engine/layout'
+import { getSpinSpeedProfile } from '../../engine/spin-speed'
+import { manifest, assets } from './manifest'
+import { buildTextures, symbolTitles } from './symbols'
 import './style.css'
 
+const ATTRACT_GRID = [
+  [4, 1, 0],
+  [2, 3, 1],
+  [5, 4, 3],
+  [1, 0, 2],
+  [3, 2, 4],
+]
 const format = (n: number) => n.toLocaleString('en-US')
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 const coordinate = (coin: ClubCoin) => ({
@@ -31,12 +43,12 @@ export async function launchX7Club(): Promise<void> {
   root.className = 'x7-club'
   root.innerHTML = `
     <header class="x7-header"><a href="${location.pathname}" aria-label="Back to game library">← TG / SLOTS</a><span class="x7-demo">DEMO CREDITS</span><button class="x7-sound" aria-label="Enable sound">SOUND OFF</button></header>
-    <section class="x7-main"><div class="x7-heading"><p>HIGH SPIRITS. STICKY PRIZES.</p><h1>X7<span>CLUB</span><i>✦</i></h1><div class="x7-subtitle">come for the memes. stay for the respins.</div></div>
-    <div class="x7-machine"><div class="x7-prizes">${['MINI', 'MAJOR', 'MEGA'].map((tier) => `<div><span>${tier}</span><strong>${config.prizes.find(([name]) => name === tier)![1]}×</strong></div>`).join('')}</div>
-      <div class="x7-canvas" role="img" aria-label="Five reels with three rows"></div>
+    <section class="x7-main"><div class="x7-heading"><p>WELCOME TO THE AFTERPARTY</p><h1>X7<span>CLUB</span><i>✦</i></h1><div class="x7-subtitle">HOLD • SPIN • GET THE BIG MOOD</div></div>
+    <img class="x7-mascot" src="/assets/images/x7-club/wild-hero.webp" alt="The capybara club boss"/><span class="x7-mascot-note">GOOD VIBES ONLY.</span><div class="x7-machine"><div class="x7-loading"><strong>OPENING THE CLUB</strong><small>GETTING YOUR GOOD VIBES READY</small><div class="x7-loading-track"><i></i></div></div><div class="x7-prizes">${['MINI', 'MAJOR', 'MEGA'].map((tier) => `<div data-tier="${tier}"><span>${tier}</span><strong>${config.prizes.find(([name]) => name === tier)![1]}×</strong><small>FIXED PRIZE</small></div>`).join('')}</div>
+      <div class="x7-canvas" role="img" aria-label="Five reels with three rows"><div class="x7-rail">${Array.from({ length: 5 }, (_, column) => `<div data-column="${column}"><span>COLLECT</span><strong>0 / 3</strong></div>`).join('')}</div></div>
       <div class="x7-status" role="status" aria-live="polite">Opening the club…</div>
     </div>
-    <div class="x7-controls"><div class="x7-wallet"><span>BALANCE</span><strong class="x7-balance">—</strong></div><div class="x7-bet"><span>BET</span><div><button class="x7-minus" aria-label="Decrease bet">−</button><strong class="x7-stake">${config.baseCost}</strong><button class="x7-plus" aria-label="Increase bet">+</button></div></div><button class="x7-spin" disabled>LOADING</button><button class="x7-buy" disabled>BUY BONUS<span>${config.buyCost}× BET</span></button></div>
+    <div class="x7-feature-banner"><span class="x7-feature-title">FILL A COLUMN<small>Collect 3 coins to unlock its booster</small></span><div class="x7-respins" aria-label="Respins remaining"><i>1</i><i>2</i><i>3</i></div></div><div class="x7-controls"><div class="x7-wallet"><span>BALANCE</span><strong class="x7-balance">—</strong></div><div class="x7-bet"><span>BET</span><div><button class="x7-minus" aria-label="Decrease bet">−</button><strong class="x7-stake">${config.baseCost}</strong><button class="x7-plus" aria-label="Increase bet">+</button></div></div><div class="x7-win"><span>LAST WIN</span><strong>0</strong></div><button class="x7-spin" disabled>LOADING</button><button class="x7-buy" disabled>BUY BONUS<span>${config.buyCost}× BET</span></button></div>
     <div class="x7-bottom"><button class="x7-rules">HOW TO PLAY ↗</button><span class="x7-bank">YOUR BONUS: 0</span><button class="x7-turbo" aria-pressed="false">TURBO OFF</button></div>
     <p class="x7-footnote">20 lines · 6 coins unlock Hold & Spin · full columns unlock a booster</p>
     <div class="x7-error" role="alert" hidden></div>
@@ -66,10 +78,32 @@ export async function launchX7Club(): Promise<void> {
   })
   holder.append(app.canvas)
   const stopGsap = driveGsapWithTicker(app.ticker, gsap)
-  const textures = buildTextures(app)
+  const assetRegistry = new AssetRegistry()
+  const loadedAssets = await assetRegistry.loadGame(manifest, assets, (loaded, total) => {
+    element<HTMLElement>('.x7-loading-track i').style.width =
+      `${Math.round((loaded / total) * 100)}%`
+  })
+  const textures = buildTextures(app, loadedAssets)
+  element('.x7-loading').remove()
+  const background = new Graphics()
+  for (let column = 0; column < 5; column++) {
+    background
+      .roundRect(4 + column * 140, 100, 132, 412, 14)
+      .fill({ color: column % 2 ? 0x210d30 : 0x180a25 })
+      .stroke({ color: 0xb675ae, width: 1, alpha: 0.25 })
+    for (const y of [236, 376])
+      background
+        .moveTo(13 + column * 140, y)
+        .lineTo(127 + column * 140, y)
+        .stroke({ color: 0x925991, width: 1, alpha: 0.15 })
+  }
+  app.stage.addChild(background)
   const register = (registry: Parameters<Parameters<ReelSetBuilder['symbols']>[0]>[0]) => {
-    for (const [id, texture] of Object.entries(textures))
-      registry.register(id, SpriteSymbol, { textures: { [id]: texture } })
+    for (const id of Object.keys(textures))
+      registry.register(id, SpriteSymbol, {
+        textures,
+        anchor: { x: 0, y: 0 },
+      })
   }
   const reels = new ReelSetBuilder()
     .reels(5)
@@ -99,8 +133,8 @@ export async function launchX7Club(): Promise<void> {
     .cellChrome((g, width, height) =>
       g
         .roundRect(3, 3, width - 6, height - 6, 22)
-        .fill({ color: 0x140b22, alpha: 0.8 })
-        .stroke({ color: 0x885ba8, alpha: 0.35, width: 2 }),
+        .fill({ color: 0x26112e, alpha: 0.85 })
+        .stroke({ color: 0xe7b86a, alpha: 0.25, width: 1.5 }),
     )
     .build()
   board.container.position.set(4, 100)
@@ -123,6 +157,61 @@ export async function launchX7Club(): Promise<void> {
     .build()
   booster.position.set(284, 10)
   app.stage.addChild(booster)
+  booster.visible = false
+  const activeColumn = new Graphics()
+  app.stage.addChild(activeColumn)
+  const particles = new Container()
+  app.stage.addChild(particles)
+  const veil = new Graphics().rect(0, 0, 700, 520).fill({ color: 0x0c031b, alpha: 0.82 })
+  veil.alpha = 0
+  app.stage.addChild(veil)
+  const winOverlay = new WinOverlay()
+  winOverlay.setGame(loadedAssets, manifest.winTiers)
+  winOverlay.setTypography('Bungee, Arial Black, sans-serif')
+  winOverlay.resize({
+    ...getResponsiveLayout(700, 520),
+    reelBounds: { x: 4, y: 100, width: 692, height: 412 },
+  })
+  app.stage.addChild(winOverlay)
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+  function burst(x: number, y: number, color = 0xffd580): void {
+    if (reducedMotion) return
+    for (let i = 0; i < 22; i++) {
+      const particle = new Graphics()
+        .star(0, 0, 4, 2 + (i % 4), 1)
+        .fill({ color: i % 3 === 0 ? 0xff8bda : color })
+      particle.position.set(x, y)
+      particles.addChild(particle)
+      const angle = i * 2.39996
+      const distance = 35 + ((i * 17) % 95)
+      gsap.to(particle, {
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance + 20,
+        alpha: 0,
+        rotation: angle,
+        duration: 0.7 + (i % 4) * 0.07,
+        ease: 'power2.out',
+        onComplete: () => particle.destroy(),
+      })
+    }
+  }
+  async function celebrate(amount: number): Promise<void> {
+    const stake = config.baseCost * (api.response?.state.triggeringMultiplier ?? multiplier)
+    if (amount < stake * 10) return
+    if (!reducedMotion) {
+      burst(160, 230)
+      burst(540, 230)
+      burst(350, 120)
+    }
+    veil.alpha = 1
+    root.dataset.celebrating = 'true'
+    try {
+      await winOverlay.announceWin(amount, stake)
+    } finally {
+      veil.alpha = 0
+      delete root.dataset.celebrating
+    }
+  }
   let busy = false
   let multiplier = 1
   let turbo = false
@@ -136,6 +225,7 @@ export async function launchX7Club(): Promise<void> {
     void audio.resume()
     const oscillator = audio.createOscillator()
     const gain = audio.createGain()
+    oscillator.type = 'triangle'
     oscillator.frequency.value = frequency
     gain.gain.setValueAtTime(0.045, audio.currentTime)
     gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + seconds)
@@ -143,31 +233,35 @@ export async function launchX7Club(): Promise<void> {
     oscillator.start()
     oscillator.stop(audio.currentTime + seconds)
   }
-  reels.events.on('spin:reelLanded', (index) => tone(240 + index * 90))
+  reels.events.on('spin:reelLanded', (index) =>
+    tone([261.6, 329.6, 392, 523.2, 659.2][index] ?? 659.2),
+  )
   board.events.on('coin:locked', () => tone(780))
   function drawLabels(coins: ClubCoin[]): void {
     for (const child of labels.removeChildren()) child.destroy()
     for (const coin of coins) {
       const { x, y } = board.cellCenter(coordinate(coin))
       const value = new Text({
-        text: format(coin.value),
+        text: coin.value ? format(coin.value) : '✦',
         style: {
-          fontFamily: 'Arial Black, sans-serif',
-          fontSize: coin.value >= 100000 ? 21 : 28,
+          fontFamily: 'Outfit, Arial Black, sans-serif',
+          fontSize: coin.value >= 100000 ? 23 : 31,
           fontWeight: '900',
-          fill: 0xffedaa,
+          fill: 0xfff1c2,
+          stroke: { color: 0x351226, width: 3 },
+          dropShadow: { color: 0x000000, alpha: 0.9, blur: 4, distance: 2 },
         },
       })
       value.anchor.set(0.5)
-      value.position.set(x, y + 8)
+      value.position.set(x, y + 7)
       labels.addChild(value)
       const tier = new Text({
-        text: coin.tier === 'CREDIT' ? 'LOCKED' : coin.tier,
+        text: coin.tier === 'CREDIT' ? 'CREDITS' : coin.tier,
         style: {
-          fontFamily: 'Arial, sans-serif',
+          fontFamily: 'Outfit, Arial, sans-serif',
           fontSize: 13,
           fontWeight: '700',
-          fill: 0xd9ff43,
+          fill: 0xffca84,
           letterSpacing: 1,
         },
       })
@@ -187,6 +281,45 @@ export async function launchX7Club(): Promise<void> {
   function sync(response: ClubResponse): void {
     lastResponse = response
     const bonus = response.state.bonus
+    root.dataset.phase = response.state.phase
+    booster.visible = response.state.phase === 'BOOST'
+    activeColumn.clear()
+    if (response.state.phase === 'BOOST')
+      activeColumn
+        .roundRect(5 + bonus!.pendingColumns[0]! * 140, 101, 130, 410, 15)
+        .stroke({ color: 0xffc885, width: 3, alpha: 0.9 })
+    for (let column = 0; column < 5; column++) {
+      const item = element<HTMLElement>(`.x7-rail [data-column="${column}"]`)
+      const count = (bonus?.coins ?? response.result?.coins ?? []).filter(
+        (coin) => Math.floor(coin.position / 3) === column,
+      ).length
+      item.querySelector('strong')!.textContent = `${count} / 3`
+      item.classList.toggle('is-full', count === 3)
+      item.classList.toggle(
+        'is-boosting',
+        response.state.phase === 'BOOST' && bonus!.pendingColumns[0] === column,
+      )
+      item.querySelector('span')!.textContent = bonus?.pendingColumns.includes(column)
+        ? 'BOOST READY'
+        : bonus?.boostedColumns.includes(column)
+          ? 'BANKED'
+          : 'COLLECT'
+    }
+    const respins = root.querySelectorAll('.x7-respins i')
+    respins.forEach((dot, index) =>
+      dot.classList.toggle('is-live', !!bonus && index < bonus.respins),
+    )
+    element('.x7-respins').setAttribute(
+      'aria-label',
+      bonus ? `${bonus.respins} respins remaining` : 'Bonus inactive',
+    )
+    const featureTitle = element('.x7-feature-title')
+    featureTitle.innerHTML =
+      response.state.phase === 'BOOST'
+        ? 'COLUMN BOOSTER<small>Extra credits or a rare ×7. Make it count.</small>'
+        : bonus
+          ? 'HOLD & SPIN<small>New coins reset your three respins</small>'
+          : 'FILL A COLUMN<small>Collect 3 coins to unlock its booster</small>'
     element('.x7-balance').textContent = format(response.balance)
     element('.x7-stake').textContent = format(config.baseCost * multiplier)
     element('.x7-bank').textContent =
@@ -197,7 +330,7 @@ export async function launchX7Club(): Promise<void> {
         ? response.state.phase === 'BOOST'
           ? 'BOOST'
           : `RESPIN · ${bonus.respins}`
-        : 'SPIN ↻'
+        : 'SPIN'
     spinButton.disabled = busy
     buyButton.disabled = busy || !!bonus || api.hasPending
     buyButton.querySelector('span')!.textContent =
@@ -220,8 +353,16 @@ export async function launchX7Club(): Promise<void> {
         reels.visible = true
         board.container.visible = false
         drawLabels([])
-        response.state.lastGrid.forEach((column, reel) =>
+        const idleGrid = response.revision === 0 ? ATTRACT_GRID : response.state.lastGrid
+        idleGrid.forEach((column, reel) =>
           column.forEach((id, cell) => reels.setSymbolAt(reel, cell, SYMBOLS[id]!)),
+        )
+        drawLabels(
+          idleGrid.flatMap((column, reel) =>
+            column.flatMap((id, cell) =>
+              id === 6 ? [{ position: reel * 3 + cell, value: 0, tier: 'CREDIT' } as const] : [],
+            ),
+          ),
         )
       }
       return
@@ -248,12 +389,20 @@ export async function launchX7Club(): Promise<void> {
       if (result.bonusTriggered) {
         showBoard(result.coins)
         tone(1200, 0.3)
+        veil.alpha = 0.8
+        await winOverlay.announce('HOLD & SPIN', turbo ? 450 : 1100)
+        veil.alpha = 0
       } else {
+        drawLabels(result.coins)
         status.textContent = result.win
           ? `${format(result.win)} CREDITS. That's a vibe.`
-          : 'Good vibes. Next spin?'
+          : result.coins.length
+            ? `${result.coins.length} / 6 coins. Six unlock Hold & Spin.`
+            : 'Good vibes. Next spin?'
       }
     } else if (result.boost) {
+      booster.visible = true
+
       booster.position.x = 4 + result.boost.column * 140
       const animation = booster.spin()
       booster.setResult([{ visible: [result.boost.kind] }])
@@ -262,6 +411,14 @@ export async function launchX7Club(): Promise<void> {
       previousCoins = structuredClone(result.coins)
       drawLabels(result.coins)
       tone(result.boost.kind === 'X7' ? 1600 : 640, 0.2)
+      if (result.boost.kind !== 'STOP') {
+        burst(70 + result.boost.column * 140, 280)
+        if (result.boost.kind === 'X7') {
+          veil.alpha = 0.65
+          await winOverlay.announce('×7 BOOST!', turbo ? 550 : 1400)
+          veil.alpha = 0
+        }
+      }
       status.textContent =
         result.boost.kind === 'X7'
           ? '×7. ABSOLUTE CINEMA.'
@@ -274,6 +431,37 @@ export async function launchX7Club(): Promise<void> {
       await board.respin(hwCoins(result.newCoins))
       previousCoins = structuredClone(result.coins)
       drawLabels(result.coins)
+      for (const coin of result.newCoins) {
+        const center = board.cellCenter(coordinate(coin))
+        burst(center.x + 4, center.y + 100)
+      }
+    }
+    if (result.type === 'RESPIN') {
+      const prize = [...result.newCoins]
+        .filter((coin) => coin.tier !== 'CREDIT')
+        .sort((a, b) => b.value - a.value)[0]
+      if (prize) {
+        root.dataset.prize = prize.tier
+        tone(1568, 0.22)
+        await winOverlay.announce(`${prize.tier} PRIZE!`, turbo ? 350 : 850)
+        delete root.dataset.prize
+      }
+    }
+    if (result.win > 0) {
+      const counter = { value: 0 }
+      const winValue = element('.x7-win strong')
+      gsap.to(counter, {
+        value: result.win,
+        duration: turbo || reducedMotion ? 0.2 : 0.7,
+        ease: 'power2.out',
+        onUpdate: () => {
+          winValue.textContent = format(Math.round(counter.value))
+        },
+        onComplete: () => {
+          winValue.textContent = format(result.win)
+        },
+      })
+      await celebrate(result.win)
     }
     if (result.bonusEnded) {
       tone(1000, 0.3)
@@ -346,13 +534,14 @@ export async function launchX7Club(): Promise<void> {
     reels.setSpeed(speed)
     booster.setSpeed(speed)
     board.setSpeed(speed)
+    winOverlay.syncSpinSpeed(getSpinSpeedProfile(speed))
     element('.x7-turbo').textContent = turbo ? 'TURBO ON' : 'TURBO OFF'
     element('.x7-turbo').setAttribute('aria-pressed', String(turbo))
   })
   element('.x7-rules').addEventListener('click', () => {
     const dialog = document.createElement('dialog')
     dialog.className = 'x7-dialog'
-    dialog.innerHTML = `<h2>THE CLUB RULES</h2><p>5 reels × 3 rows. All 20 lines are active. Match 3+ symbols from the left; WILD substitutes for paying symbols. The first non-wild symbol determines the combination; only its longest paying prefix pays. An all-wild line pays as SEVEN.</p><p>6+ COIN symbols trigger Hold & Spin. Coins lock; each new coin resets the counter to 3. Three misses end the feature. MINI / MAJOR / MEGA are fixed 10× / 50× / 250× stake prizes, not progressive pools.</p><p>Every filled column earns one booster. +1× and +2× add stake multiples to its three coins. ×7 multiplies their current values and banks the column. BANK ends the booster; a maximum of 7 pulls also banks it. Boosters don't consume respins. Complete pending boosters before collecting a full board.</p><p>The bonus pays once at the end. The total round cap is 7,777× stake. BUY BONUS costs ${config.buyCost}× stake. This is a demo with ephemeral sessions and virtual credits.</p><table><thead><tr><th>Symbol</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody>${config.paytable.map((pays, id) => `<tr><th>${SYMBOLS[id]}</th>${pays.map((pay) => `<td>${pay}</td>`).join('')}</tr>`).join('')}</tbody></table><p>Paytable values × bet per line (total bet ÷ 20).</p><details><summary>All 20 paylines (rows 1–3, left to right)</summary><ol>${PAYLINES.map((line) => `<li>${line.map((row) => row + 1).join(' → ')}</li>`).join('')}</ol></details><form method="dialog"><button>GOT IT</button></form>`
+    dialog.innerHTML = `<h2>THE CLUB RULES</h2><p>5 reels × 3 rows. All 20 lines are active. Match 3+ symbols from the left; WILD substitutes for paying symbols. The first non-wild symbol determines the combination; only its longest paying prefix pays. An all-wild line pays as SEVEN.</p><p>6+ COIN symbols trigger Hold & Spin. Coins lock; each new coin resets the counter to 3. Three misses end the feature. MINI / MAJOR / MEGA are fixed 10× / 50× / 250× stake prizes, not progressive pools.</p><p>Every filled column earns one booster. +1× and +2× add stake multiples to its three coins. ×7 multiplies their current values and banks the column. BANK ends the booster; a maximum of 7 pulls also banks it. Boosters don't consume respins. Complete pending boosters before collecting a full board.</p><p>The bonus pays once at the end. The total round cap is 7,777× stake. BUY BONUS costs ${config.buyCost}× stake. This is a demo with ephemeral sessions and virtual credits.</p><table><thead><tr><th>Symbol</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody>${config.paytable.map((pays, id) => `<tr><th><img class="x7-rule-symbol" src="/assets/images/x7-club/${SYMBOLS[id]!.toLowerCase()}.webp" alt=""/>${symbolTitles[SYMBOLS[id]!]}</th>${pays.map((pay) => `<td>${pay}</td>`).join('')}</tr>`).join('')}</tbody></table><p>Paytable values × bet per line (total bet ÷ 20).</p><details><summary>All 20 paylines (rows 1–3, left to right)</summary><ol>${PAYLINES.map((line) => `<li>${line.map((row) => row + 1).join(' → ')}</li>`).join('')}</ol></details><form method="dialog"><button>GOT IT</button></form>`
     root.append(dialog)
     dialog.showModal()
     dialog.addEventListener('close', () => dialog.remove())
@@ -396,11 +585,14 @@ export async function launchX7Club(): Promise<void> {
     'pagehide',
     () => {
       stopGsap()
+      for (const particle of particles.children) gsap.killTweensOf(particle)
+      winOverlay.destroy({ children: true })
       board.destroy()
       reels.destroy()
       booster.destroy()
       app.destroy(true, { children: true })
       for (const texture of Object.values(textures)) texture.destroy(true)
+      void assetRegistry.unloadGame(manifest.gameId)
       void audio?.close()
     },
     { once: true },

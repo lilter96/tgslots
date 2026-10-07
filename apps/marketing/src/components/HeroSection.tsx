@@ -15,7 +15,7 @@ export default function HeroSection({ game, onPlayDemo }: Props) {
   }
 
   return (
-    <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="game-hero relative w-full min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background */}
       <img
         src={game.assets.heroBackground}
@@ -30,10 +30,23 @@ export default function HeroSection({ game, onPlayDemo }: Props) {
       <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-forest via-forest/50 to-transparent" />
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-forest/60 to-transparent" />
 
+      {game.assets.heroForeground && (
+        <img
+          src={game.assets.heroForeground}
+          alt=""
+          aria-hidden
+          draggable={false}
+          className="hero-foreground"
+        />
+      )}
+
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-3xl mx-auto">
         {/* Title / logo treatment */}
-        <div className="mb-6 animate-fade-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
+        <div
+          className="hero-title mb-6 animate-fade-up"
+          style={{ animationDelay: '0.1s', opacity: 0 }}
+        >
           <div className="font-cinzel font-black uppercase tracking-widest text-5xl sm:text-7xl text-gold-glow drop-shadow-glow leading-none animate-pulse-glow">
             {game.title.split(' ')[0]}
           </div>
@@ -63,12 +76,14 @@ export default function HeroSection({ game, onPlayDemo }: Props) {
           <button className="btn-primary" onClick={onPlayDemo}>
             Play Demo
           </button>
-          <button className="btn-outline" onClick={handlePlayReal} disabled>
-            Play for Real
-          </button>
+          {!game.demoOnly && (
+            <button className="btn-outline" onClick={handlePlayReal} disabled>
+              Play for Real
+            </button>
+          )}
         </div>
 
-        {import.meta.env.DEV && (
+        {import.meta.env.DEV && !game.demoOnly && (
           <p className="mt-4 text-xs text-white/30 font-mono">
             "Play for Real" coming soon — auth not yet wired
           </p>

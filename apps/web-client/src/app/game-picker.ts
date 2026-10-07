@@ -1,9 +1,13 @@
-const DETAILS: Record<string, { image: string; category: string; copy: string; color: string }> = {
+const DETAILS: Record<
+  string,
+  { image: string; foreground?: string; category: string; copy: string; color: string }
+> = {
   'x7-club': {
-    image: '/assets/images/x7-club/club-background.png',
+    image: '/assets/images/x7-club/nightclub.webp',
+    foreground: '/assets/images/x7-club/wild-hero.webp',
     category: 'HOLD & SPIN + COLUMN BOOST',
     copy: 'Sticky prizes, meme energy and a rare ×7 afterparty.',
-    color: '#d9ff43',
+    color: '#ffb1e5',
   },
   'ancient-dragon': {
     image: '/assets/images/ancient-dragon/shrine-background.webp',
@@ -69,7 +73,15 @@ export class GamePicker {
       cta.className = 'lobby-play'
       cta.textContent = 'Enter game →'
       content.append(category, name, copy, cta)
-      card.append(image, content)
+      card.append(image)
+      if (detail.foreground) {
+        const foreground = document.createElement('img')
+        foreground.src = detail.foreground
+        foreground.alt = ''
+        foreground.className = 'lobby-card-mascot'
+        card.append(foreground)
+      }
+      card.append(content)
       card.addEventListener('click', () => {
         history.replaceState(null, '', `${location.pathname}?game=${encodeURIComponent(game.id)}`)
         overlay.remove()

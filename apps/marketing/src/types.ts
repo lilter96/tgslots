@@ -12,6 +12,7 @@ export interface GameStats {
 }
 
 export interface GamePresentation {
+  demoOnly?: boolean
   slug: string
   title: string
   tagline: string
@@ -21,6 +22,7 @@ export interface GamePresentation {
   features: GameFeature[]
   assets: {
     heroBackground: string
+    heroForeground?: string
   }
   theme: {
     primary: string

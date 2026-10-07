@@ -31,7 +31,7 @@ export default function Lobby() {
             <Link
               key={game.slug}
               to={`/games/${game.slug}`}
-              className="group relative overflow-hidden border border-white/10 hover:border-gold/50 transition-all duration-300 block"
+              className={`game-card-${game.slug} group relative overflow-hidden border border-white/10 hover:border-gold/50 transition-all duration-300 block`}
             >
               {/* Thumbnail background */}
               <div className="relative h-48 overflow-hidden">
@@ -40,6 +40,14 @@ export default function Lobby() {
                   alt={game.title}
                   className="w-full h-full object-cover object-center scale-105 group-hover:scale-100 transition-transform duration-700"
                 />
+                {game.assets.heroForeground && (
+                  <img
+                    src={game.assets.heroForeground}
+                    alt=""
+                    aria-hidden
+                    className="absolute right-5 bottom-0 h-44 object-contain group-hover:scale-110 transition-transform duration-500"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-forest via-black/20 to-transparent" />
               </div>
 

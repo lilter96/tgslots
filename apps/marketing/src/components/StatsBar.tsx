@@ -5,6 +5,7 @@ const DEV = import.meta.env.DEV
 interface Props {
   stats: GameStats
   releaseDate: string
+  showDevelopmentHints?: boolean
 }
 
 interface StatCellProps {
@@ -34,14 +35,14 @@ function StatCell({ label, value, estimated }: StatCellProps) {
   )
 }
 
-export default function StatsBar({ stats, releaseDate }: Props) {
+export default function StatsBar({ stats, releaseDate, showDevelopmentHints = true }: Props) {
   return (
     <section className="bg-black/60 border-y border-white/10 backdrop-blur-sm">
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10">
-          <StatCell label="Volatility" value={stats.volatility} estimated />
+          <StatCell label="Volatility" value={stats.volatility} estimated={showDevelopmentHints} />
           <StatCell label="RTP" value={stats.rtp} />
-          <StatCell label="Max Win" value={stats.maxWin} estimated />
+          <StatCell label="Max Win" value={stats.maxWin} estimated={showDevelopmentHints} />
           <StatCell label="Paylines" value={stats.paylines} />
         </div>
 
@@ -49,7 +50,7 @@ export default function StatsBar({ stats, releaseDate }: Props) {
           <div className="text-center py-2 border-t border-white/5">
             <span className="text-white/20 text-[11px] font-cinzel tracking-widest uppercase">
               Release: {releaseDate}
-              {DEV && ' (placeholder)'}
+              {DEV && showDevelopmentHints && ' (placeholder)'}
             </span>
           </div>
         )}

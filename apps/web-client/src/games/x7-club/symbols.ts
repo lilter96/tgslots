@@ -1,59 +1,67 @@
-import { Container, Graphics, Text } from 'pixi.js'
+import { Container, Graphics, Rectangle, Sprite, Text } from 'pixi.js'
 import type { Application, Texture } from 'pixi.js'
+import { SYMBOLS } from '@tgslots/x7-club'
+import type { GameAssets } from '../../engine/asset-registry'
 
-const specs = [
-  { id: 'CHILL', copy: 'chill', color: 0x9dcfff },
-  { id: 'HYPE', copy: 'HYPE', color: 0xff85bf },
-  { id: 'LOL', copy: 'LOL', color: 0xb7a1ff },
-  { id: 'GG', copy: 'gg', color: 0xaff79a },
-  { id: 'SEVEN', copy: '7', color: 0xffdc70 },
-  { id: 'WILD', copy: 'WILD', color: 0xd9ff43 },
-  { id: 'COIN', copy: '', color: 0xffd161 },
-  { id: 'STOP', copy: 'BANK', color: 0x9e89b3 },
-  { id: 'PLUS1', copy: '+1×', color: 0xd9ff43 },
-  { id: 'PLUS2', copy: '+2×', color: 0xff85bf },
-  { id: 'X7', copy: '×7', color: 0xffdc70 },
-]
-export function buildTextures(app: Application): Record<string, Texture> {
-  return Object.fromEntries(
-    specs.map(({ id, copy, color }) => {
-      const container = new Container()
-      const drawing = new Graphics()
-        .roundRect(5, 5, 122, 122, 24)
-        .fill({ color: 0x1c102d })
-        .stroke({ color, width: 2, alpha: 0.45 })
-      if (id === 'COIN') {
-        drawing
-          .circle(66, 66, 53)
-          .fill({ color: 0x8a4c14 })
-          .stroke({ color: 0xffd773, width: 5 })
-          .circle(66, 66, 45)
-          .fill({ color: 0xd9a341 })
-          .stroke({ color: 0xffeea6, width: 2 })
-          .circle(66, 66, 37)
-          .fill({ color: 0x382415 })
-      } else {
-        drawing.roundRect(17, 30, 98, 72, 19).fill({ color, alpha: 0.13 })
-        const text = new Text({
-          text: copy,
-          style: {
-            fontFamily: 'Arial Black, sans-serif',
-            fontSize: id === 'SEVEN' ? 85 : copy.length > 3 ? 30 : 46,
-            fontWeight: '900',
-            fill: color,
-            stroke: { color: 0x140a23, width: 3 },
-            dropShadow: { color, alpha: 0.4, blur: 8, distance: 0 },
-          },
-        })
-        text.anchor.set(0.5)
-        text.position.set(66, 64)
-        text.rotation = id === 'LOL' ? -0.1 : id === 'HYPE' ? 0.09 : 0
-        container.addChild(text)
-      }
-      container.addChildAt(drawing, 0)
-      const texture = app.renderer.generateTexture({ target: container, resolution: 2 })
-      container.destroy({ children: true })
-      return [id, texture]
-    }),
-  )
+export const symbolTitles: Record<string, string> = {
+  CHILL: 'Chill Capybara',
+  HYPE: 'Heart Crystal',
+  LOL: 'Good Mood',
+  GG: 'DJ Star',
+  SEVEN: 'Lucky Seven',
+  WILD: 'Club Boss',
+  COIN: 'Credit Prize',
+}
+/** Art is loaded through the shared asset registry; only booster UI plates are drawn in code. */
+export function buildTextures(app: Application, assets: GameAssets): Record<string, Texture> {
+  const textures: Record<string, Texture> = {}
+  // Native SpriteSymbol resets scale to 1 when pooled/stopped. Give it logical
+  // cell-size textures while retaining retina pixels, so a win never enlarges art to source size.
+  for (const id of SYMBOLS) {
+    const sprite = new Sprite(assets.getTexture(id))
+    sprite.width = 132
+    sprite.height = 132
+    const canvas = new Container()
+    canvas.addChild(sprite)
+    textures[id] = app.renderer.generateTexture({
+      target: canvas,
+      frame: new Rectangle(0, 0, 132, 132),
+      resolution: 3,
+    })
+    canvas.destroy({ children: true })
+  }
+  for (const [id, copy, color] of [
+    ['STOP', 'BANK', 0xe9badf],
+    ['PLUS1', '+1×', 0xdfff80],
+    ['PLUS2', '+2×', 0xffa9df],
+    ['X7', '×7', 0xffdf89],
+  ] as const) {
+    const container = new Container()
+    const plate = new Graphics()
+      .roundRect(3, 3, 126, 70, 14)
+      .fill({ color: 0x592344 })
+      .stroke({ color: 0xefbc76, width: 3 })
+      .roundRect(8, 8, 116, 60, 11)
+      .fill({ color: 0x230c31 })
+      .stroke({ color, width: 1.5, alpha: 0.7 })
+      .moveTo(13, 11)
+      .lineTo(119, 11)
+      .stroke({ color: 0xffffff, width: 1, alpha: 0.3 })
+    const text = new Text({
+      text: copy,
+      style: {
+        fontFamily: 'Bungee, Arial Black, sans-serif',
+        fontSize: id === 'STOP' ? 25 : 36,
+        fill: color,
+        stroke: { color: 0x512130, width: 3 },
+        dropShadow: { color, blur: 10, alpha: 0.3, distance: 0 },
+      },
+    })
+    text.anchor.set(0.5)
+    text.position.set(66, 38)
+    container.addChild(plate, text)
+    textures[id] = app.renderer.generateTexture({ target: container, resolution: 2 })
+    container.destroy({ children: true })
+  }
+  return textures
 }

@@ -30,7 +30,7 @@ export default function GamePresentationPage({ game }: Props) {
 
   return (
     <div
-      className="min-h-screen bg-forest text-white"
+      className={`min-h-screen bg-forest text-white game-${game.slug}`}
       style={
         {
           '--theme-primary': game.theme.primary,
@@ -41,7 +41,11 @@ export default function GamePresentationPage({ game }: Props) {
       }
     >
       <HeroSection game={game} onPlayDemo={() => setIsPlaying(true)} />
-      <StatsBar stats={game.stats} releaseDate={game.releaseDate} />
+      <StatsBar
+        stats={game.stats}
+        releaseDate={game.releaseDate}
+        showDevelopmentHints={!game.demoOnly}
+      />
       <LoreSection title={game.title} tagline={game.tagline} lore={game.lore} />
       <FeatureGrid features={game.features} />
     </div>
