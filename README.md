@@ -16,13 +16,13 @@ Part of my [.NET and backend engineering portfolio](https://github.com/lilter96/
 **[Run locally](#run-locally)** ·
 **[Architecture decisions](memory/decisions)**
 
-| At a glance                            | Evidence                                                                 |
-| -------------------------------------- | ------------------------------------------------------------------------ |
-| **4 games**                            | Distinct mechanics, shared math primitives and simulation infrastructure |
-| **792 passing tests**                  | Typechecks, ESLint and workspace tests verified on 2026-10-08            |
-| **81.6M independently audited rounds** | Le Militare: complete paid rounds, bonuses, cascades and retriggers      |
-| **2 X7 backend modes**                 | In-process Bun or Go + RabbitMQ; one seeded math executor                |
-| **Browser presentation**               | PixiJS 8, GSAP, raster artwork, responsive controls and in-game rules    |
+| At a glance                   | Evidence                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| **4 games**                   | Distinct mechanics, shared math primitives and simulation infrastructure |
+| **792 passing tests**         | Typechecks, ESLint and workspace tests verified on 2026-10-08            |
+| **81.6M verification rounds** | Le Militare: complete paid rounds, bonuses, cascades and retriggers      |
+| **2 X7 backend modes**        | In-process Bun or Go + RabbitMQ; one seeded math executor                |
+| **Browser presentation**      | PixiJS 8, GSAP, raster artwork, responsive controls and in-game rules    |
 
 ## See the games
 
@@ -72,7 +72,7 @@ round includes the complete feature rather than stopping at the pick screen.
 
 An independent analytical reference evaluates actual cyclic reel windows,
 conditional mystery-symbol probabilities, scatter counts and weighted pick
-outcomes. Exact conditional sampling guarantees purchased entry without retrying
+outcomes. Conditional stop sampling guarantees purchased entry without retrying
 natural spins until one happens to trigger.
 
 [Game mathematics](packages/games/woodland-whisper/src) ·
@@ -186,15 +186,138 @@ provide durable accounting across a process restart.
 
 ## Mathematics and verification
 
-| Game             | Evidence                                                                                                                                           | Interpretation                                                                                      |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Woodland Whisper | Independent analytical RTP: **96.0006093%**; [calculation](packages/games/woodland-whisper/config/MATH-NOTES.md)                                   | Normal paid rounds including picks, free spins and retriggers; target 96%                           |
-| Le Militare      | **81.6M complete independent rounds**: 60M ordinary rounds and 21.6M feature purchases; [audit](packages/games/le-militare/config/math-audit.json) | Target 98.4%; reported 95% confidence intervals cover the targets across the verified modes/options |
-| X7 Club, base    | **5M complete rounds**, observed RTP **95.8016%**, 95% interval **95.3948–96.2083%**; [audit](packages/games/x7-club/config/math-audit.json)       | The 96% normal-round target is inside this sample's confidence interval                             |
-| X7 Club, buy     | **1M purchased rounds**, observed return **95.8357% of purchase cost**; [audit](packages/games/x7-club/config/math-audit.json)                     | Separate purchase distribution and cost normalization; not a claim of exactly 96% buy return        |
-| Ancient Dragon   | Configured [parsheet comparisons](packages/games/ancient-dragon/config/parsheet.json) and shared simulation runner                                 | Reference benchmarks; not presented here as an independently established exact RTP                  |
+The mathematical layer is implemented in **TypeScript**, using the repository's
+`math`, `slots-core` and `slots-simulation-engine` packages. Bun runs the API and
+simulation entry points; Go handles X7 sessions and RPC when selected. The Go
+backend does not reimplement the probability model, and PixiJS/GSAP animate
+results without choosing their awards.
 
-The Le Militare audit checks complete-round accounting, safe integer awards,
+**[Detailed mathematical walkthrough: algorithms, formulas and tradeoffs](docs/mathematics.md)**
+
+### From probability configuration to a paid result
+
+```text
+configuration + prior state + wager + RNG
+  → sampled stops / feature events
+  → line or cluster evaluation
+  → bonus state transition + remaining round cap
+  → payable result + serialized state
+  → API response / browser animation / simulation metrics
+```
+
+| Mathematical responsibility | How it is implemented                                                                              | Why this approach                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Weighted random events      | Composable `Sampler<T>` processes; linear selection for ≤32 entries, alias tables for larger pools | Reuse explicit distributions across symbols, prizes, multipliers and dependent features |
+| Probability composition     | `SamplingPlan<T>` nodes, iterative interpreter and direct-sampling paths                           | Compose dependent draws while keeping the interpreter stack-safe                        |
+| Reproducible execution      | Seeded RNG in tests/simulations; seed retained in X7 commands                                      | Replay an outcome and retry it without drawing a different result                       |
+| Classic reel windows        | Cyclic strips and shared mystery-symbol replacement                                                | Preserve adjacent-row probabilities and replacement-dependent outcomes                  |
+| Paylines                    | Prefix-sharing trie, iterative DFS and indexed typed-array paytables                               | Prepare evaluation structures once and share work across overlapping lines              |
+| Scatters                    | Precomputed visible-window counts at each strip stop                                               | Replace repeated window scans with per-reel lookups                                     |
+| Clusters                    | Four-connected BFS with WILD-claim rules and optional position weights                             | Separate physical connectivity from the effective payable symbol count                  |
+| Cascades                    | Combat events, clearing, gravity and contiguous strip refills                                      | Preserve the probability model while resolving multiple wins in one spin                |
+| Hold & Spin                 | Sampled arrivals / boosters plus deterministic held-prize state updates                            | Test locking, respin resets and column progression independently of rare draws          |
+| Accounting                  | Explicit per-line / total wagers, triggering stake and persistent round budgets                    | Prevent wrong payout scaling, changed bonus stakes and cap resets after restoration     |
+| Verification                | Whole-round collectors, seeded workers and independent references                                  | Measure the complete model and detect defects shared by the runtime evaluator           |
+
+The RNG boundary is an integer draw over `[lo, hi)`. The seeded implementation
+uses rejection before modulo reduction to avoid unequal bucket sizes. The
+ordinary Bun API currently uses `Math.random` through `jsRng`; X7 draws a
+cryptographic seed and executes the same seeded math in either backend mode.
+This is not a commit/reveal provably-fair implementation.
+
+The alias sampler uses fixed-point thresholds at `2^20` precision. Its speed
+comes with finite probability quantization; it should not be described as exact
+rational sampling. The [walkthrough](docs/mathematics.md#2-rng-and-composable-probability-models)
+explains the strategy selection and its limits.
+
+### Wager basis, persistent features and caps
+
+For the classic games, line awards scale with **credits per line**, whereas
+scatter awards scale with **total stake**. Woodland free-spin awards additionally
+use its ×2 factor. A bonus retains the triggering wager, even if the UI's bet
+selection changes later.
+
+Le Militare sums cluster awards across cascades, then applies the accumulated
+combat multiplier and wager multiplier. Its five-row giant WILD contributes
+one unit of payable size while connecting neighbours along all five rows.
+Pinned columns survive clearing/gravity; ordinary interception WILDs can clear.
+The final paid result is bounded by the remaining complete-round budget.
+
+X7 preserves coin values and queues each completed column's booster once.
+With `m` empty positions and per-cell arrival probability 0.085,
+`P(at least one new coin) = 1 - (1 - 0.085)^m`. New coins reset respins, while
+boosters leave respins unchanged. Bonus completion pays the held prizes once,
+subject to the round cap and any preceding base win.
+
+### Woodland: an independently derived expectation
+
+The Python reference conditions line probabilities on the shared replacement,
+convolves scatter counts from actual cyclic reel windows, and evaluates the
+**first repeated weighted pick** over all 1,024 seen-value subsets. Averaging a
+single pick would give the wrong number of awarded free spins.
+
+Let `b` be expected base return per stake, `p` the trigger probability, and `a`
+the mean awarded free spins. Retriggers produce an expected `p × a` additional
+spins per free spin. With Woodland's ×2 free-spin factor:
+
+```text
+expected total free spins after entry = a / (1 - p × a)
+normal-round RTP = b + p × expected total free spins × 2b
+```
+
+For the current configuration, the mean entry award is approximately **12.7459**
+spins and the mean including retriggers is **14.0408**. The calculation yields
+**79.7884% base contribution + 16.2122% feature contribution = 96.0006%**.
+The [full derivation](docs/mathematics.md#7-woodland-whisper-deriving-the-full-round-expectation)
+explains the assumptions and conditional bonus-buy sampler.
+
+### What the simulation actually measures
+
+One observation is a **complete paid round**: entry plus all bonus continuations,
+card picks, cascades, respins and retriggers. `runCycle` closes the round only
+when the machine has no continuation. The collector calculates
+`RTP = total paid winnings / total paid wager`, separately from raw payout sums.
+
+Purchase return uses the **purchase cost** as denominator. X7's 77× buy at the
+base 20-credit stake costs 1,540 credits; its prizes still use the original
+20-credit stake. Normalizing those winnings by 20 would overstate buy return
+77-fold. Separate simulation adapters preserve these two wager bases.
+
+Workers use deterministic seed streams and merge round metrics; warmup outcomes
+are excluded. Stored reports include configuration hashes and modes. For fixed
+paid cost, the audits use normalized round returns and report approximate 95%
+intervals as `mean ± 1.96 × stdDev / sqrt(rounds)`. Rare large awards widen the
+uncertainty. Matching a target in a sample does not replace an analytical
+calculation or establish every tail event.
+
+### Balancing return and feature progression
+
+RTP is a long-run expectation of the configured model, not a per-session payout
+schedule. Symbol weights, reel strips, integer awards, feature frequency, booster
+weights and purchase prices control different parts of that expectation and its
+volatility. Le Militare's modes deliberately use different multiplier tails and
+feature frequencies; X7's occupied cells and completed columns change which
+state transitions remain possible.
+
+The configuration is fixed for a verified run. There is no player-history-based
+RNG adjustment to compensate for recent wins or losses. Calibration changes the
+configuration, then a separate audit measures complete-round returns, bonus
+cadence, empty bonuses, distribution tails and accounting invariants. Audits
+record the configuration hash so the evidence can be tied to that model.
+
+### Recorded mathematical evidence
+
+| Game             | Evidence                                                                                                                                            | Interpretation                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Woodland Whisper | Independent analytical RTP: **96.0006093%**; [calculation](packages/games/woodland-whisper/config/MATH-NOTES.md)                                    | Normal paid rounds including picks, free spins and retriggers; target 96%                           |
+| Le Militare      | **81.6M complete verification rounds**: 60M ordinary rounds and 21.6M feature purchases; [audit](packages/games/le-militare/config/math-audit.json) | Target 98.4%; reported 95% confidence intervals cover the targets across the verified modes/options |
+| X7 Club, base    | **5M complete rounds**, observed RTP **95.8016%**, 95% interval **95.3948–96.2083%**; [audit](packages/games/x7-club/config/math-audit.json)        | The 96% normal-round target is inside this sample's confidence interval                             |
+| X7 Club, buy     | **1M purchased rounds**, observed return **95.8357% of purchase cost**; [audit](packages/games/x7-club/config/math-audit.json)                      | Separate purchase distribution and cost normalization; not a claim of exactly 96% buy return        |
+| Ancient Dragon   | Configured [parsheet comparisons](packages/games/ancient-dragon/config/parsheet.json) and shared simulation runner                                  | Reference benchmarks; not presented here as an independently established exact RTP                  |
+
+Le Militare's audit uses the actual game engine on verification seeds separate
+from calibration; it is not a second evaluator implementation. It checks
+complete-round accounting, safe integer awards,
 payout caps, sticky-WILD behaviour and cascade integrity. Its maximum observed
 cascade depth was **78**, below the defensive 100-step limit. The audit records
 seeds, configuration hash, trigger/hit rates and payout statistics.
@@ -340,7 +463,7 @@ python3 scripts/verify-woodland-math.py
 
 The [`X7 audit script`](scripts/x7-audit.ts) reproduces its stored large-sample
 report. The [`Le Militare audit`](packages/games/le-militare/scripts/math-audit.ts)
-contains the independent reference implementation and per-mode purchase checks.
+runs the actual game engine on held-out seeds with per-mode purchase and accounting checks.
 Both are longer-running verification jobs, separate from the small examples above.
 
 ## Engineering decisions and authorship
