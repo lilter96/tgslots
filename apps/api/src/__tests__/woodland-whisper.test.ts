@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'bun:test'
 import { Elysia } from 'elysia'
-import { jsRng } from '@tgslots/math/rng'
+import { woodlandWhisperTestEngine as engine } from '../../../../packages/games/woodland-whisper/src/__tests__/test-engine.js'
 import { GameServer } from '../dispatcher.js'
 import { InMemorySessionManager } from '../in-memory-session-manager.js'
 import { WoodlandWhisperModule } from '../modules/woodland-whisper.module.js'
@@ -17,7 +17,7 @@ import { woodlandWhisperRoutes } from '../routes/woodland-whisper.routes.js'
 // ─── App fixture ────────────────────────────────────────────────────────────
 
 const sessions = new InMemorySessionManager()
-const server = new GameServer(sessions, jsRng())
+const server = new GameServer(sessions, engine.rng(20261007))
 server.register(new WoodlandWhisperModule())
 const app = new Elysia().use(woodlandWhisperRoutes(server))
 
@@ -141,7 +141,7 @@ describe('Session management', () => {
   })
 
   it('POST /spin with valid sessionId reuses the same session', async () => {
-    const first = await post('/woodlandwhisper/spin', { multiplier: 1 })
+    const first = await get('/woodlandwhisper/state')
     const sessionId: string = first.body.sessionId
 
     const second = await post('/woodlandwhisper/spin', { multiplier: 1, sessionId })
@@ -441,11 +441,12 @@ describe('Free spins — state transitions', () => {
     const { body } = await post('/woodlandwhisper/freespin', { sessionId: id })
     expect(body.result.type).toBe('FREE')
 
-    if (!body.result.retriggeredPickBonus) {
-      expect(body.state.freeSpins!.spinsRemaining).toBe(0)
-    } else {
-      expect(body.state.freeSpins!.spinsRemaining).toBeGreaterThan(0)
+    // A retrigger opens card selection; its award is added only after a match.
+    expect(body.state.freeSpins!.spinsRemaining).toBe(0)
+    if (body.result.retriggeredPickBonus) {
       expect(body.state.pickBonus).not.toBeNull()
+    } else {
+      expect(body.state.pickBonus).toBeNull()
     }
   })
 

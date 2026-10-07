@@ -4,7 +4,7 @@ import type { GameAssets } from '../../../engine/asset-registry.js'
 import type { GameEventBus } from '../../../engine/event-bus.js'
 import { ANIMATION_CONFIG } from '../animation-config.js'
 import { killAllTweens } from '../helpers/tween-utils.js'
-import { drawWires } from './wire-renderer.js'
+import { drawArmedReels } from './armed-reel-renderer.js'
 import { animateActivations } from './activation-animator.js'
 import { fireMissile } from './missile.js'
 import { playAirRaid } from './air-raid.js'
@@ -15,15 +15,13 @@ import { EngagementBoard } from './engagement-board.js'
 export class CombatOperationView extends Container {
   private _bus: GameEventBus
   private _overlay: Graphics
-  private _wires: Graphics
+  private _armedReels: Graphics
   private _current: Graphics
   private readonly _engagement = new EngagementBoard()
 
   private _mascotLaunchX = 0
   private _mascotLaunchY = 0
-  private _mascotConnX = 0
-  private _mascotConnY = 0
-  private _wireActiveStates: boolean[] = []
+  private _armedReelStates: boolean[] = []
 
   private _layout: CombatLayout = {
     symbolWidth: 0,
@@ -39,8 +37,8 @@ export class CombatOperationView extends Container {
   ) {
     super()
     this._bus = bus
-    this._wires = new Graphics()
-    this.addChild(this._wires)
+    this._armedReels = new Graphics()
+    this.addChild(this._armedReels)
     this._current = new Graphics()
     this.addChild(this._current)
     this._overlay = new Graphics()
@@ -48,55 +46,50 @@ export class CombatOperationView extends Container {
     this.addChild(this._overlay)
   }
 
-  setMascotData(lx: number, ly: number, cx: number, cy: number, reelCount: number): void {
+  setLaunchPoint(lx: number, ly: number, reelCount: number): void {
     this._mascotLaunchX = lx
     this._mascotLaunchY = ly
-    this._mascotConnX = cx
-    this._mascotConnY = cy
-    if (this._wireActiveStates.length !== reelCount) {
-      this._wireActiveStates = new Array(reelCount).fill(false)
+    if (this._armedReelStates.length !== reelCount) {
+      this._armedReelStates = new Array(reelCount).fill(false)
     }
   }
 
   clearPersistentMultipliers(): void {
-    this._deactivateWires()
+    this._clearArmedReels()
   }
 
-  deactivateAllWires(): void {
-    this._deactivateWires()
+  clearArmedReels(): void {
+    this._clearArmedReels()
   }
 
-  drawWires(layout: CombatLayout): void {
+  setLayout(layout: CombatLayout): void {
     if (layout.symbolWidth === 0) return
     this._layout = layout
-    this._redrawWires()
+    this._redrawArmedReels()
   }
 
   async animateActivations(activations: readonly ActivationEvent[]): Promise<void> {
     await animateActivations(
       this,
       this._overlay,
-      this._wires,
+      this._armedReels,
       this._current,
       activations,
       this._layout,
-      this._mascotConnX,
-      this._mascotConnY,
-      this._wireActiveStates,
+      this._armedReelStates,
     )
   }
 
-  // Light up cables for already-armed reels (e.g. carried into a free spin) as a
-  // steady powered line, without replaying the travelling-current animation.
+  // Carry armed-state indicators into a free spin without replaying activation.
   energizeReels(reels: Iterable<number>): void {
     let changed = false
     for (const reel of reels) {
-      if (reel >= 0 && reel < this._wireActiveStates.length && !this._wireActiveStates[reel]) {
-        this._wireActiveStates[reel] = true
+      if (reel >= 0 && reel < this._armedReelStates.length && !this._armedReelStates[reel]) {
+        this._armedReelStates[reel] = true
         changed = true
       }
     }
-    if (changed) this._redrawWires()
+    if (changed) this._redrawArmedReels()
   }
 
   async animateShootdowns(
@@ -109,7 +102,7 @@ export class CombatOperationView extends Container {
     await this._engagement.acquire(
       shootdowns,
       this._layout,
-      this._wireActiveStates.length,
+      this._armedReelStates.length,
       'TARGETS ACQUIRED',
     )
 
@@ -136,8 +129,8 @@ export class CombatOperationView extends Container {
 
       const reelRemaining = shootdowns.slice(i + 1).some((other) => other.reel === sd.reel)
       if (!reelRemaining) {
-        this._wireActiveStates[sd.reel] = false
-        this._redrawWires()
+        this._armedReelStates[sd.reel] = false
+        this._redrawArmedReels()
       }
 
       await new Promise((r) => setTimeout(r, ANIMATION_CONFIG.INTER_MISSILE_PAUSE_MS))
@@ -154,7 +147,7 @@ export class CombatOperationView extends Container {
     await this._engagement.acquire(
       placements,
       this._layout,
-      this._wireActiveStates.length,
+      this._armedReelStates.length,
       'AIR RAID INBOUND',
     )
     const { symbolWidth: sw, symbolHeight: sh, reelSpacing: rs } = this._layout
@@ -165,7 +158,7 @@ export class CombatOperationView extends Container {
       sw,
       sh,
       rs,
-      reelCount: this._wireActiveStates.length,
+      reelCount: this._armedReelStates.length,
       placements,
       squadronSize,
       wildId,
@@ -186,23 +179,13 @@ export class CombatOperationView extends Container {
     super.destroy(options)
   }
 
-  private _deactivateWires(): void {
-    this._wireActiveStates.fill(false)
+  private _clearArmedReels(): void {
+    this._armedReelStates.fill(false)
     this._current.clear()
-    this._redrawWires()
+    this._redrawArmedReels()
   }
 
-  private _redrawWires(): void {
-    const { symbolWidth, reelSpacing, totalHeight, scale } = this._layout
-    drawWires(
-      this._wires,
-      symbolWidth,
-      reelSpacing,
-      totalHeight,
-      scale,
-      this._mascotConnX,
-      this._mascotConnY,
-      this._wireActiveStates,
-    )
+  private _redrawArmedReels(): void {
+    drawArmedReels(this._armedReels, this._layout, this._armedReelStates)
   }
 }

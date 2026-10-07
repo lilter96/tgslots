@@ -195,6 +195,7 @@ async function interceptOne(
     })
   })
 
+  if (parent.destroyed) return
   destroyChild(parent, plane)
   gsap.to(trailG, {
     alpha: 0,

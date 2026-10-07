@@ -597,7 +597,7 @@ IDLE → SPINNING → STOPPING → WIN_SHOW → IDLE
 - `HUD`: Balance, bet amount, last win, spin button, auto-spin controls
 
 **Game-specific rendering** (Le Militare as most complex example):
-- `combat/`: Missile animations, explosion effects, air raid squadron, activation flash, wire renderer
+- `combat/`: Missile animations, explosion effects, air raid squadron, activation pulse, armed-reel indicators
 - `mascot/`: Raster-part S300 launcher mascot with animated radar, chassis, launcher
 - `multiplier-hud.ts`: Multiplier display with combat theme
 - `buy-feature-modal.ts`: Buy bonus selection UI

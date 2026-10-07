@@ -1,7 +1,7 @@
 import { Container, Graphics } from 'pixi.js'
 import { gsap } from 'gsap'
 import type { ActivationEvent } from '@tgslots/le-militare'
-import { drawWires, drawCurrent, wirePath } from './wire-renderer.js'
+import { drawArmedReels, drawActivationPulse } from './armed-reel-renderer.js'
 import type { CombatLayout } from './combat-layout.js'
 
 const prefersReducedMotion = (): boolean => {
@@ -21,7 +21,7 @@ async function flashReel(
   const { symbolWidth, reelSpacing, totalHeight } = layout
   const x = reel * (symbolWidth + reelSpacing)
   overlay.clear()
-  overlay.rect(x, 0, symbolWidth, totalHeight).fill({ color: 0xffc24d, alpha: 0.45 })
+  overlay.rect(x, 0, symbolWidth, totalHeight).fill({ color: 0x8cdbc4, alpha: 0.12 })
   overlay.alpha = 0
   await new Promise<void>((resolve) => {
     gsap.to(overlay, {
@@ -47,24 +47,19 @@ async function flashReel(
 export async function animateActivations(
   parent: Container,
   overlay: Graphics,
-  wiresG: Graphics,
+  armedG: Graphics,
   currentG: Graphics,
   activations: readonly ActivationEvent[],
   layout: CombatLayout,
-  connX: number,
-  connY: number,
   activeStates: boolean[],
 ): Promise<void> {
   if (activations.length === 0) return
 
-  const { symbolWidth, reelSpacing, totalHeight, scale } = layout
-  const redraw = (): void =>
-    drawWires(wiresG, symbolWidth, reelSpacing, totalHeight, scale, connX, connY, activeStates)
+  const redraw = (): void => drawArmedReels(armedG, layout, activeStates)
   const reduced = prefersReducedMotion()
 
   for (const activation of activations) {
     const r = activation.reel
-    const path = wirePath(r, symbolWidth, reelSpacing, totalHeight, scale, connX, connY)
 
     if (reduced) {
       activeStates[r] = true
@@ -73,8 +68,7 @@ export async function animateActivations(
       continue
     }
 
-    // The S300 has landed: an electric current sparks at the reel and travels
-    // up the cable toward the launcher.
+    // Charge the activated column without drawing across symbols or controls.
     await new Promise<void>((resolve) => {
       const head = { t: 0 }
       gsap.to(head, {
@@ -83,7 +77,7 @@ export async function animateActivations(
         ease: 'power1.in',
         onUpdate: () => {
           if (parent.destroyed) return
-          drawCurrent(currentG, path, head.t, scale)
+          drawActivationPulse(currentG, layout, r, head.t)
         },
         onComplete: resolve,
       })
@@ -91,7 +85,7 @@ export async function animateActivations(
     if (parent.destroyed) return
     currentG.clear()
 
-    // Cable now carries power (steady), and the reel energises.
+    // Keep a restrained indicator until this reel spends its activation.
     activeStates[r] = true
     redraw()
     await flashReel(overlay, parent, r, layout)

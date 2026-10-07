@@ -90,6 +90,7 @@ export async function fireMissile(p: FireMissileParams): Promise<void> {
       duration: ANIMATION_CONFIG.MISSILE_FLIGHT_MS / 1000,
       ease: 'power1.in',
       onUpdate: () => {
+        if (parent.destroyed || missile.destroyed) return
         const t = progress.t
         const px = bz(t, lx, cpX, tx)
         const py = bz(t, ly, cpY, ty)
@@ -107,6 +108,7 @@ export async function fireMissile(p: FireMissileParams): Promise<void> {
   })
 
   gsap.killTweensOf(engineGlow)
+  if (parent.destroyed) return
   parent.removeChild(missile)
   missile.destroy({ children: true })
 

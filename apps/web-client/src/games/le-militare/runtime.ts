@@ -229,7 +229,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       totalHeight: REEL_CONFIG.visibleSymbols * REEL_CONFIG.symbolHeight,
       scale: 1, // draw in design space, container scale handles the rest
     }
-    this._combatOpView.drawWires(combatLayout)
+    this._combatOpView.setLayout(combatLayout)
   }
 
   destroy(): void {
@@ -334,13 +334,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       reelScale: this._combatOpView.scale.x,
     })
 
-    this._combatOpView.setMascotData(
-      proj.launchLocalX,
-      proj.launchLocalY,
-      proj.connectionLocalX,
-      proj.connectionLocalY,
-      GRID_CONFIG.reels,
-    )
+    this._combatOpView.setLaunchPoint(proj.launchLocalX, proj.launchLocalY, GRID_CONFIG.reels)
   }
 
   private async _playCascadeSteps(
@@ -470,7 +464,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
 
     // Retract launcher after all animations if it was deployed this spin
     if (hasAnyCombatOp || raidActive) {
-      this._combatOpView.deactivateAllWires()
+      this._combatOpView.clearArmedReels()
       // Fire-and-forget retraction — it's slow (1.8s) and non-blocking for the next spin
       // because retractLauncher serializes via its internal promise chain
       this._mascot.retractLauncher().catch(() => {
