@@ -1,8 +1,10 @@
 # X7 Club verification — 2026-10-08
 
-Verified against commit `8644ab9`, with Go 1.26.4 and Bun 1.3.13.
+The original Go integration checks below were verified against commit `8644ab9`,
+with Go 1.26.4 and Bun 1.3.13. Checks for the subsequent selectable backend are
+recorded separately in the final section.
 
-X7 uses a Go HTTP server for demo sessions, wallet accounting, revisions and idempotent actions. Seeded game mathematics run in a TypeScript worker through RabbitMQ request/reply. The PixiJS client renders the authoritative results.
+X7 supports `X7_BACKEND=bun` (default, in-process execution in the shared API) and `X7_BACKEND=go-rabbit` (Go HTTP sessions and wallet, TypeScript mathematics over RabbitMQ). Both modes use the same seeded math executor and HTTP contract. The PixiJS client renders authoritative results from the selected server. Backend selection never changes the mathematical configuration or automatically falls back after a service failure.
 
 ## Checks performed
 
@@ -15,4 +17,34 @@ X7 uses a Go HTTP server for demo sessions, wallet accounting, revisions and ide
 
 ## Scope
 
-This establishes a working portfolio/demo integration, not production readiness. Sessions, wallet balances and idempotency history are in memory and are lost when the Go process restarts. Durable accounting and multi-instance shared state are not implemented. Race checks and the bounded integration run do not establish behavior for every possible load or outage.
+This establishes a working portfolio/demo integration, not production readiness. Sessions, wallet balances and idempotency history are in memory and are lost when the selected API process restarts. Durable accounting and multi-instance shared state are not implemented. Race checks and the bounded integration run do not establish behavior for every possible load or outage.
+
+## Backend selection verification
+
+Validation of the selectable backend on 2026-10-08:
+
+- `bun run validate`: typechecking and lint passed; **792 tests passed, 0 failed**.
+- `bun run x7:check`: generated Go configuration matched; Go race checks passed.
+- The web-client production build passed with the shared API proxy configuration.
+- The live smoke script passed through two temporary instances of the complete
+  Bun API, one with `X7_BACKEND=bun` and one with `X7_BACKEND=go-rabbit` connected
+  to the running Go/RabbitMQ stack. Both finished bonuses and verified duplicate
+  responses, wallet accounting and revisions.
+- Ancient Dragon, Woodland Whisper and Le Militare each passed state + spin HTTP
+  checks on both complete API instances.
+
+The HTTP integration tests in `apps/api/src/__tests__/x7-club.test.ts` cover:
+
+- A seeded local spin matches the shared game state machine exactly.
+- Eight concurrent duplicate requests return an identical snapshot and one debit.
+- A complete bought bonus matches seeded transitions, including column boosters,
+  preserves the triggering stake and credits the final award once.
+- Invalid payloads, insufficient credits and stale revisions leave balances unchanged.
+- Cached snapshots cannot mutate state; expired sessions return 404.
+- Replays outside the 256-command cache cannot execute again.
+- The Go proxy preserves request identities and upstream error statuses; an
+  unavailable Go server returns 503 rather than silently creating a local session.
+
+Run `bun test apps/api/src/__tests__/x7-club.test.ts` for this coverage. Both modes
+retain in-memory demo sessions only. A backend restart or switch expires sessions;
+this is not a durable wallet or production persistence implementation.

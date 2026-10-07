@@ -36,6 +36,7 @@
         "@tgslots/shared-contracts": "workspace:*",
         "@tgslots/slots-core": "workspace:*",
         "@tgslots/woodland-whisper": "workspace:*",
+        "@tgslots/x7-club": "workspace:*",
         "elysia": "^1.2.25",
       },
     },

@@ -33,9 +33,17 @@ MAJOR / MEGA awards, full-column boosters and a rare ×7. It reuses the shared
 samplers, payline evaluator, state-machine contract and simulation runner;
 generic held-prize and column-boost mechanics live in `slots-core`.
 
-Go owns its demo wallet, session revisions and idempotent actions. A stateless
-TypeScript math worker calculates seeded results through RabbitMQ request/reply.
-The game is registered in the existing client library and marketing site.
+X7 supports two server modes selected by `X7_BACKEND` on the Bun API:
+
+- `bun` (default): the shared API runs X7 in-process, alongside the other games.
+  No Go, Docker or RabbitMQ is required.
+- `go-rabbit`: Go owns the demo wallet, revisions and idempotent actions; a
+  stateless TypeScript worker computes results through RabbitMQ request/reply.
+
+Both modes use the same seeded math executor, game configuration, client and
+HTTP contract. Neither mode silently falls back to the other on failure.
+Sessions and credits are ephemeral in both modes; restarting or switching
+backends starts a new demo session.
 
 ```bash
 bun run dev:x7       # starts RabbitMQ, Go, math worker, API, client, marketing
@@ -45,12 +53,24 @@ bun run x7:sim --spins 1000000 --warmup 1000
 bun run x7:sim --spins 1000000 --game-mode buy --warmup 1000
 ```
 
-Requires Go 1.26.4 and Docker in addition to Bun. See the
+For the simple setup, run `bun run dev:all` (or `X7_BACKEND=bun bun run dev:api`
+with the client separately). The Vite client sends all games to the shared API
+at `API_PROXY_URL`, defaulting to `http://localhost:3001`.
+
+`bun run dev:x7` explicitly selects `go-rabbit` and starts the complete stack;
+this mode requires Go 1.26.4 and Docker. An existing Go service can be used with
+`X7_BACKEND=go-rabbit X7_SERVER_URL=http://127.0.0.1:3003 bun run dev:api`.
+`X7_PROXY_URL` is an optional Vite override for direct access to a Go server.
+For a deployed client, `VITE_API_URL` points to the shared public Bun API URL;
+backend selection stays on the server, with no client rebuild needed to switch.
+
+The Bun mode still needs a server: it does not turn the games into a static
+GitHub Pages deployment. See the
 [playable specification and architecture](memory/x7-club-gdd.md),
 [reproducible math audit](packages/games/x7-club/config/math-audit.json), and
 [container stack](compose.x7.yml). Sessions and credits are ephemeral demo data.
 
-[Latest X7 verification: Go race tests, 785 platform tests and live RabbitMQ integration](docs/x7-verification.md).
+[X7 verification: Go race tests, platform tests and live RabbitMQ integration](docs/x7-verification.md).
 
 ## Architecture
 

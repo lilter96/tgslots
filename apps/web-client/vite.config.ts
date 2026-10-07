@@ -12,7 +12,7 @@ export default defineConfig({
     port: 3002,
     proxy: {
       '/game/x7-club': {
-        target: process.env.X7_PROXY_URL ?? 'http://localhost:3003',
+        target: process.env.X7_PROXY_URL ?? process.env.API_PROXY_URL ?? 'http://localhost:3001',
         changeOrigin: true,
       },
       '/game': {
