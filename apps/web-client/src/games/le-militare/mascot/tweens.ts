@@ -15,7 +15,7 @@ export function startIdleTweens(masterContainer: Container, radarContainer: Cont
     repeat: -1,
   })
   const radar = gsap.to(radarContainer, {
-    angle: 28,
+    alpha: 0.92,
     duration: 2.4,
     ease: 'sine.inOut',
     yoyo: true,
@@ -36,9 +36,10 @@ export function startDeployedIdleTweens(
     repeat: -1,
   })
   const radar = gsap.to(radarContainer, {
-    angle: '+=360',
-    duration: 3.2,
-    ease: 'none',
+    alpha: 0.92,
+    duration: 1.6,
+    yoyo: true,
+    ease: 'sine.inOut',
     repeat: -1,
   })
   return { bob, radar }

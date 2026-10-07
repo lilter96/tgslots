@@ -1,10 +1,14 @@
-import { Container, Graphics } from 'pixi.js'
+import { AnimatedSprite, Container, Graphics, Sprite } from 'pixi.js'
+import type { GameAssets } from '../../../engine/asset-registry.js'
 import type { UILayoutSnapshot } from '../../../engine/layout.js'
-import { PALETTE } from './palette.js'
-import { GND, NATURAL_W, NATURAL_H } from './design.js'
-import { drawChassis } from './draw-chassis.js'
-import { drawRadar } from './draw-radar.js'
-import { drawLauncher } from './draw-launcher.js'
+import {
+  GND,
+  NATURAL_W,
+  NATURAL_H,
+  LAUNCHER_HINGE_X,
+  LAUNCHER_HINGE_Y,
+  LAUNCHER_LEN,
+} from './design.js'
 import {
   startIdleTweens,
   startDeployedIdleTweens,
@@ -33,7 +37,7 @@ export class S300Mascot extends Container {
   private _deployPromise: Promise<void> | null = null
   private _retractPromise: Promise<void> | null = null
 
-  constructor() {
+  constructor(assets: GameAssets) {
     super()
 
     this.masterContainer = new Container()
@@ -46,9 +50,32 @@ export class S300Mascot extends Container {
     this.masterContainer.addChild(this.launcherContainer)
     this.addChild(this.masterContainer)
 
-    drawChassis(this.chassisContainer, PALETTE)
-    drawRadar(this.radarContainer, PALETTE)
-    drawLauncher(this.launcherContainer, PALETTE)
+    const chassis = new Sprite(assets.getTexture('MASCOT_CHASSIS'))
+    chassis.width = CHASSIS_RIGHT
+    chassis.height = (CHASSIS_RIGHT * chassis.texture.height) / chassis.texture.width
+    chassis.y = GND - chassis.height
+    this.chassisContainer.addChild(chassis)
+
+    const radar = new AnimatedSprite(
+      [1, 0, 2, 3, 2, 0].map((index) => assets.getTexture(`RADAR_TURN_${index}`)),
+    )
+    radar.animationSpeed = 0.065
+    radar.autoUpdate = true
+    radar.onFrameChange = () => {
+      radar.scale.set(230 / radar.texture.height)
+    }
+    radar.play()
+    radar.anchor.set(0.5, 1)
+    radar.scale.set(230 / radar.texture.height)
+    this.radarContainer.position.set(650, 320)
+    this.radarContainer.addChild(radar)
+
+    const launcher = new Sprite(assets.getTexture('MASCOT_LAUNCHER'))
+    launcher.anchor.set(0, 1)
+    launcher.width = LAUNCHER_LEN
+    launcher.height = (LAUNCHER_LEN * launcher.texture.height) / launcher.texture.width
+    this.launcherContainer.position.set(LAUNCHER_HINGE_X, LAUNCHER_HINGE_Y)
+    this.launcherContainer.addChild(launcher)
 
     // Ground shadow for visual separation from the dark radar background.
     const shadow = new Graphics()

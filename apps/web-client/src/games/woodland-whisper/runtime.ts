@@ -1,3 +1,5 @@
+import { PaylineTrail } from '../../engine/payline-trail.js'
+import { FeatureScene, type FeatureSource } from '../../engine/feature-scene.js'
 import { Graphics, Sprite } from 'pixi.js'
 import type { GameRuntime } from '../../engine/game-client.js'
 import type { GameUIContext } from '../../engine/game-client.js'
@@ -20,14 +22,13 @@ import { BUY_BONUS_COST_MULTIPLIER } from '@tgslots/woodland-whisper'
 import type { WoodlandWhisperSerializedState } from '@tgslots/shared-contracts/states'
 import type { WWPickBonusSerialized } from '@tgslots/shared-contracts/states'
 import type { ActionType } from '@tgslots/shared-contracts'
-import { deriveAwardedFreeSpins } from './free-spins-helpers.js'
 import { manifest } from './manifest.js'
 import { getSpinSpeedProfile } from '../../engine/spin-speed.js'
 import type { SpinSpeedProfile } from '../../engine/spin-speed.js'
 
 // Outer bitmap / inner transparent opening ratios — tune visually if artwork changes
-const FRAME_OUTER_TO_INNER_X = 1.67
-const FRAME_OUTER_TO_INNER_Y = 1.67
+const FRAME_OUTER_TO_INNER_X = 1.13
+const FRAME_OUTER_TO_INNER_Y = 1.19
 const PAYLINE_WIN_COLOR = 0xffd700
 const SCATTER_WIN_COLOR = 0xff44cc
 const SCATTER_ID = Symbols['COIN']!
@@ -55,10 +56,16 @@ function transposeGrid(grid: number[][]): number[][] {
 export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   private _ctx!: GameUIContext<'woodland-whisper'>
   private _reelSet!: ReelSet
+  private _featureScene!: FeatureScene
+  private _paylineTrail!: PaylineTrail
+  private _presentingFree = false
+  private _freeRemaining = 0
+  private _freeTotal = 0
   private _overlay!: WinOverlay
   private _pickUI!: PickBonusView
   private _buyBonusControl!: BuyBonusControl
   private _background!: BackgroundContainer
+  private _boardPlate!: Graphics
   private _mask!: Graphics
   private _frame!: Sprite
   private _layout?: UILayoutSnapshot
@@ -87,6 +94,9 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
       manifest.symbols.length,
     )
 
+    this._boardPlate = new Graphics()
+    ctx.scene.reels.addChild(this._boardPlate)
+
     // Mask (sibling to reelSet inside scene.reels layer)
     this._mask = new Graphics()
     ctx.scene.reels.addChild(this._mask)
@@ -99,7 +109,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     ctx.scene.reels.addChild(this._frame)
 
     // Pick bonus UI
-    this._pickUI = new PickBonusView()
+    this._pickUI = new PickBonusView(ctx.assets)
     this._pickUI.on('pick', (index: number) => {
       ctx.eventBus.emit('pick-card-selected', { index })
     })
@@ -109,6 +119,10 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._overlay = new WinOverlay()
     this._overlay.setGame(ctx.assets, [...manifest.winTiers])
     ctx.scene.overlays.addChild(this._overlay)
+    this._paylineTrail = new PaylineTrail('forest')
+    ctx.scene.overlays.addChild(this._paylineTrail)
+    this._featureScene = new FeatureScene(ctx.assets, 'forest')
+    ctx.scene.overlays.addChild(this._featureScene)
 
     this._buyBonusControl = new BuyBonusControl(ctx.eventBus, ctx.fsm, BUY_BONUS_COST_MULTIPLIER)
     ctx.hud.slot('control-right').addChild(this._buyBonusControl)
@@ -121,6 +135,8 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._pendingPickBonusState = state.pickBonus
 
     const remaining = state.freeSpins?.spinsRemaining ?? 0
+    this._freeRemaining = remaining
+    this._freeTotal = state.freeSpins?.totalWin ?? 0
     this._ctx.eventBus.emit('free-spins:updated', { remaining })
   }
 
@@ -128,6 +144,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     _action: ActionType<'woodland-whisper'>,
     result: WoodlandWhisperResult,
   ): Promise<void> {
+    this._presentingFree = result.type === 'FREE'
     switch (result.type) {
       case 'BASE':
         await this._presentBase(result)
@@ -168,6 +185,10 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     const innerX = layout.reelBounds.x + (layout.reelBounds.width - innerWidth) / 2
     const innerY = layout.reelBounds.y + (layout.reelBounds.height - innerHeight) / 2
 
+    this._boardPlate.clear()
+    this._boardPlate.roundRect(innerX - 4, innerY - 4, innerWidth + 8, innerHeight + 8, 8)
+    this._boardPlate.fill({ color: 0x071a17, alpha: 0.97 })
+
     // Reel set — fit inside inner opening, centered on both axes
     const reelContentW = GRID_CONFIG.reels * REEL_CONFIG.symbolWidth
     const reelContentH = GRID_CONFIG.rows * REEL_CONFIG.symbolHeight
@@ -189,6 +210,7 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     this._mask.fill(0xffffff)
 
     this._overlay.resize(layout)
+    this._featureScene.resize(layout)
     this._pickUI.resize(layout)
   }
 
@@ -206,10 +228,13 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
   destroy(): void {
     this._reelSet.destroy({ children: true })
     this._overlay.destroy({ children: true })
+    this._featureScene?.destroy({ children: true })
+    this._paylineTrail?.destroy({ children: true })
     this._pickUI.destroy({ children: true })
     this._buyBonusControl.destroy({ children: true })
     this._background.destroy()
     this._mask.destroy()
+    this._boardPlate.destroy()
     this._frame.destroy()
   }
 
@@ -241,7 +266,11 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     }
 
     if (result.triggeredPickBonus) {
-      await this._overlay.announce('BONUS!', 1500)
+      await this._featureScene.play(
+        'FOLLOW THE LIGHT',
+        'Find two matching numbers',
+        this._featureSources(transposed),
+      )
       await this._runPickBonus()
     }
 
@@ -270,7 +299,11 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
     }
 
     this._ctx.eventBus.emit('feature:announced', { type: 'bonus' })
-    await this._overlay.announce('BONUS!', 1500)
+    await this._featureScene.play(
+      'FOLLOW THE LIGHT',
+      'Find two matching numbers',
+      this._featureSources(transposed),
+    )
     await this._runPickBonus()
   }
 
@@ -295,8 +328,17 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
 
     if (result.retriggeredPickBonus) {
       this._ctx.eventBus.emit('feature:announced', { type: 'bonus' })
-      await this._overlay.announce('BONUS!', 1500)
+      await this._featureScene.play(
+        'FOLLOW THE LIGHT',
+        'Find two matching numbers',
+        this._featureSources(transposed),
+      )
       await this._runPickBonus()
+    } else if (this._freeRemaining === 0) {
+      await this._featureScene.play(
+        'A GIFT FROM THE FOREST',
+        `${this._freeTotal.toLocaleString('en-US')} CREDITS WON`,
+      )
     }
   }
 
@@ -327,14 +369,9 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
       const pickResult = response.result as WoodlandWhisperPickResult | undefined
       if (!pickResult) break
 
-      const emptyState: WoodlandWhisperSerializedState = {
-        lastGrid: null,
-        freeSpins: null,
-        pickBonus: null,
-      }
-      const awarded = pickResult.pick.isMatch
-        ? deriveAwardedFreeSpins(emptyState, response.state as WoodlandWhisperSerializedState)
-        : null
+      const awarded = pickResult.pick.isMatch ? pickResult.pick.value : null
+      const nextState = response.state as WoodlandWhisperSerializedState
+      this.applyState(nextState)
 
       this._pickUI.revealCard(pickResult.pick.userIndex, pickResult.pick.value)
       this._ctx.eventBus.emit('pick:card:revealed', {
@@ -349,13 +386,24 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
 
         if (awarded && awarded > 0) {
           this._ctx.eventBus.emit('feature:announced', { type: 'free-spins' })
-          await this._overlay.announceFreeSpinsAwarded(awarded, 1500)
-          this._ctx.eventBus.emit('free-spins:updated', { remaining: awarded, awarded })
+          await this._featureScene.play('THE FOREST AWAKENS', `${awarded} FREE SPINS · ALL WINS ×2`)
+          this._ctx.eventBus.emit('free-spins:updated', {
+            remaining: nextState.freeSpins?.spinsRemaining ?? 0,
+            awarded,
+          })
         }
       } else {
         await this._wait(this._spinSpeedProfile.pickMissPauseMs)
       }
     }
+  }
+
+  private _featureSources(grid: number[][]): FeatureSource[] {
+    return this._findScatterCells(grid).map(({ col, row }) => ({
+      x: this._reelSet.x + (col + 0.5) * REEL_CONFIG.symbolWidth * this._reelSet.scale.x,
+      y: this._reelSet.y + (row + 0.5) * REEL_CONFIG.symbolHeight * this._reelSet.scale.y,
+      texture: this._ctx.assets.getTexture('COIN'),
+    }))
   }
 
   private async _showWinAnimation(
@@ -397,7 +445,18 @@ export class WoodlandWhisperRuntime implements GameRuntime<'woodland-whisper'> {
         }
       }
 
-      await this._wait(msPerLine)
+      const points = Array.from({ length: hit.matchCount }, (_, col) => ({
+        x:
+          this._reelSet.x +
+          (col * (REEL_CONFIG.symbolWidth + 0) + REEL_CONFIG.symbolWidth / 2) *
+            this._reelSet.scale.x,
+        y:
+          this._reelSet.y +
+          (PAYLINE_DATA[hit.lineIndex * 5 + col]! + 0.5) *
+            REEL_CONFIG.symbolHeight *
+            this._reelSet.scale.y,
+      }))
+      await this._paylineTrail.play(points, msPerLine, this._presentingFree)
     }
 
     this._reelSet.clearAllHighlights()

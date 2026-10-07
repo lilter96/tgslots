@@ -60,7 +60,9 @@ bun run main.ts --game le-militare --spins 1000 --visualize
 
 This is a personal engineering showcase, not a certified real-money gambling platform. API sessions use an **ephemeral in-memory store**; durability, operator accounting, production security, and gambling certification are outside this repository's demonstrated scope. Simulation results are engineering checks, not regulatory approval.
 
-**Local verification (2026-10-07, Bun 1.3.13):** `bun run validate` passed: all workspace typechecks, ESLint and 736 tests. Explicit Node.js typings resolve the simulation runner’s Node `Worker` event API. The full build and live deployment were not reverified for this publication.
+**Local verification (2026-10-07, Bun 1.3.13):** `bun run validate` passed: all workspace typechecks, ESLint and **753 tests**. The web-client production build passed. Independent reference checks cover 30,520 payline combinations and 4,050 cluster combinations. Woodland Whisper's normal-round target is 96%: the analytical result is 96.0006%, with 96.1487% measured over 20 million complete rounds including card picks and free spins. See [the calculation and calibration notes](packages/games/woodland-whisper/config/MATH-NOTES.md).
+
+The browser client includes [in-game rules and paytables](apps/web-client/src/app/game-rules.ts), raster character poses, actual-cell win trails, bonus entry and completion scenes, and visible missile/aircraft action. Original synthesized music and effects are reproducible with `scripts/compose-game-audio.py`; asset provenance is recorded beside the audio files. Desktop and phone feature flows are reviewed through uncut browser recordings against the live local API. Visual review and promo publication remain pending.
 
 Publication review checked the tracked source and complete available Git history for secrets and obvious commercial-code markers. It does not establish production readiness. No open-source license has been added; public visibility alone does not grant reuse rights.
 

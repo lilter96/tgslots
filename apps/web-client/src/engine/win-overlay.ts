@@ -212,7 +212,8 @@ export class WinOverlay extends Container {
   }
 
   private _setupTierLabel(text: string, textureName?: string): void {
-    const name = textureName ?? this._winTiers.find((t) => t.copy === text)?.textureName
+    const name =
+      textureName ?? this._winTiers.find((t) => t.copy === text)?.textureName ?? 'WIN_SMALL'
     if (name && this._assets) {
       try {
         this._tierSprite.texture = this._assets.getTexture(name)
@@ -221,7 +222,8 @@ export class WinOverlay extends Container {
           this._tierSprite.scale.set(spriteTargetW / this._tierSprite.texture.width)
         }
         this._tierSprite.visible = true
-        this._tierText.visible = false
+        this._tierText.text = text
+        this._tierText.visible = true
         return
       } catch {
         // fallthrough to text

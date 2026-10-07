@@ -59,7 +59,7 @@ describe('buildEngineFromArrays', () => {
         [0, 10, 25, 50, 100],
         [0, 5, 15, 30, 60],
       ],
-      symbols: { A: 0, B: 1 },
+      symbols: { A: 0, B: 1, W: 2 },
     }
     const engine = buildEngineFromArrays(raw)
     expect(engine.reelCount).toBe(3)
@@ -69,18 +69,18 @@ describe('buildEngineFromArrays', () => {
     expect(aId).toBeDefined()
   })
 
-  it('skips symbols with zero payouts', () => {
+  it('preserves non-paying symbol IDs without adding payouts', () => {
     const raw = {
       reelCount: 3,
       rowCount: 3,
       wildSymbol: 'W',
       paylineData: new Uint8Array([0, 0, 0]),
       payTable: [[0, 0, 0, 0, 0]], // all zeros
-      symbols: { A: 0 },
+      symbols: { A: 0, W: 1 },
     }
     const engine = buildEngineFromArrays(raw)
-    // At least wild is registered; A has no positive payouts so it is not added to paytable
-    // and therefore not registered as a symbol
-    expect(engine.symbols.count).toBeGreaterThanOrEqual(1)
+    expect(engine.symbols.toId.get('A')).toBe(0)
+    expect(engine.symbols.wildId).toBe(1)
+    expect(engine.symbols.count).toBe(2)
   })
 })

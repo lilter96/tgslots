@@ -1,4 +1,4 @@
-import { Assets, Texture } from 'pixi.js'
+import { Assets, Texture, Rectangle } from 'pixi.js'
 import { sound } from '@pixi/sound'
 import type { AssetManifest, GameManifest } from '@tgslots/shared-contracts'
 
@@ -9,12 +9,11 @@ export interface GameAssets {
   getSymbolTextureSafe(symbolId: number, fallbackId: number): Texture
 
   getTexture(name: string): Texture
-
-  rasterizeSvg(name: string, svg: string, w: number, h: number): Promise<Texture>
 }
 
 export class AssetRegistry {
   private readonly _textures = new Map<string, Map<string, Texture>>()
+  private readonly _frames = new Map<string, Set<Texture>>()
   private readonly _manifests = new Map<string, GameManifest>()
 
   // Trackers for cleanup
@@ -28,11 +27,13 @@ export class AssetRegistry {
     const { gameId } = manifest
 
     // 1. Prevent memory leaks from double-loading
-    if (this._manifests.has(gameId)) this.unloadGame(gameId)
+    if (this._manifests.has(gameId)) await this.unloadGame(gameId)
 
     this._manifests.set(gameId, manifest)
     const textures = new Map<string, Texture>()
     this._textures.set(gameId, textures)
+    const frames = new Set<Texture>()
+    this._frames.set(gameId, frames)
 
     const soundKeys: string[] = []
     this._soundKeys.set(gameId, soundKeys)
@@ -70,32 +71,38 @@ export class AssetRegistry {
           t.source.scaleMode = 'linear'
           textures.set(alias, t)
         }
+        for (const spec of assets.atlases ?? []) {
+          const atlas = loadedAssets[spec.image] as Texture
+          if (!atlas) throw new Error(`Missing raster atlas: ${spec.image}`)
+          for (const [name, frame] of Object.entries(spec.frames)) {
+            const texture = new Texture({
+              source: atlas.source,
+              frame: new Rectangle(frame.x, frame.y, frame.width, frame.height),
+            })
+            frames.add(texture)
+            textures.set(name, texture)
+          }
+        }
       }),
     )
-
-    // Job: Rasterize Symbol SVGs
-    for (const [name, svg] of Object.entries(assets.symbols ?? [])) {
-      push(
-        this.rasterizeSvg(name, svg, manifest.symbolSize, manifest.symbolSize).then((t) => {
-          textures.set(name, t)
-        }),
-      )
-    }
-
-    // Job: Rasterize Environment SVGs
-    for (const [name, env] of Object.entries(assets.env)) {
-      push(
-        this.rasterizeSvg(name, env.svg, env.width, env.height).then((t) => {
-          textures.set(name, t)
-        }),
-      )
-    }
 
     // Job: Audio (Parallel)
     if (assets.audio) {
       for (const [name, url] of Object.entries(assets.audio)) {
         if (!sound.exists(name)) {
-          sound.add(name, url)
+          push(
+            new Promise<void>((resolve, reject) => {
+              sound.add(name, {
+                url,
+                preload: true,
+                loaded: (error) => {
+                  if (error)
+                    reject(new Error(`Could not load game audio: ${name}`, { cause: error }))
+                  else resolve()
+                },
+              })
+            }),
+          )
           soundKeys.push(name)
         }
       }
@@ -105,56 +112,11 @@ export class AssetRegistry {
     return this._makeAccessor(gameId)
   }
 
-  /**
-   * High-Quality Rasterizer (as perfected in previous steps)
-   */
-  async rasterizeSvg(name: string, svg: string, w: number, h: number): Promise<Texture> {
-    const dpr = window.devicePixelRatio || 1
-    const blob = new Blob([svg], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
-    const img = new Image()
-    img.width = w * dpr
-    img.height = h * dpr
-    img.src = url
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject(new Error(`SVG load failed: ${name}`))
-      })
-    } finally {
-      URL.revokeObjectURL(url)
-    }
-
-    const canvas = document.createElement('canvas')
-    canvas.width = w * dpr
-    canvas.height = h * dpr
-    const ctx = canvas.getContext('2d')!
-    ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(img, 0, 0, w * dpr, h * dpr)
-
-    const texture = Texture.from(canvas)
-    texture.source.resolution = dpr
-    texture.source.autoGenerateMipmaps = true
-    return texture
-  }
-
-  unloadGame(gameId: string): void {
-    // 1. Unload Pixi Bundle (PNGs/JPGs)
-    Assets.unloadBundle(gameId)
-
-    // 2. Destroy SVG Textures (Manual)
-    const textures = this._textures.get(gameId)
-    if (textures) {
-      for (const [, texture] of textures.entries()) {
-        // Only destroy if it WASN'T loaded via the bundle (managed by Pixi)
-        // We know our SVGs aren't in the bundle because we didn't add them to Assets.addBundle
-        if (!Assets.cache.has(texture.source)) {
-          texture.destroy(true)
-        }
-      }
-      this._textures.delete(gameId)
-    }
+  async unloadGame(gameId: string): Promise<void> {
+    for (const texture of this._frames.get(gameId) ?? []) texture.destroy(false)
+    this._frames.delete(gameId)
+    this._textures.delete(gameId)
+    await Assets.unloadBundle(gameId)
 
     // 3. Clear Sounds
     const sounds = this._soundKeys.get(gameId)
@@ -168,8 +130,6 @@ export class AssetRegistry {
   private _makeAccessor(gameId: string): GameAssets {
     const manifest = this._manifests.get(gameId)!
     const textures = this._textures.get(gameId)!
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const registry = this
 
     return {
       manifest, // Now the UI can read manifest.reels, manifest.paylines, etc.
@@ -216,10 +176,6 @@ export class AssetRegistry {
         const t = textures.get(name)
         if (!t) throw new Error(`Texture missing: ${name}`)
         return t
-      },
-
-      rasterizeSvg(name, svg, w, h) {
-        return registry.rasterizeSvg(name, svg, w, h)
       },
     }
   }

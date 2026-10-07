@@ -50,13 +50,17 @@ export class ReelSet extends Container {
     await Promise.all(promises)
   }
 
-  public async stop(finalGrid: number[][], held?: ReadonlySet<number>): Promise<void> {
+  public async stop(
+    finalGrid: number[][],
+    held?: ReadonlySet<number>,
+    onStopped?: (index: number) => void,
+  ): Promise<void> {
     const promises = this._reels.map((reel, i) => {
       if (held?.has(i)) {
         reel.setSymbols(finalGrid[i]!)
         return Promise.resolve()
       }
-      return this.stopReel(i, finalGrid[i]!)
+      return this.stopReel(i, finalGrid[i]!).then(() => onStopped?.(i))
     })
     await Promise.all(promises)
   }

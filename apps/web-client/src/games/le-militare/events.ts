@@ -3,6 +3,8 @@ import type { ActivationEvent, ShootdownEvent, LeMilitareResult } from '@tgslots
 
 declare module '../../engine/event-bus.js' {
   interface GameEventMap {
+    'le-militare:missile:launched': Record<string, void>
+    'le-militare:impact': Record<string, void>
     'le-militare:symbol:transform': { reel: number; row: number; newSymbolId: number }
     'le-militare:multiplier:stick': {
       reel: number

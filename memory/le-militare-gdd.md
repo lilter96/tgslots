@@ -1,4 +1,6 @@
 ---
+
+> Historical design document. Some numbers predate subsequent math rebalances. Current `packages/games/le-militare/config/config.json` and `apps/web-client/src/app/game-rules.ts` define the implemented rules and paytables.
 title: "Le Militare"
 type: "component"
 aliases:

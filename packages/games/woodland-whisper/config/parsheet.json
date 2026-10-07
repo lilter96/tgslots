@@ -1,88 +1,136 @@
 {
   "metadata": {
     "bet": 30,
-    "source": "parsheet",
-    "notes": "5x3, 30 paylines, 2x free-spin multiplier, pick-bonus free-spins via COIN scatter (≥3)"
+    "source": "Independent analytical reference: scripts/verify-woodland-math.py",
+    "target_rtp": 0.96,
+    "notes": "Version 2. Integer payouts calibrated to 96%; exact RTP 96.0006093%. First-repeat award distribution and all free-spin retriggers included. Legacy unverified benchmarks preserved in parsheet.legacy.json."
   },
   "comparisons": [
     {
       "id": "total-rtp",
       "label": "Total RTP",
-      "expected": 0.880413,
-      "source": { "kind": "summary", "key": "rtp" },
-      "tolerance": { "type": "absolute", "value": 0.005 },
+      "expected": 0.9600060932273558,
+      "source": {
+        "kind": "summary",
+        "key": "rtp"
+      },
+      "tolerance": {
+        "type": "absolute",
+        "value": 0.005
+      },
       "format": "percent"
     },
     {
       "id": "basic-game-rtp",
       "label": "Basic Game RTP",
-      "expected": 0.727832,
-      "source": { "kind": "scope", "scope": ["base-game"], "metric": "win", "field": "ratio" },
-      "tolerance": { "type": "absolute", "value": 0.005 },
+      "expected": 0.7978841930730788,
+      "source": {
+        "kind": "scope",
+        "scope": [
+          "base-game"
+        ],
+        "metric": "win",
+        "field": "ratio"
+      },
+      "tolerance": {
+        "type": "absolute",
+        "value": 0.005
+      },
       "format": "percent"
     },
     {
-      "id": "basic-game-win-cycle",
-      "label": "Basic Game Win Cycle",
-      "expected": 11.0522,
-      "source": { "kind": "scope", "scope": ["base-game"], "metric": "hits", "field": "cycle" },
-      "tolerance": { "type": "relative", "value": 0.03 },
-      "format": "number"
+      "id": "feature-rtp",
+      "label": "Feature Game RTP",
+      "expected": 0.16212190015427694,
+      "source": {
+        "kind": "scope",
+        "scope": [
+          "features",
+          "free-spins"
+        ],
+        "metric": "feature-rtp",
+        "field": "ratio"
+      },
+      "tolerance": {
+        "type": "absolute",
+        "value": 0.005
+      },
+      "format": "percent"
     },
     {
       "id": "feature-trigger-cycle",
       "label": "Feature Trigger Cycle (Base Game)",
-      "expected": 140.5167,
-      "source": { "kind": "scope", "scope": ["features", "pick-bonus-base-game"], "metric": "triggers", "field": "cycle" },
-      "tolerance": { "type": "relative", "value": 0.05 },
-      "format": "number"
-    },
-    {
-      "id": "feature-retrigger-cycle",
-      "label": "Feature Trigger Cycle (Free Game)",
-      "expected": 140.52,
-      "source": { "kind": "scope", "scope": ["features", "pick-bonus-free-game"], "metric": "retriggers", "field": "cycle" },
-      "tolerance": { "type": "relative", "value": 0.05 },
+      "expected": 138.2035664770283,
+      "source": {
+        "kind": "scope",
+        "scope": [
+          "features",
+          "pick-bonus-base-game"
+        ],
+        "metric": "triggers",
+        "field": "cycle"
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.05
+      },
       "format": "number"
     },
     {
       "id": "avg-free-spins-per-trigger",
-      "label": "Avg Free Spins per Trigger (Base Game)",
-      "expected": 13.3313,
-      "source": { "kind": "scope", "scope": ["features", "pick-bonus-base-game"], "metric": "spins-awarded", "field": "average" },
-      "tolerance": { "type": "relative", "value": 0.03 },
+      "label": "Avg Free Spins per Trigger",
+      "expected": 12.745860751360029,
+      "source": {
+        "kind": "scope",
+        "scope": [
+          "features",
+          "pick-bonus-base-game"
+        ],
+        "metric": "spins-awarded",
+        "field": "average"
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.03
+      },
       "format": "number"
     },
     {
-      "id": "avg-free-spins-per-retrigger",
-      "label": "Avg Free Spins per Trigger (Free Game)",
-      "expected": 13.3313,
-      "source": { "kind": "scope", "scope": ["features", "pick-bonus-free-game"], "metric": "spins-awarded", "field": "average" },
-      "tolerance": { "type": "relative", "value": 0.03 },
+      "id": "avg-total-spins-per-trigger",
+      "label": "Avg Total Free Spins incl. Retriggers",
+      "expected": 14.040774964507655,
+      "source": {
+        "kind": "scope",
+        "scope": [
+          "features",
+          "free-spins"
+        ],
+        "metric": "total-spins-per-trigger",
+        "field": "average"
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.03
+      },
       "format": "number"
     },
     {
       "id": "feature-avg-round-win",
       "label": "Feature Avg Round Win",
-      "expected": 643.2,
-      "source": { "kind": "scope", "scope": ["features", "free-spins"], "metric": "session-win", "field": "average" },
-      "tolerance": { "type": "relative", "value": 0.05 },
-      "format": "number"
-    },
-    {
-      "id": "feature-rtp",
-      "label": "Feature Game RTP",
-      "expected": 0.15258,
-      "source": { "kind": "scope", "scope": ["features", "free-spins"], "metric": "feature-rtp", "field": "ratio" },
-      "tolerance": { "type": "absolute", "value": 0.005 },
-      "format": "percent"
-    },
-    {
-      "id": "avg-total-spins-per-trigger",
-      "label": "Avg Total Free Spins per Trigger (incl. retriggers)",
-      "expected": 14.73,
-      "source": { "kind": "scope", "scope": ["features", "free-spins"], "metric": "total-spins-per-trigger", "field": "average" },
-      "tolerance": { "type": "relative", "value": 0.03 },
+      "expected": 672.1747441606126,
+      "source": {
+        "kind": "scope",
+        "scope": [
+          "features",
+          "free-spins"
+        ],
+        "metric": "session-win",
+        "field": "average"
+      },
+      "tolerance": {
+        "type": "relative",
+        "value": 0.05
+      },
       "format": "number"
     }
   ]

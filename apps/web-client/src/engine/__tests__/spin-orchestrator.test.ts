@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test'
+import { describe, it, expect, spyOn } from 'bun:test'
 import { GameStateMachine } from '../state-machine'
 import { SessionManager } from '../session-manager'
 import { GameEventBus } from '../event-bus'
@@ -61,7 +61,7 @@ function buildSetup(initialBalance = 1000, freeSpinsToTrigger = 0, baseWin = 0) 
   }
 
   const orchestrator = new SpinOrchestrator(fsm, session, runtime, eventBus, actions)
-  return { fsm, session, eventBus, orchestrator, s }
+  return { fsm, session, eventBus, orchestrator, s, actions }
 }
 
 function buildBuyBonusSetup(initialBalance = 5000, freeSpinsToTrigger = 0) {
@@ -329,5 +329,28 @@ describe('SpinOrchestrator', () => {
         globalThis.setTimeout = originalSetTimeout
       }
     })
+  })
+})
+
+describe('request failure feedback', () => {
+  it('stops automatic play, emits feedback and unlocks controls after a failed request', async () => {
+    const { fsm, session, eventBus, orchestrator, actions } = buildSetup()
+    const errors: string[] = []
+    eventBus.on('error:api', ({ message }) => errors.push(message))
+    actions.doSpin = async () => {
+      throw new Error('network unavailable')
+    }
+    const log = spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      orchestrator.startAutoSpin({ spins: 5, stopOnWin: false, stopOnBonus: false })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(orchestrator.isAutoSpin).toBe(false)
+      expect(fsm.state).toBe(GameUIState.IDLE)
+      expect(errors).toEqual(['Spin request failed'])
+      expect(session.balance).toBe(1000)
+      expect(session.lastWager).toBe(0)
+    } finally {
+      log.mockRestore()
+    }
   })
 })

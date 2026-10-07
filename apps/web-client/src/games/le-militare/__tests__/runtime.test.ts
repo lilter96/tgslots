@@ -224,6 +224,7 @@ describe('LeMilitareRuntime.destroy', () => {
     harness['_reelSet'] = { destroy: () => {} }
     harness['_overlay'] = { destroy: () => {} }
     harness['_bgSprite'] = { destroy: () => {} }
+    harness['_boardPlate'] = { destroy: () => {} }
     harness['_mask'] = { destroy: () => {} }
     harness['_frame'] = { destroy: () => {} }
     harness['_mascot'] = { destroy: () => {} }
@@ -250,6 +251,7 @@ describe('LeMilitareRuntime.destroy', () => {
     harness['_reelSet'] = { destroy: () => {} }
     harness['_overlay'] = { destroy: () => {} }
     harness['_bgSprite'] = { destroy: () => {} }
+    harness['_boardPlate'] = { destroy: () => {} }
     harness['_mask'] = { destroy: () => {} }
     harness['_frame'] = { destroy: () => {} }
     harness['_mascot'] = { destroy: () => {} }

@@ -25,7 +25,6 @@ export interface SceneDensities {
 
 export interface SceneSpec {
   viewBox: { width: number; height: number }
-  svgString?: string
   bgTexture?: string
   hollowCenter: { x: number; y: number }
   hollowRx: number

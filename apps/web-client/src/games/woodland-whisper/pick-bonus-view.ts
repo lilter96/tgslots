@@ -1,8 +1,9 @@
-import { Container, Graphics, Text } from 'pixi.js'
+import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js'
+import type { GameAssets } from '../../engine/asset-registry.js'
 import { gsap } from 'gsap'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
 
-const FONT = 'Cinzel, serif'
+const FONT = 'Georgia, serif'
 const CARD_SIZE = 120
 const SPACING = 16
 const COLS = 5
@@ -14,28 +15,12 @@ const GRID_WIDTH = COLS * (CARD_SIZE + SPACING) - SPACING
 const GRID_HEIGHT = ROWS * (CARD_SIZE + SPACING) - SPACING
 const CONTENT_HEIGHT = TITLE_PLATE_H + 44 + GRID_HEIGHT
 
-function makeParchmentCard(): { card: Container; label: Text } {
+function makeParchmentCard(texture: Texture): { card: Container; label: Text } {
   const card = new Container()
-  const half = CARD_SIZE / 2
-
-  const back = new Graphics()
-  back.roundRect(-half, -half, CARD_SIZE, CARD_SIZE, 8)
-  back.fill(0xf5e8c0)
-  back.roundRect(-half, -half, CARD_SIZE, CARD_SIZE, 8)
-  back.stroke({ width: 3, color: 0xd4a017 })
-  back.roundRect(-half + 6, -half + 6, CARD_SIZE - 12, CARD_SIZE - 12, 4)
-  back.stroke({ width: 0.8, color: 0xa07010, alpha: 0.5 })
-
-  const corners: [number, number][] = [
-    [-half + 14, -half + 14],
-    [half - 14, -half + 14],
-    [-half + 14, half - 14],
-    [half - 14, half - 14],
-  ]
-  for (const [cx, cy] of corners) {
-    back.circle(cx, cy, 5)
-    back.fill(0xd4a017)
-  }
+  const back = new Sprite(texture)
+  back.anchor.set(0.5)
+  back.width = CARD_SIZE
+  back.height = CARD_SIZE
   card.addChild(back)
 
   const label = new Text({
@@ -44,8 +29,8 @@ function makeParchmentCard(): { card: Container; label: Text } {
       fontFamily: FONT,
       fontSize: 52,
       fontWeight: '700',
-      fill: '#5a3a08',
-      stroke: { color: '#d4a017', width: 2 },
+      fill: '#fff4c5',
+      stroke: { color: '#061712', width: 2 },
     },
   })
   label.anchor.set(0.5)
@@ -65,7 +50,7 @@ export class PickBonusView extends Container {
   private _title: Text
   private _gridContainer: Container
 
-  constructor() {
+  constructor(private readonly _assets: GameAssets) {
     super()
     this.visible = false
     this._background = new Graphics()
@@ -93,7 +78,7 @@ export class PickBonusView extends Container {
     for (let i = 0; i < COLS * ROWS; i++) {
       const col = i % COLS
       const row = Math.floor(i / COLS)
-      const { card, label } = makeParchmentCard()
+      const { card, label } = makeParchmentCard(this._assets.getTexture('BONUS_CARD'))
       card.x = startX + col * (CARD_SIZE + SPACING)
       card.y = startY + row * (CARD_SIZE + SPACING)
 
@@ -130,7 +115,7 @@ export class PickBonusView extends Container {
     this._titlePlate.fill(0x2a1608)
     this._titlePlate.stroke({ width: 2, color: 0xd4a017 })
 
-    this._title.style.fontSize = layout.viewportClass === 'phone' ? 18 : 22
+    this._title.style.fontSize = layout.viewportClass === 'phone' ? 30 : 22
     this._title.y = -CONTENT_HEIGHT / 2 + TITLE_PLATE_H / 2
 
     const scale = Math.min(
@@ -161,7 +146,7 @@ export class PickBonusView extends Container {
           const label = this._labels[i]!
           label.text = '?'
           label.style.fontSize = 52
-          label.style.fill = '#5a3a08'
+          label.style.fill = '#fff4c5'
         })
       },
     })

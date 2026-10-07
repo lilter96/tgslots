@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js'
 import { gsap } from 'gsap'
 import type { GameEventBus } from '../../../engine/event-bus.js'
 import { ANIMATION_CONFIG } from '../animation-config.js'
@@ -11,57 +11,20 @@ const bz = (t: number, p0: number, p1: number, p2: number): number =>
 const bzd = (t: number, p0: number, p1: number, p2: number): number =>
   2 * (1 - t) * (p1 - p0) + 2 * t * (p2 - p1)
 
-export function buildMissile(c: Container, sw: number): void {
-  const scale = sw * 0.0085
-
-  const body = new Graphics()
-  body.roundRect(-3.5 * scale, -22 * scale, 7 * scale, 32 * scale, 2 * scale)
-  body.fill({ color: 0xd0d8e0 })
-  body.rect(-3 * scale, -6 * scale, 6 * scale, 14 * scale)
-  body.fill({ color: 0xa8b4c0 })
+export function buildMissile(c: Container, sw: number, texture: Texture): Graphics {
+  const body = new Sprite(texture)
+  body.anchor.set(0.5, 0.8)
+  body.height = sw * 0.82
+  body.width = (body.height * texture.width) / texture.height
   c.addChild(body)
 
-  const nose = new Graphics()
-  nose.moveTo(0, -36 * scale)
-  nose.lineTo(-3.5 * scale, -22 * scale)
-  nose.lineTo(3.5 * scale, -22 * scale)
-  nose.closePath()
-  nose.fill({ color: 0xcc1111 })
-  c.addChild(nose)
-
-  const band = new Graphics()
-  band.rect(-3.8 * scale, -10 * scale, 7.6 * scale, 4 * scale)
-  band.fill({ color: 0xee3322 })
-  c.addChild(band)
-
-  const finColor = 0x8899aa
-  for (const [sign, angle] of [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ] as [number, number][]) {
-    const fin = new Graphics()
-    fin.moveTo(sign * 3.5 * scale, 8 * scale)
-    fin.lineTo(sign * 12 * scale + angle * 2 * scale, 18 * scale)
-    fin.lineTo(sign * 3.5 * scale, 18 * scale)
-    fin.closePath()
-    fin.fill({ color: finColor })
-    c.addChild(fin)
-  }
-
-  const nozzle = new Graphics()
-  nozzle.rect(-4 * scale, 10 * scale, 8 * scale, 5 * scale)
-  nozzle.fill({ color: 0x445566 })
-  c.addChild(nozzle)
-
-  // Engine glow — last child, accessed by index in fireMissile for animation
   const glow = new Graphics()
-  glow.ellipse(0, 16 * scale, 6 * scale, 10 * scale)
-  glow.fill({ color: 0xff8800, alpha: 0.85 })
-  glow.ellipse(0, 16 * scale, 3 * scale, 5 * scale)
-  glow.fill({ color: 0xffffff, alpha: 0.9 })
-  c.addChild(glow)
+  glow.ellipse(0, sw * 0.13, sw * 0.04, sw * 0.1)
+  glow.fill({ color: 0xff8800, alpha: 0.7 })
+  glow.ellipse(0, sw * 0.11, sw * 0.018, sw * 0.045)
+  glow.fill({ color: 0xfff3c5, alpha: 0.95 })
+  c.addChildAt(glow, 0)
+  return glow
 }
 
 function drawTrail(g: Graphics, trail: Array<{ x: number; y: number }>, sw: number): void {
@@ -97,15 +60,18 @@ export interface FireMissileParams {
   multiplier: number
   wildId: number
   bus: GameEventBus
+  texture: Texture
+  impactFrames: readonly Texture[]
 }
 
 export async function fireMissile(p: FireMissileParams): Promise<void> {
   const { parent, lx, ly, tx, ty, sw, sh, reel, row, multiplier, wildId } = p
+  p.bus.emit('le-militare:missile:launched', {})
   const cpX = lx + (tx - lx) * 0.15
   const cpY = Math.min(ly, ty) - sh * 2
 
   const missile = new Container()
-  buildMissile(missile, sw)
+  const engineGlow = buildMissile(missile, sw, p.texture)
   missile.x = lx
   missile.y = ly
   missile.rotation = -Math.PI / 2
@@ -115,7 +81,6 @@ export async function fireMissile(p: FireMissileParams): Promise<void> {
   const trailG = new Graphics()
   parent.addChildAt(trailG, parent.getChildIndex(missile))
 
-  const engineGlow = missile.getChildAt(missile.children.length - 1) as Graphics
   gsap.to(engineGlow, { alpha: 0.4, duration: 0.12, repeat: -1, yoyo: true, ease: 'none' })
 
   const progress = { t: 0 }
@@ -145,6 +110,7 @@ export async function fireMissile(p: FireMissileParams): Promise<void> {
   parent.removeChild(missile)
   missile.destroy({ children: true })
 
+  p.bus.emit('le-militare:impact', {})
   p.bus.emit('le-militare:symbol:transform', { reel, row, newSymbolId: wildId })
 
   void (async () => {
@@ -167,7 +133,7 @@ export async function fireMissile(p: FireMissileParams): Promise<void> {
   })()
 
   await Promise.all([
-    explode(parent, tx, ty, sw),
+    explode(parent, tx, ty, sw, p.impactFrames),
     playBadge(parent, tx, ty, multiplier, sh, reel, row, p.bus),
   ])
 }

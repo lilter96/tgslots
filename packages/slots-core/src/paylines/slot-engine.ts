@@ -59,11 +59,25 @@ export function buildEngineFromArrays(raw: RawGameArrays): SlotWithPaylinesEngin
     if (Object.keys(entry).length > 0) paytable[name] = entry
   }
 
-  return createSlotEngine({
+  // Grids and strips already contain these integer IDs. Compacting the registry
+  // to paying symbols changes their meaning when a non-paying symbol is interleaved.
+  const entries = Object.entries(raw.symbols)
+  const toId = new Map(entries)
+  const toName = Array<string>(Math.max(-1, ...entries.map(([, id]) => id)) + 1).fill('')
+  for (const [name, id] of entries) {
+    if (!Number.isInteger(id) || id < 0 || toName[id]) {
+      throw new Error(`Invalid or duplicate symbol ID: ${name}=${id}`)
+    }
+    toName[id] = name
+  }
+  const wildId = toId.get(raw.wildSymbol)
+  if (wildId === undefined) throw new Error(`Missing wild symbol: ${raw.wildSymbol}`)
+  const symbols: SymbolRegistry = { toId, toName, wildId, count: toName.length }
+  return {
     reelCount: raw.reelCount,
     rowCount: raw.rowCount,
-    wildSymbol: raw.wildSymbol,
-    paytable,
-    paylines,
-  })
+    symbols,
+    paytable: buildFlatPaytable(paytable, symbols, raw.reelCount),
+    trie: buildPaylineTrie(paylines, raw.reelCount, raw.rowCount),
+  }
 }

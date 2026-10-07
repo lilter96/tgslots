@@ -1,5 +1,3 @@
-export type SvgOrUrl = string
-
 export type SymbolKind = 'regular' | 'wild' | 'scatter' | 'bonus'
 
 export interface SymbolMeta {
@@ -43,15 +41,19 @@ export interface GameManifest {
   readonly features: readonly FeatureTag[]
 }
 
-export interface EnvAsset {
-  readonly svg: SvgOrUrl
+export interface RasterFrame {
+  readonly x: number
+  readonly y: number
   readonly width: number
   readonly height: number
 }
 
+/** The client loads raster images; sprite frames share one GPU texture source. */
 export interface AssetManifest {
-  readonly symbols?: Record<string, SvgOrUrl>
   readonly images?: Record<string, string>
-  readonly env: Record<string, EnvAsset>
+  readonly atlases?: ReadonlyArray<{
+    readonly image: string
+    readonly frames: Readonly<Record<string, RasterFrame>>
+  }>
   readonly audio?: Record<string, string>
 }

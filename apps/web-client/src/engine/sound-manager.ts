@@ -8,13 +8,15 @@ export type SoundMapping = {
 }
 
 export class SoundManager {
-  private _sfxVolume = 1.0
-  private _bgmVolume = 0.5
+  private _sfxVolume = 0.8
+  private _bgmVolume = 0.3
   private _muted = false
   private _currentBgm: string | null = null
   private _mapping: SoundMapping = {}
 
   constructor(private readonly _eventBus: GameEventBus) {
+    // Reserve headroom when music and distinct effects overlap.
+    sound.volumeAll = 0.8
     this._loadSettings()
     this._setupEventListeners()
   }
@@ -94,7 +96,9 @@ export class SoundManager {
 
   playSFX(name: string, options: { volume?: number } = {}): void {
     const volume = (options.volume ?? 1.0) * this._sfxVolume
-    sound.play(name, { volume })
+    // Reels can settle in the same frame. Stacking identical waveforms makes
+    // that cue several times louder without adding useful information.
+    sound.play(name, { volume, singleInstance: true })
   }
 
   private _setupEventListeners(): void {

@@ -52,7 +52,7 @@ describe('formatJson', () => {
     collector.endRound()
     const metrics = Metrics.finalize(collector.getRawMetrics())
     const report = formatJson(metrics, { bet: 100, targetRTP: 0.96 }, 'a', 1000)
-    expect(report.meta.throughputMps).toBeCloseTo(0.001, 5)
+    expect(report.meta.throughputMps).toBeCloseTo(0.000001, 12)
     expect(report.meta.usPerSpin).toBeCloseTo(1_000_000, 0)
   })
 

@@ -8,7 +8,7 @@ import type { GameEventBus } from './event-bus.js'
 import type { HUDLayoutMode, UILayoutSnapshot } from './layout'
 import type { SpinSpeedMode } from './spin-speed'
 
-const FONT_DISPLAY = 'Cinzel, serif'
+const FONT_DISPLAY = 'Arial, sans-serif'
 
 const SLOT_W = 140
 const SLOT_H = 68
@@ -30,17 +30,17 @@ interface InfoCard {
   value: Text
 }
 
-function drawWoodPanel(g: Graphics, w: number, h: number, fill = 0x2a1608) {
+function drawWoodPanel(g: Graphics, w: number, h: number, fill = 0x142329) {
   g.clear()
   g.roundRect(0, 0, w, h, 12)
-  g.fill(fill)
+  g.fill({ color: fill, alpha: 0.96 })
   g.roundRect(0, 0, w, h, 12)
-  g.stroke({ width: 2, color: 0xd4a017 })
+  g.stroke({ width: 1.5, color: 0xb6a477, alpha: 0.85 })
   g.roundRect(3, 3, w - 6, h - 6, 9)
   g.stroke({ width: 0.9, color: 0xffe066, alpha: 0.32 })
 }
 
-function woodPanel(w: number, h: number, fill = 0x2a1608): Graphics {
+function woodPanel(w: number, h: number, fill = 0x17242b): Graphics {
   const g = new Graphics()
   drawWoodPanel(g, w, h, fill)
   return g
@@ -70,10 +70,6 @@ export class HUD extends Container {
   private _autoBtnCount: Text
   private _autoBtnHint: Text
 
-  private _soundBtn: Container
-  private _soundBtnBg: Graphics
-  private _soundBtnLabel: Text
-
   private _infoContainer: Container
   private _buttonPanel: Container
 
@@ -85,7 +81,12 @@ export class HUD extends Container {
   private _autoSpinActive = false
   private readonly _slots = new Map<string, Container>()
 
-  constructor(session: SessionManager, fsm: GameStateMachine, eventBus: GameEventBus) {
+  constructor(
+    session: SessionManager,
+    fsm: GameStateMachine,
+    eventBus: GameEventBus,
+    private readonly _wagerAmount: (multiplier: number) => number = (multiplier) => multiplier,
+  ) {
     super()
     this._session = session
     this._fsm = fsm
@@ -122,20 +123,13 @@ export class HUD extends Container {
       style: { fontFamily: FONT_DISPLAY, fill: '#ffcc80', fontSize: 10 },
     })
 
-    this._soundBtn = new Container()
-    this._soundBtnBg = new Graphics()
-    this._soundBtnLabel = new Text({
-      text: 'SOUND: ON',
-      style: { fontFamily: FONT_DISPLAY, fill: '#ffe066', fontSize: 12, fontWeight: '700' },
-    })
-
     this._infoContainer = new Container()
     this._buttonPanel = new Container()
 
-    this._balanceCard = this._makeInfoCard('balance', 'BALANCE', 0x2a1608)
-    this._betCard = this._makeInfoCard('bet', 'BET', 0x1d1308)
-    this._winCard = this._makeInfoCard('win', 'WIN', 0x15240d)
-    this._freeSpinsCard = this._makeInfoCard('freeSpins', 'FREE SPINS', 0x1d1030)
+    this._balanceCard = this._makeInfoCard('balance', 'BALANCE', 0x17242b)
+    this._betCard = this._makeInfoCard('bet', 'BET', 0x172b30)
+    this._winCard = this._makeInfoCard('win', 'WIN', 0x15322a)
+    this._freeSpinsCard = this._makeInfoCard('freeSpins', 'FREE SPINS', 0x282839)
     this._freeSpinsCard.container.visible = false
 
     this._build()
@@ -202,12 +196,16 @@ export class HUD extends Container {
 
     this._speedBg.roundRect(0, 0, SPEED_W, SPEED_H, 10)
     this._speedBg.fill(0x0f1722)
-    this._speedBg.stroke({ width: 2, color: 0xd4a017 })
+    this._speedBg.stroke({ width: 1.5, color: 0xb6a477, alpha: 0.85 })
     this._speedPanel.addChild(this._speedBg)
     this._speedPanel.y = (PANEL_H - SPEED_H) / 2
 
     this._buildSpeedButton(this._fastBtn, this._fastBtnBg, this._fastBtnLabel, 5)
-    this._fastBtn.on('pointerdown', () => this.emit('toggleFastSpin'))
+    this._fastBtn.on('pointerdown', () => {
+      if (this._layout?.viewportClass === 'phone')
+        this.emit(this._spinSpeedMode === 'normal' ? 'toggleFastSpin' : 'toggleTurboSpin')
+      else this.emit('toggleFastSpin')
+    })
 
     this._buildSpeedButton(
       this._turboBtn,
@@ -238,31 +236,13 @@ export class HUD extends Container {
     })
     this._buttonPanel.addChild(this._autoBtn)
 
-    this._soundBtnBg.roundRect(0, 0, 100, 30, 8)
-    this._soundBtnBg.fill(0x0d1a2a)
-    this._soundBtnBg.stroke({ width: 1.5, color: 0xd4a017 })
-    this._soundBtnLabel.anchor.set(0.5)
-    this._soundBtnLabel.x = 50
-    this._soundBtnLabel.y = 15
-    this._soundBtn.addChild(this._soundBtnBg, this._soundBtnLabel)
-    this._soundBtn.x = SPEED_W + BTN_GAP + AUTO_W + BTN_GAP + SPIN_D + BTN_GAP
-    this._soundBtn.y = (PANEL_H - 30) / 2
-    this._soundBtn.interactive = true
-    this._soundBtn.cursor = 'pointer'
-    this._soundBtn.on('pointerdown', () => this.emit('toggleSound'))
-    this._buttonPanel.addChild(this._soundBtn)
-
     const spinBg = new Graphics()
     spinBg.circle(SPIN_D / 2, SPIN_D / 2, SPIN_D / 2)
-    spinBg.fill(0xd4a017)
-    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 38)
-    spinBg.fill(0x0d3a20)
-    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 30)
-    spinBg.fill(0x1a5a38)
-    spinBg.ellipse(36, 32, 12, 7)
-    spinBg.fill({ color: 0x40d090, alpha: 0.45 })
-    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 6)
-    spinBg.fill({ color: 0xffe066, alpha: 0.6 })
+    spinBg.fill(0xe8ce8c)
+    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 39)
+    spinBg.fill(0x17433c)
+    spinBg.circle(SPIN_D / 2, SPIN_D / 2, 34)
+    spinBg.stroke({ color: 0x82d2b9, width: 1.2, alpha: 0.65 })
     this._spinButton.addChild(spinBg)
     this._spinLabel.anchor.set(0.5)
     this._spinLabel.x = SPIN_D / 2
@@ -348,12 +328,12 @@ export class HUD extends Container {
   private _sizeInfoCard(card: InfoCard, width: number, height: number, hudMode: HUDLayoutMode) {
     const fill =
       card.key === 'win'
-        ? 0x15240d
+        ? 0x15322a
         : card.key === 'freeSpins'
-          ? 0x1d1030
+          ? 0x282839
           : card.key === 'bet'
-            ? 0x1d1308
-            : 0x2a1608
+            ? 0x172b30
+            : 0x17242b
     drawWoodPanel(card.background, width, height, fill)
 
     const titleSize = height < 54 ? 10 : hudMode === 'wide' ? 12 : 11
@@ -377,6 +357,7 @@ export class HUD extends Container {
     this._buttonPanel.scale.set(scale)
     this._buttonPanel.x = layout.controlsArea.x + (layout.controlsArea.width - PANEL_W * scale) / 2
     this._buttonPanel.y = layout.controlsArea.y + (layout.controlsArea.height - PANEL_H * scale) / 2
+    this._syncSpeedLayout()
   }
 
   private _drawAutoBtnBg(active: boolean) {
@@ -387,7 +368,7 @@ export class HUD extends Container {
       this._autoBtnBg.stroke({ width: 2, color: 0xff8040 })
     } else {
       this._autoBtnBg.fill(0x0d1a2a)
-      this._autoBtnBg.stroke({ width: 2, color: 0xd4a017 })
+      this._autoBtnBg.stroke({ width: 1.5, color: 0xb6a477, alpha: 0.85 })
     }
     this._autoBtnBg.roundRect(3, 3, AUTO_W - 6, AUTO_H - 6, 6)
     this._autoBtnBg.stroke({ width: 0.8, color: active ? 0xffaa60 : 0xffe066, alpha: 0.3 })
@@ -452,17 +433,32 @@ export class HUD extends Container {
     // Bold stroke for active, subtle for inactive
     this._fastBtnBg.alpha = mode === 'fast' ? 1 : 0.7
     this._turboBtnBg.alpha = mode === 'turbo' ? 1 : 0.7
+    this._syncSpeedLayout()
   }
 
-  public syncSound(isMuted: boolean) {
-    this._soundBtnLabel.text = isMuted ? 'SOUND: OFF' : 'SOUND: ON'
-    this._soundBtnBg.tint = isMuted ? 0x5a1a1a : 0x0d1a2a
+  private _syncSpeedLayout() {
+    const touch = this._layout?.viewportClass === 'phone'
+    this._turboBtn.visible = !touch
+    this._fastBtnLabel.text = touch ? this._spinSpeedMode.toUpperCase() : 'FAST'
+    this._fastBtnLabel.y = touch ? 32 : SPEED_ROW_H / 2
+    this._fastBtnLabel.style.fontSize = touch ? 16 : 14
+    this._fastBtn.alpha = 1
+    if (touch) {
+      this._fastBtnBg.clear()
+      this._fastBtnBg.roundRect(0, 0, SPEED_W - 10, 64, 8)
+      this._fastBtnBg.fill(0x1b303a)
+      this._fastBtnBg.stroke({ color: 0xd8bf80, width: 1.5 })
+      this._fastBtnBg.alpha = 1
+    }
   }
 
   public updateTexts() {
-    this._balanceCard.value.text = `${this._session.balance}`
-    this._betCard.value.text = `${this._session.betMultiplier}`
-    this._winCard.value.text = this._session.lastWin > 0 ? `${this._session.lastWin}` : '—'
+    this._balanceCard.value.text = this._session.balance.toLocaleString('en-US')
+    this._betCard.value.text = this._wagerAmount(this._session.betMultiplier).toLocaleString(
+      'en-US',
+    )
+    this._winCard.value.text =
+      this._session.lastWin > 0 ? this._session.lastWin.toLocaleString('en-US') : '—'
   }
 
   public syncFreeSpinsStatus(status: FreeSpinsStatus) {
@@ -477,7 +473,7 @@ export class HUD extends Container {
       val: target,
       duration: 1.5,
       onUpdate: () => {
-        this._balanceCard.value.text = `${Math.floor(obj.val)}`
+        this._balanceCard.value.text = Math.floor(obj.val).toLocaleString('en-US')
       },
     })
   }

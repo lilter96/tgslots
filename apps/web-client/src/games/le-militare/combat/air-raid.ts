@@ -1,10 +1,11 @@
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js'
 import { gsap } from 'gsap'
 import type { AirRaidPlacement } from '@tgslots/le-militare'
 import type { GameEventBus } from '../../../engine/event-bus.js'
 import { ANIMATION_CONFIG } from '../animation-config.js'
 import { explode } from './explosion.js'
 import { playBadge } from './badge.js'
+import { buildMissile } from './missile.js'
 
 const bz = (t: number, p0: number, p1: number, p2: number): number =>
   (1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t ** 2 * p2
@@ -15,53 +16,12 @@ const bzd = (t: number, p0: number, p1: number, p2: number): number =>
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 // Top-down fighter silhouette, nose pointing +x (rotate to flight direction).
-function buildPlane(c: Container, sw: number): void {
-  const s = sw * 0.013
-
-  const wings = new Graphics()
-  wings
-    .moveTo(6 * s, -4 * s)
-    .lineTo(-24 * s, -30 * s)
-    .lineTo(-12 * s, -30 * s)
-    .lineTo(12 * s, -4 * s)
-    .closePath()
-    .fill({ color: 0x6f8597 })
-  wings
-    .moveTo(6 * s, 4 * s)
-    .lineTo(-24 * s, 30 * s)
-    .lineTo(-12 * s, 30 * s)
-    .lineTo(12 * s, 4 * s)
-    .closePath()
-    .fill({ color: 0x6f8597 })
-  c.addChild(wings)
-
-  const tail = new Graphics()
-  tail
-    .moveTo(-22 * s, -3 * s)
-    .lineTo(-34 * s, -13 * s)
-    .lineTo(-26 * s, -13 * s)
-    .lineTo(-18 * s, -3 * s)
-    .closePath()
-    .fill({ color: 0x607585 })
-  c.addChild(tail)
-
-  const body = new Graphics()
-  body.roundRect(-26 * s, -5 * s, 52 * s, 10 * s, 4 * s).fill({ color: 0x8aa0b4 })
-  body.roundRect(-26 * s, -5 * s, 16 * s, 10 * s, 3 * s).fill({ color: 0x5a6e80 })
-  c.addChild(body)
-
-  const nose = new Graphics()
-  nose
-    .moveTo(26 * s, -5 * s)
-    .lineTo(40 * s, 0)
-    .lineTo(26 * s, 5 * s)
-    .closePath()
-    .fill({ color: 0x9fb4c6 })
-  c.addChild(nose)
-
-  const canopy = new Graphics()
-  canopy.ellipse(10 * s, 0, 6 * s, 3.5 * s).fill({ color: 0x10202c })
-  c.addChild(canopy)
+function buildPlane(c: Container, sw: number, texture: Texture): void {
+  const plane = new Sprite(texture)
+  plane.anchor.set(0.5)
+  plane.width = sw * 1.35
+  plane.height = (plane.width * texture.height) / texture.width
+  c.addChild(plane)
 }
 
 function drawSmoke(g: Graphics, trail: Array<{ x: number; y: number }>, sw: number): void {
@@ -78,6 +38,8 @@ function drawSmoke(g: Graphics, trail: Array<{ x: number; y: number }>, sw: numb
 }
 
 function destroyChild(parent: Container, child: Container | Graphics): void {
+  gsap.killTweensOf(child)
+  if (!child.destroyed) gsap.killTweensOf(child.scale)
   if (!parent.destroyed && parent.children.includes(child)) parent.removeChild(child)
   if (!child.destroyed) child.destroy({ children: true })
 }
@@ -89,11 +51,12 @@ async function flyMiss(
   gridW: number,
   y: number,
   delayMs: number,
+  texture: Texture,
 ): Promise<void> {
   await wait(delayMs)
   if (parent.destroyed) return
   const plane = new Container()
-  buildPlane(plane, sw)
+  buildPlane(plane, sw, texture)
   plane.y = y
   plane.x = -sw * 2
   parent.addChild(plane)
@@ -122,11 +85,13 @@ async function fireTracer(
   tx: number,
   ty: number,
   sw: number,
+  texture: Texture,
 ): Promise<void> {
   const line = new Graphics()
   parent.addChild(line)
-  const dot = new Graphics()
-  dot.circle(0, 0, sw * 0.05).fill({ color: 0xffee88 })
+  const dot = new Container()
+  buildMissile(dot, sw, texture)
+  dot.rotation = Math.atan2(ty - ly, tx - lx) + Math.PI / 2
   dot.x = lx
   dot.y = ly
   parent.addChild(dot)
@@ -135,7 +100,7 @@ async function fireTracer(
   await new Promise<void>((resolve) => {
     gsap.to(prog, {
       t: 1,
-      duration: 0.2,
+      duration: 0.65,
       ease: 'power2.in',
       onUpdate: () => {
         if (parent.destroyed) return
@@ -173,7 +138,7 @@ async function interceptOne(
   const bx = Math.min(gridW - sw * 0.5, Math.max(sw * 0.5, tx))
 
   const plane = new Container()
-  buildPlane(plane, sw)
+  buildPlane(plane, sw, p.texture)
   plane.x = -sw * 1.5
   plane.y = skyY
   parent.addChild(plane)
@@ -182,7 +147,7 @@ async function interceptOne(
   await new Promise<void>((resolve) => {
     gsap.to(plane, {
       x: bx,
-      duration: 0.5,
+      duration: 0.75,
       ease: 'sine.in',
       onUpdate: () => {
         if (parent.destroyed) return
@@ -193,7 +158,8 @@ async function interceptOne(
   if (parent.destroyed) return
 
   // S300 fires up at the plane.
-  await fireTracer(parent, lx, ly, bx, skyY, sw)
+  bus.emit('le-militare:missile:launched', {})
+  await fireTracer(parent, lx, ly, bx, skyY, sw, p.missileTexture)
   if (parent.destroyed) return
 
   // Ignite and dive into the cell on a curved path, trailing smoke.
@@ -211,7 +177,7 @@ async function interceptOne(
   await new Promise<void>((resolve) => {
     gsap.to(prog, {
       t: 1,
-      duration: 0.5,
+      duration: 0.75,
       ease: 'power1.in',
       onUpdate: () => {
         if (parent.destroyed) return
@@ -237,9 +203,10 @@ async function interceptOne(
     onComplete: () => destroyChild(parent, trailG),
   })
 
+  bus.emit('le-militare:impact', {})
   bus.emit('le-militare:symbol:transform', { reel: pl.reel, row: pl.row, newSymbolId: wildId })
   await Promise.all([
-    explode(parent, tx, ty, sw),
+    explode(parent, tx, ty, sw, p.impactFrames),
     playBadge(parent, tx, ty, pl.multiplier, sh, pl.reel, pl.row, bus),
   ])
 }
@@ -253,21 +220,27 @@ export interface AirRaidParams {
   rs: number
   reelCount: number
   placements: readonly AirRaidPlacement[]
+  squadronSize: number
   wildId: number
   bus: GameEventBus
+  texture: Texture
+  missileTexture: Texture
+  impactFrames: readonly Texture[]
 }
 
 // Squadron flies over the grid; the S300 intercepts each placement (plane
 // crashes onto its cell → multiplier WILD); a few unhit planes fly past.
 export async function playAirRaid(p: AirRaidParams): Promise<void> {
-  if (p.placements.length === 0) return
+  if (p.squadronSize === 0) return
   const gridW = p.reelCount * (p.sw + p.rs) - p.rs
-  const skyY = -p.sh * 1.15
+  // Keep incoming aircraft inside the visible board, including short landscape
+  // layouts where the old negative sky coordinate was behind the page header.
+  const skyY = p.sh * 0.45
 
-  const missCount = Math.min(3, Math.max(1, 5 - p.placements.length))
+  const missCount = Math.max(0, p.squadronSize - p.placements.length)
   const missTasks: Array<Promise<void>> = []
   for (let i = 0; i < missCount; i++) {
-    missTasks.push(flyMiss(p.parent, p.sw, gridW, skyY + (i - 1) * p.sh * 0.3, i * 150))
+    missTasks.push(flyMiss(p.parent, p.sw, gridW, skyY + (i - 1) * p.sh * 0.22, i * 150, p.texture))
   }
 
   for (let i = 0; i < p.placements.length; i++) {

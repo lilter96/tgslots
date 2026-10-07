@@ -28,15 +28,15 @@ export const woodlandWhisperClient: IGameClient<'woodland-whisper'> = {
   soundMapping: {
     'spin:started': {
       name: 'spin-start',
-      options: { volume: 0 },
+      options: { volume: 0.28 },
     },
-    'reel:stopped': 'reel-stop',
+    'reel:stopped': { name: 'reel-stop', options: { volume: 0.35 } },
     'win:awarded': {
       name: 'win-small',
       options: { volume: 0.8 },
     },
     'feature:announced': 'win-big',
-    'pick:card:revealed': 'reel-stop',
+    'pick:card:revealed': 'card-reveal',
   },
   async mount(ctx) {
     const runtime = new WoodlandWhisperRuntime()

@@ -1,6 +1,6 @@
 # TGSlots — Complete Codebase Knowledge Document
 
-> Generated 2026-05-25. Analysis of the full monorepo at `tgslots`.
+> Generated 2026-05-25; rendering, grid and payline descriptions updated 2026-10-07. Current authoring configs and in-game rules are authoritative for payout and feature parameters.
 
 ---
 
@@ -58,8 +58,8 @@ Each game is a discrete casino-style slot machine with a configurable paytable, 
 | Game | Package | Type | Key Features |
 |------|---------|------|-------------|
 | Ancient Dragon | `@tgslots/ancient-dragon` | Payline (5x3, 25 lines) | Free spins, mystery (INNER) symbols, yin-yang scatters |
-| Woodland Whisper | `@tgslots/woodland-whisper` | Payline (5x3, 25 lines) | Free spins, pick bonus, buy bonus |
-| Le Militare | `@tgslots/le-militare` | Cluster pays (6x6) | Combat cascade, sticky wilds, air raid, S300 activation, 3 volatility modes, buy bonus |
+| Woodland Whisper | `@tgslots/woodland-whisper` | Payline (5x3, 30 lines) | Free spins, pick bonus, buy bonus |
+| Le Militare | `@tgslots/le-militare` | Cluster pays (6x5) | Combat cascade, sticky wilds, air raid, S300 activation, 3 volatility modes, buy bonus |
 
 ### 1.6 Directory Map
 
@@ -192,7 +192,7 @@ The module is responsible for:
 
 Each game in the web-client exports an `IGameClient<G>` with:
 - `manifest`: metadata (symbols, grid size, theme colors, features)
-- `assets`: asset URLs (SVGs, images, audio)
+- `assets`: asset URLs (raster images, atlas frame metadata, audio)
 - `mount(ctx)`: creates a `GameRuntime` that handles `applyState()`, `presentResult()`, `resize()`, `destroy()`
 
 Game-specific logic (animations, combat effects, pick bonus UI) lives in the game's `runtime.ts` and helper files.
@@ -388,7 +388,7 @@ interface LeMilitareSerializedState { lastGrid, freeSpins }
 
 #### 3.5.2 Woodland Whisper (`packages/games/woodland-whisper/`)
 
-**Type**: 5-reel, 3-row, 25-line payline slot
+**Type**: 5-reel, 3-row, 30-line payline slot
 **Features**: Free spins, pick bonus (pick-until-repeat), buy bonus
 
 **File structure**:
@@ -554,7 +554,7 @@ Le Militare has the most complex runtime with combat animations (`combat/`), mas
 **Business purpose**: Thematic cluster-pays mechanic with military theme — winning clusters vanish, new symbols fall in, combat operations add wilds and multipliers.
 
 **How it works** (see `src/combat.ts`):
-1. Initial 6×6 grid is evaluated for clusters (4+ connected same-symbol)
+1. Initial 6×5 grid is evaluated for clusters (6+ orthogonally connected same-symbol)
 2. Winning clusters vanish → gravity pulls symbols down → new symbols refill from above
 3. **Air Raid** (base game): Randomly triggered — squadron of planes flies over grid
    - Some planes are intercepted (S300 on grid) → drop multiplier-WILDs
@@ -598,7 +598,7 @@ IDLE → SPINNING → STOPPING → WIN_SHOW → IDLE
 
 **Game-specific rendering** (Le Militare as most complex example):
 - `combat/`: Missile animations, explosion effects, air raid squadron, activation flash, wire renderer
-- `mascot/`: SVG-based S300 launcher mascot with animated radar, chassis, launcher
+- `mascot/`: Raster-part S300 launcher mascot with animated radar, chassis, launcher
 - `multiplier-hud.ts`: Multiplier display with combat theme
 - `buy-feature-modal.ts`: Buy bonus selection UI
 - `reel-frame/`: Custom reel frame border rendering

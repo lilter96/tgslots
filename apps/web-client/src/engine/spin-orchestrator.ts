@@ -30,16 +30,16 @@ export class SpinOrchestrator<G extends GameId> {
     private readonly _fsm: GameStateMachine,
     private readonly _session: SessionManager,
     private readonly _runtime: GameRuntime<G>,
-    eventBus: GameEventBus,
+    private readonly _eventBus: GameEventBus,
     private readonly _actions: OrchestratorActions<G>,
     private readonly _getSpinSpeedProfile: () => SpinSpeedProfile = () =>
       getSpinSpeedProfile('normal'),
   ) {
-    eventBus.on('win:awarded', ({ amount }) => {
+    this._eventBus.on('win:awarded', ({ amount }) => {
       this._session.addWin(amount)
       this._wonThisCycle = true
     })
-    eventBus.on('free-spins:updated', ({ remaining }) => {
+    this._eventBus.on('free-spins:updated', ({ remaining }) => {
       if (remaining > 0 && this._freeSpinsRemaining === 0) {
         this._bonusTriggeredThisCycle = true
       }
@@ -84,8 +84,10 @@ export class SpinOrchestrator<G extends GameId> {
     this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
+    let receivedResponse = false
     try {
       const response = await this._actions.doSpin(betMultiplier)
+      receivedResponse = true
       this._runtime.applyState(response.state)
       this._fsm.transitionTo(GameUIState.STOPPING)
 
@@ -95,7 +97,10 @@ export class SpinOrchestrator<G extends GameId> {
 
       await this._runFreeSpins()
     } catch (err) {
+      if (!receivedResponse) this._session.refundPendingWager(cost)
       console.error('spin failed', err)
+      this.stopAutoSpin()
+      this._eventBus.emit('error:api', { message: 'Spin request failed' })
     } finally {
       this._finishCycle()
       this._scheduleAutoSpin()
@@ -113,8 +118,10 @@ export class SpinOrchestrator<G extends GameId> {
     this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
+    let receivedResponse = false
     try {
       const response = await this._actions.doBuyBonus(betMultiplier)
+      receivedResponse = true
       this._runtime.applyState(response.state)
       this._fsm.transitionTo(GameUIState.STOPPING)
 
@@ -124,7 +131,10 @@ export class SpinOrchestrator<G extends GameId> {
 
       await this._runFreeSpins()
     } catch (err) {
+      if (!receivedResponse) this._session.refundPendingWager(cost)
       console.error('buy bonus failed', err)
+      this.stopAutoSpin()
+      this._eventBus.emit('error:api', { message: 'Bonus request failed' })
     } finally {
       this._finishCycle()
     }
@@ -143,8 +153,10 @@ export class SpinOrchestrator<G extends GameId> {
     this._bonusTriggeredThisCycle = false
     this._fsm.transitionTo(GameUIState.SPINNING)
 
+    let receivedResponse = false
     try {
       const response = await this._actions.doFeatureBuy(optionId, betMultiplier)
+      receivedResponse = true
       this._runtime.applyState(response.state)
       this._fsm.transitionTo(GameUIState.STOPPING)
 
@@ -154,7 +166,10 @@ export class SpinOrchestrator<G extends GameId> {
 
       await this._runFreeSpins()
     } catch (err) {
+      if (!receivedResponse) this._session.refundPendingWager(cost)
       console.error('feature buy failed', err)
+      this.stopAutoSpin()
+      this._eventBus.emit('error:api', { message: 'Feature request failed' })
     } finally {
       this._finishCycle()
     }

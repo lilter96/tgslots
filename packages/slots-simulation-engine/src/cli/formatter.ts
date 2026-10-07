@@ -94,7 +94,7 @@ export function formatJson(
       game: gameName,
       gameMode,
       wallMs,
-      throughputMps: wallMs > 0 ? spins / 1000 / (wallMs / 1000) : 0,
+      throughputMps: wallMs > 0 ? spins / 1_000_000 / (wallMs / 1000) : 0,
       usPerSpin: spins > 0 ? (wallMs * 1000) / spins : 0,
     },
     reference: normalizedReference.metadata,
@@ -112,7 +112,7 @@ export function formatPretty(
   opts: { workers: number; gameMode?: string },
 ): void {
   const comparisons = evaluateComparisons(metrics, parsheet)
-  const throughput = wallMs > 0 ? metrics.summary.rounds / 1000 / (wallMs / 1000) : 0
+  const throughput = wallMs > 0 ? metrics.summary.rounds / 1_000_000 / (wallMs / 1000) : 0
   const usPerSpin = metrics.summary.rounds > 0 ? (wallMs * 1000) / metrics.summary.rounds : 0
 
   const header = opts.gameMode

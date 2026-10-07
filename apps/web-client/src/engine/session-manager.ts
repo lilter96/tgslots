@@ -33,7 +33,15 @@ export class SessionManager {
     if (this._balance < amount) return false
     this._balance = this._balance - amount
     this._lastWager = amount
+    this._lastWin = 0
     return true
+  }
+
+  /** Release the local demo reservation when no action response was received. */
+  public refundPendingWager(amount: number): void {
+    if (amount !== this._lastWager || amount <= 0) return
+    this._balance += amount
+    this._lastWager = 0
   }
 
   public addWin(amount: number) {

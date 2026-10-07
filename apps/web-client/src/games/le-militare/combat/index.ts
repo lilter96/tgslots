@@ -1,5 +1,6 @@
 import { Container, Graphics } from 'pixi.js'
 import type { ShootdownEvent, ActivationEvent } from '@tgslots/le-militare'
+import type { GameAssets } from '../../../engine/asset-registry.js'
 import type { GameEventBus } from '../../../engine/event-bus.js'
 import { ANIMATION_CONFIG } from '../animation-config.js'
 import { killAllTweens } from '../helpers/tween-utils.js'
@@ -9,12 +10,14 @@ import { fireMissile } from './missile.js'
 import { playAirRaid } from './air-raid.js'
 import type { AirRaidPlacement } from '@tgslots/le-militare'
 import type { CombatLayout } from './combat-layout.js'
+import { EngagementBoard } from './engagement-board.js'
 
 export class CombatOperationView extends Container {
   private _bus: GameEventBus
   private _overlay: Graphics
   private _wires: Graphics
   private _current: Graphics
+  private readonly _engagement = new EngagementBoard()
 
   private _mascotLaunchX = 0
   private _mascotLaunchY = 0
@@ -30,7 +33,10 @@ export class CombatOperationView extends Container {
     scale: 1,
   }
 
-  constructor(bus: GameEventBus) {
+  constructor(
+    bus: GameEventBus,
+    private readonly _assets: GameAssets,
+  ) {
     super()
     this._bus = bus
     this._wires = new Graphics()
@@ -38,6 +44,7 @@ export class CombatOperationView extends Container {
     this._current = new Graphics()
     this.addChild(this._current)
     this._overlay = new Graphics()
+    this.addChild(this._engagement)
     this.addChild(this._overlay)
   }
 
@@ -99,6 +106,13 @@ export class CombatOperationView extends Container {
   ): Promise<void> {
     if (shootdowns.length === 0) return
 
+    await this._engagement.acquire(
+      shootdowns,
+      this._layout,
+      this._wireActiveStates.length,
+      'TARGETS ACQUIRED',
+    )
+
     const { symbolWidth: sw, symbolHeight: sh, reelSpacing: rs } = this._layout
 
     for (let i = 0; i < shootdowns.length; i++) {
@@ -116,6 +130,8 @@ export class CombatOperationView extends Container {
         multiplier: sd.multiplier,
         wildId,
         bus: this._bus,
+        texture: this._assets.getTexture('COMBAT_MISSILE'),
+        impactFrames: [0, 1, 2, 3].map((index) => this._assets.getTexture(`IMPACT_${index}`)),
       })
 
       const reelRemaining = shootdowns.slice(i + 1).some((other) => other.reel === sd.reel)
@@ -126,10 +142,21 @@ export class CombatOperationView extends Container {
 
       await new Promise((r) => setTimeout(r, ANIMATION_CONFIG.INTER_MISSILE_PAUSE_MS))
     }
+    this._engagement.hide()
   }
 
-  async animateAirRaid(placements: readonly AirRaidPlacement[], wildId: number): Promise<void> {
-    if (placements.length === 0 || this._layout.symbolWidth === 0) return
+  async animateAirRaid(
+    placements: readonly AirRaidPlacement[],
+    wildId: number,
+    squadronSize: number,
+  ): Promise<void> {
+    if (squadronSize === 0 || this._layout.symbolWidth === 0) return
+    await this._engagement.acquire(
+      placements,
+      this._layout,
+      this._wireActiveStates.length,
+      'AIR RAID INBOUND',
+    )
     const { symbolWidth: sw, symbolHeight: sh, reelSpacing: rs } = this._layout
     await playAirRaid({
       parent: this,
@@ -140,9 +167,14 @@ export class CombatOperationView extends Container {
       rs,
       reelCount: this._wireActiveStates.length,
       placements,
+      squadronSize,
       wildId,
       bus: this._bus,
+      texture: this._assets.getTexture('COMBAT_PLANE'),
+      missileTexture: this._assets.getTexture('COMBAT_MISSILE'),
+      impactFrames: [0, 1, 2, 3].map((index) => this._assets.getTexture(`IMPACT_${index}`)),
     })
+    this._engagement.hide()
   }
 
   override destroy(options?: {

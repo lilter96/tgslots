@@ -29,6 +29,7 @@ import { getResponsiveLayout } from './engine/layout.js'
 import { SpinSpeedController } from './engine/spin-speed.js'
 import { gameRegistry } from './games/registry.js'
 import { GamePicker } from './app/game-picker.js'
+import { GameShell } from './app/game-shell.js'
 import { GameLoader } from './app/game-loader.js'
 import type { AssetManifest } from '@tgslots/shared-contracts'
 import type { AutoSpinConfig } from './types.js'
@@ -87,7 +88,18 @@ async function mountGame(gameId: string): Promise<void> {
     loader.setProgress(loaded, total),
   )
 
-  const hud = new HUD(session, fsm, eventBus)
+  const betConfig =
+    gameId === 'ancient-dragon'
+      ? AD_BET_CONFIG
+      : gameId === 'le-militare'
+        ? LM_BET_CONFIG
+        : WW_BET_CONFIG
+  const hud = new HUD(
+    session,
+    fsm,
+    eventBus,
+    (multiplier) => new Wager(multiplier, betConfig).totalWager,
+  )
   scene.hud.addChild(hud)
 
   const autoSpinPanel = new AutoSpinPanel()
@@ -197,6 +209,37 @@ async function mountGame(gameId: string): Promise<void> {
     )
   }
 
+  const toggleSound = () => {
+    soundManager.setMuted(!soundManager.isMuted)
+    shell.syncSound(soundManager.isMuted)
+  }
+  const shell = new GameShell(
+    client.manifest,
+    {
+      spin: () => {
+        if (
+          fsm.state === GameUIState.IDLE &&
+          !scene.overlays.children.some((layer) => layer.visible && layer.alpha > 0)
+        )
+          void orchestrator.spin(session.betMultiplier)
+      },
+      toggleSound,
+      stopAuto: () => {
+        orchestrator.stopAutoSpin()
+        syncAutoSpinState()
+      },
+      stepBet: (delta) => {
+        if (fsm.state !== GameUIState.IDLE || orchestrator.isAutoSpin) return
+        eventBus.emit('bet:changed', { multiplier: Math.max(1, session.betMultiplier + delta) })
+      },
+    },
+    client.assets,
+    soundManager,
+  )
+  eventBus.on('error:api', () =>
+    shell.showError('The spin could not be completed. Please try again.'),
+  )
+
   const syncSpinSpeed = () => {
     const { mode, profile } = spinSpeed.state
     hud.syncSpinSpeed(mode)
@@ -250,6 +293,7 @@ async function mountGame(gameId: string): Promise<void> {
       H,
       client.manifest.reelNaturalWidth,
       client.manifest.reelNaturalHeight,
+      52,
     )
     runtime.resize(layout)
     hud.resize(layout)
@@ -277,10 +321,6 @@ async function mountGame(gameId: string): Promise<void> {
   hud.on('toggleTurboSpin', () => {
     spinSpeed.toggleTurbo()
     syncSpinSpeed()
-  })
-  hud.on('toggleSound', () => {
-    soundManager.setMuted(!soundManager.isMuted)
-    hud.syncSound(soundManager.isMuted)
   })
   hud.on('stopAutoSpin', () => {
     orchestrator.stopAutoSpin()
@@ -310,7 +350,7 @@ async function mountGame(gameId: string): Promise<void> {
 
   syncAutoSpinState()
   syncSpinSpeed()
-  hud.syncSound(soundManager.isMuted)
+  shell.syncSound(soundManager.isMuted)
 
   console.log('Game initialized.')
 
@@ -325,7 +365,7 @@ function showPicker(): void {
     displayName: client.manifest.displayName,
   }))
   new GamePicker(games, (gameId) => {
-    mountGame(gameId).catch(console.error)
+    mountGame(gameId).catch(showStartupError)
   })
 }
 
@@ -341,4 +381,19 @@ async function init() {
   await mountGame(gameId)
 }
 
-init().catch(console.error)
+function showStartupError(error: Error) {
+  console.error('Game startup failed', error)
+  const loader = document.getElementById('game-loader')
+  const status = loader?.querySelector('.loader-status')
+  if (status) status.textContent = 'Unable to load the game. Please retry.'
+  if (loader) {
+    loader.style.visibility = 'visible'
+    const retry = document.createElement('button')
+    retry.textContent = 'Retry loading'
+    retry.className = 'loader-retry'
+    retry.addEventListener('click', () => location.reload())
+    loader.querySelector('.loader-content')?.append(retry)
+  }
+}
+
+init().catch(showStartupError)

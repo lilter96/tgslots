@@ -17,6 +17,7 @@ export interface AirRaidPlacement {
 // those wilds were stamped in, so the client can fly the planes over the
 // original symbols and convert cells on crash.
 export interface AirRaidPresentation {
+  readonly squadronSize: number
   readonly placements: readonly AirRaidPlacement[]
   readonly preRaidGrid: number[][]
 }

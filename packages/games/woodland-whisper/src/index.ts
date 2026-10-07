@@ -1,4 +1,5 @@
 import { WoodlandWhisperStateMachine } from './game-state-machine.js'
+import { WoodlandWhisperSimulationStateMachine } from './simulation-state-machine.js'
 import { WOODLAND_WHISPER_SAMPLER } from './logic.js'
 import {
   BET_CONFIG,
@@ -12,6 +13,7 @@ import parsheetData from '../config/parsheet.json' with { type: 'json' }
 
 export {
   WoodlandWhisperStateMachine,
+  WoodlandWhisperSimulationStateMachine,
   WOODLAND_WHISPER_SAMPLER,
   BET_CONFIG,
   SYM_NAMES,
@@ -36,5 +38,5 @@ export const SIM_CONFIG = {
   name: 'WOODLAND WHISPER',
   parsheet: parsheetData as ParsheetConfig,
   betConfig: BET_CONFIG,
-  StateMachine: WoodlandWhisperStateMachine,
+  StateMachine: WoodlandWhisperSimulationStateMachine,
 }

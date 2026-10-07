@@ -45,8 +45,8 @@ packages/slots-core/ → @tgslots/slots-core (paylines, clusters, cascades, bett
 packages/slots-simulation-engine/ → (StateMachine, metrics, test harness, parallel runner)
 packages/shared-contracts/ → (type registries, manifests, serialized states)
 packages/games/ancient-dragon/   → payline slot (5×3, 25 lines)
-packages/games/woodland-whisper/ → payline slot (5×3, 25 lines) + pick bonus
-packages/games/le-militare/      → cluster pays (6×6) + combat cascade
+packages/games/woodland-whisper/ → payline slot (5×3, 30 lines) + pick bonus
+packages/games/le-militare/      → cluster pays (6×5) + combat cascade
 ```
 
 Dependency chain: `math` (foundation) → `slots-core` → `slots-simulation-engine` → game packages. API, web-client, and simulations depend on game packages.

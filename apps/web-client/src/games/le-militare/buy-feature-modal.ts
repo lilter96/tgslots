@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
+import { getFeatureMenuLayout } from './helpers/feature-menu-layout.js'
 import { BUY_OPTIONS, MODE_IDS, DEFAULT_MODE } from '@tgslots/le-militare'
 import type { ModeId } from '@tgslots/le-militare'
 import type { GameEventBus } from '../../engine/event-bus.js'
@@ -66,18 +67,13 @@ const OPTIONS: OptionMeta[] = [
 const MODE_LABELS: Record<ModeId, string> = { recon: 'RECON', assault: 'ASSAULT', siege: 'SIEGE' }
 const MODE_SUB: Record<ModeId, string> = { recon: 'LOW', assault: 'MEDIUM', siege: 'HIGH' }
 
-const FONT = 'Cinzel, serif'
-const ACTIVATE_COLOR = 0xf0820f
-const BUY_COLOR = 0x2cb742
+const FONT = 'Arial, sans-serif'
+const ACTIVATE_COLOR = 0xd8b56c
+const BUY_COLOR = 0x78dfc4
 const ACCENT = 0xffb02e
-const ICON_BG = 0x8b5cf6
+const ICON_BG = 0x294a50
 
 // Design-space dimensions (the whole panel is scaled to fit the modal bounds).
-const PANEL_W = 980
-const PAD = 32
-const CARD_GAP = 16
-const CARD_H = 300
-const CARDS_TOP = 252
 
 interface ModePill {
   id: ModeId
@@ -159,7 +155,7 @@ export class BuyFeatureModal extends Container {
     })
     this._betValue = new Text({
       text: '',
-      style: { fill: '#141414', fontSize: 28, fontWeight: '900', fontFamily: FONT },
+      style: { fill: '#f0f4fa', fontSize: 28, fontWeight: '900', fontFamily: FONT },
     })
     this._volLabel = new Text({
       text: 'VOLATILITY',
@@ -276,7 +272,7 @@ export class BuyFeatureModal extends Container {
       const name = new Text({
         text: meta.name,
         style: {
-          fill: '#161616',
+          fill: '#f0f4fa',
           fontSize: 18,
           fontWeight: '900',
           align: 'center',
@@ -287,7 +283,7 @@ export class BuyFeatureModal extends Container {
       const desc = new Text({
         text: meta.desc,
         style: {
-          fill: '#6a6f76',
+          fill: '#b9c9cc',
           fontSize: 13,
           align: 'center',
           wordWrap: true,
@@ -303,14 +299,14 @@ export class BuyFeatureModal extends Container {
       vol.anchor.set(0.5, 0)
       const price = new Text({
         text: '',
-        style: { fill: '#111111', fontSize: 24, fontWeight: '900', fontFamily: FONT },
+        style: { fill: '#f0f4fa', fontSize: 24, fontWeight: '900', fontFamily: FONT },
       })
       price.anchor.set(0.5, 0)
       const btnBg = new Graphics()
       const btnLabel = new Text({
         text: meta.kind === 'activate' ? 'ACTIVATE' : 'BUY',
         style: {
-          fill: '#ffffff',
+          fill: '#10201c',
           fontSize: 18,
           fontWeight: '900',
           letterSpacing: 1,
@@ -384,7 +380,7 @@ export class BuyFeatureModal extends Container {
       const credits = card.meta.costMultiplier * bet
       const affordable = balance >= credits
       card.price.text = Number.isInteger(credits) ? String(credits) : credits.toFixed(2)
-      card.price.style.fill = affordable ? '#111111' : '#c0392b'
+      card.price.style.fill = affordable ? '#f0f4fa' : '#c0392b'
       card.vol.text = volText
       // Dim the whole card when it can't be afforded (clear "disabled" affordance).
       card.container.alpha = affordable ? 1 : 0.45
@@ -396,21 +392,23 @@ export class BuyFeatureModal extends Container {
     this._backdrop.rect(0, 0, layout.screenWidth, layout.screenHeight)
     this._backdrop.fill({ color: 0x000000, alpha: 0.6 })
 
-    const innerW = PANEL_W - PAD * 2
-    const cardW = (innerW - CARD_GAP * (OPTIONS.length - 1)) / OPTIONS.length
-    const panelHeight = CARDS_TOP + CARD_H + PAD
-
-    // Center on the full screen and scale to fit with a small margin — more
-    // reliable than the reel-area modal bounds (which can be short/offset).
-    const margin = 32
-    const innerScale = Math.min(
-      1,
-      (layout.screenWidth - margin * 2) / PANEL_W,
-      (layout.screenHeight - margin * 2) / panelHeight,
-    )
+    const menu = getFeatureMenuLayout(layout.screenWidth, layout.screenHeight - 52)
+    const {
+      portrait,
+      landscape,
+      columns,
+      panelWidth: PANEL_W,
+      padding: PAD,
+      gap: CARD_GAP,
+      cardHeight: CARD_H,
+      cardsTop: CARDS_TOP,
+      panelHeight,
+      cardWidth: cardW,
+    } = menu
+    const innerScale = menu.scale
     this._inner.scale.set(innerScale)
     this._inner.x = layout.screenWidth / 2
-    this._innerBaseY = layout.screenHeight / 2
+    this._innerBaseY = layout.screenHeight / 2 + 26
     this._inner.y = this._innerBaseY
 
     const left = -PANEL_W / 2
@@ -418,23 +416,25 @@ export class BuyFeatureModal extends Container {
 
     this._title.x = 0
     this._title.y = top + 8
+    this._title.style.fontSize = portrait ? 22 : 32
 
     this._closeBtn.x = PANEL_W / 2 - 12
     this._closeBtn.y = top + 24
 
     // BET +/- card (centered)
-    const betW = 240
-    const betH = 92
+    const betW = portrait ? 220 : 240
+    const betH = portrait ? 68 : 92
     const betX = -betW / 2
-    const betY = top + 56
+    const betY = top + (portrait ? 44 : 56)
+    this._betCard.x = landscape ? -PANEL_W / 2 + PAD + betW / 2 : 0
     this._betBg.clear()
     this._betBg.roundRect(betX, betY, betW, betH, 14)
-    this._betBg.fill(0xffffff)
+    this._betBg.fill(0x172b30)
     this._betLabel.x = 0
-    this._betLabel.y = betY + 14
+    this._betLabel.y = betY + (portrait ? 8 : 14)
     this._betValue.x = 0
-    this._betValue.y = betY + 34
-    const stepSize = 40
+    this._betValue.y = betY + (portrait ? 27 : 34)
+    const stepSize = 44
     this._drawStep(this._minusBg, stepSize)
     this._minusBtn.x = betX + 18 + stepSize / 2
     this._minusBtn.y = betY + betH / 2
@@ -443,17 +443,17 @@ export class BuyFeatureModal extends Container {
     this._plusBtn.y = betY + betH / 2
 
     // Volatility selector
-    const volY = top + 164
-    this._volLabel.x = 0
+    const volY = top + (landscape ? 48 : portrait ? 118 : 164)
+    this._volLabel.x = landscape ? PANEL_W / 4 : 0
     this._volLabel.y = volY
-    const pillW = 150
-    const pillH = 40
-    const pillGap = 12
+    const pillW = portrait ? 95 : 150
+    const pillH = 44
+    const pillGap = portrait ? 8 : 12
     const pillsW = pillW * 3 + pillGap * 2
-    const pillsLeft = -pillsW / 2
+    const pillsLeft = -pillsW / 2 + (landscape ? PANEL_W / 4 : 0)
     this._modePills.forEach((pill, i) => {
       pill.container.x = pillsLeft + i * (pillW + pillGap)
-      pill.container.y = volY + 22
+      pill.container.y = volY + (portrait ? 18 : 22)
       const active = pill.id === this._selectedMode
       pill.bg.clear()
       pill.bg.roundRect(0, 0, pillW, pillH, 10)
@@ -470,24 +470,30 @@ export class BuyFeatureModal extends Container {
     this._refreshCards()
     this._refreshBet()
     this._cards.forEach((card, i) => {
-      const x = left + PAD + i * (cardW + CARD_GAP)
+      card.btnLabel.style.fontSize = portrait ? 14 : 18
+      const x = left + PAD + (i % columns) * (cardW + CARD_GAP)
       card.container.x = x
-      card.container.y = top + CARDS_TOP
+      card.container.y = top + CARDS_TOP + Math.floor(i / columns) * (CARD_H + CARD_GAP)
       const cx = cardW / 2
 
       card.bg.clear()
       card.bg.roundRect(0, 0, cardW, CARD_H, 12)
-      card.bg.fill(0xffffff)
+      card.bg.fill(0x172b30)
+      card.bg.stroke({ color: 0x567078, width: 1, alpha: 0.7 })
 
       card.name.x = cx
-      card.name.y = 16
+      card.name.y = portrait ? 10 : 16
+      card.name.style.fontSize = portrait ? 15 : 18
       card.name.style.wordWrap = true
       card.name.style.wordWrapWidth = cardW - 20
 
       card.desc.x = cx
-      card.desc.y = 58
+      card.desc.y = portrait ? 34 : 58
+      card.desc.style.fontSize = portrait ? 12 : 13
       card.desc.style.wordWrapWidth = cardW - 26
 
+      card.iconBg.visible = !portrait
+      card.iconLabel.visible = !portrait
       const iconSize = 66
       card.iconBg.clear()
       card.iconBg.roundRect(cx - iconSize / 2, 102, iconSize, iconSize, 16)
@@ -496,12 +502,14 @@ export class BuyFeatureModal extends Container {
       card.iconLabel.y = 102 + iconSize / 2
 
       card.vol.x = cx
-      card.vol.y = 182
+      card.vol.y = portrait ? 64 : 182
+      card.vol.style.fontSize = portrait ? 11 : 12
       card.price.x = cx
-      card.price.y = 202
+      card.price.y = portrait ? 80 : 202
+      card.price.style.fontSize = portrait ? 18 : 24
 
       // Button flush with the card bottom (only bottom corners rounded).
-      const btnH = 54
+      const btnH = portrait ? 44 : 54
       const btnTop = CARD_H - btnH
       const r = 12
       card.btnBg.clear()

@@ -207,9 +207,12 @@ describe('POST /buybonus', () => {
   })
 
   it('reuses session if sessionId is valid', async () => {
-    const first = await post('/woodlandwhisper/spin', { multiplier: 1 })
+    // A random spin can open a pick bonus, correctly preventing another buy.
+    // Create an idle session so this test checks reuse, independent of RNG.
+    const first = await get('/woodlandwhisper/state')
     const id = first.body.sessionId
     const second = await post('/woodlandwhisper/buybonus', { multiplier: 1, sessionId: id })
+    expect(second.status).toBe(200)
     expect(second.body.sessionId).toBe(id)
   })
 })

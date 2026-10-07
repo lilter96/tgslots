@@ -46,8 +46,17 @@ export class GameLoader {
   awaitTap(): Promise<void> {
     this._el.classList.add('is-tap')
     this._status.textContent = 'TAP TO PLAY'
+    this._el.tabIndex = 0
+    this._el.setAttribute('role', 'button')
+    this._el.setAttribute('aria-label', 'Start game')
     return new Promise((resolve) => {
       this._el.addEventListener('pointerdown', () => resolve(), { once: true })
+      this._el.addEventListener('keydown', (e) => {
+        if (e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault()
+          resolve()
+        }
+      })
     })
   }
 

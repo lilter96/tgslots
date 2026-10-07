@@ -22,7 +22,7 @@ import type { AirRaidResult } from './combat.js'
 
 export { makeStripChunkSampler } from './grid-samplers.js'
 
-const NO_AIR_RAID: AirRaidResult = { placements: [], multiplierSum: 0 }
+const NO_AIR_RAID: AirRaidResult = { squadronSize: 0, placements: [], multiplierSum: 0 }
 
 interface SpinOptions {
   /** 'normal' = random raid (base default), 'forced' = always raid, 'off' = none. */
@@ -74,7 +74,7 @@ function createSpinSampler(
 
       // Snapshot the grid before stamping the Air Raid wilds so the client can
       // fly planes over the original symbols and reveal each wild on crash.
-      const preRaidGrid = raid.placements.length > 0 ? snapshotGrid(grid) : null
+      const preRaidGrid = raid.squadronSize > 0 ? snapshotGrid(grid) : null
       for (const p of raid.placements) {
         grid.setSymbol(p.reel, p.row, WILD_ID)
       }
@@ -120,7 +120,9 @@ function createSpinSampler(
           freeSpinsAwarded: spinsAwarded,
           endArmedReels: Array.from(finalArmedReels),
           endMultiplierSum: finalMultSum,
-          airRaid: preRaidGrid ? { placements: raid.placements, preRaidGrid } : null,
+          airRaid: preRaidGrid
+            ? { squadronSize: raid.squadronSize, placements: raid.placements, preRaidGrid }
+            : null,
         }
       })
     }),

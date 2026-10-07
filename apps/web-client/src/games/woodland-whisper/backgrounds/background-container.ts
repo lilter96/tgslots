@@ -176,31 +176,10 @@ export class BackgroundContainer extends Container {
     const spec = WW_SCENES[v]
     this._spec = spec
 
-    // Destroy previous base sprite and its texture if it was a rasterized SVG
-    if (this._baseSprite) {
-      const tex = this._baseSprite.texture
-      this._baseSprite.destroy()
-      // Only destroy if it was a rasterized SVG (starts with 'ww-bg-')
-      if (tex.label?.startsWith('ww-bg-')) {
-        tex.destroy(true)
-      }
-      this._baseSprite = null
-    }
-
-    let tex: Texture
-    if (spec.bgTexture) {
-      tex = this._assets.getTexture(spec.bgTexture)
-    } else if (spec.svgString) {
-      tex = await this._assets.rasterizeSvg(
-        `ww-bg-${v}`,
-        spec.svgString,
-        spec.viewBox.width,
-        spec.viewBox.height,
-      )
-      tex.label = `ww-bg-${v}`
-    } else {
-      throw new Error(`Scene spec for ${v} missing both bgTexture and svgString`)
-    }
+    this._baseSprite?.destroy()
+    this._baseSprite = null
+    if (!spec.bgTexture) throw new Error(`Missing raster background for ${v}`)
+    const tex = this._assets.getTexture(spec.bgTexture)
 
     this._baseSprite = new Sprite(tex)
     const { width: vw, height: vh } = spec.viewBox

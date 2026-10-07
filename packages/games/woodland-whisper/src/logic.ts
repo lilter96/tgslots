@@ -7,6 +7,7 @@ import { PrecomputedScatterEngine } from '@tgslots/slots-core/scatter/precompute
 import { Wager } from '@tgslots/slots-core/betting'
 import { ProjectedGrid } from '@tgslots/slots-core/spin-grid/spin-grid'
 import { engine } from './engine.js'
+import { bonusPositionSampler } from './bonus-position-sampler.js'
 import {
   BET_CONFIG,
   FREE_SPIN_MULTIPLIER,
@@ -157,17 +158,15 @@ export const WOODLAND_WHISPER_SAMPLER = (
   isFreeSpin: boolean = false,
 ): Sampler<SpinEvaluationResult> => createSpinSampler(wager, isFreeSpin)
 
-export function createBuyBonusSampler(
-  wager: Wager,
-  maxAttempts = 500,
-): Sampler<SpinEvaluationResult> {
-  if (maxAttempts <= 0) {
-    throw new Error(`Buy bonus sampler exceeded 500 attempts without triggering`)
-  }
-  return WOODLAND_WHISPER_SAMPLER(wager, false).flatMap((result) => {
-    if (result.sc >= 3) return Sampler.pure(result)
-    return createBuyBonusSampler(wager, maxAttempts - 1)
-  })
+export function createBuyBonusSampler(wager: Wager): Sampler<SpinEvaluationResult> {
+  return withPickBonus(
+    innerSampler.flatMap((repSym) => {
+      const repIdx = INNER_IDX.get(repSym)!
+      return bonusPositionSampler.map((positions) =>
+        evaluateWithWager(RESOLVED[repIdx]!, positions, wager, false),
+      )
+    }),
+  )
 }
 
 export const BUY_BONUS_SAMPLER = (wager: Wager): Sampler<SpinEvaluationResult> =>

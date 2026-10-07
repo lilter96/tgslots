@@ -79,6 +79,7 @@ export function getResponsiveLayout(
   screenHeight: number,
   reelNaturalWidth = REEL_NATURAL_WIDTH,
   reelNaturalHeight = REEL_NATURAL_HEIGHT,
+  headerInset = 0,
 ): UILayoutSnapshot {
   const orientation: OrientationMode = screenWidth >= screenHeight ? 'landscape' : 'portrait'
   const viewportClass = getViewportClass(screenWidth, screenHeight)
@@ -119,9 +120,9 @@ export function getResponsiveLayout(
   )
   const gameplayArea = makeRect(
     safePadding,
-    safePadding,
+    safePadding + headerInset,
     screenWidth - safePadding * 2,
-    footerTop - safePadding - gutter,
+    footerTop - safePadding - gutter - headerInset,
   )
 
   const reelScale = Math.min(
@@ -141,15 +142,15 @@ export function getResponsiveLayout(
   const modalVerticalInset = hudMode === 'compact' ? safePadding : safePadding * 2
   const modalBounds = makeRect(
     modalHorizontalInset,
-    modalVerticalInset,
+    modalVerticalInset + headerInset,
     screenWidth - modalHorizontalInset * 2,
-    screenHeight - modalVerticalInset * 2,
+    screenHeight - modalVerticalInset * 2 - headerInset,
   )
   const featureBounds = makeRect(
     safePadding,
-    safePadding,
+    safePadding + headerInset,
     screenWidth - safePadding * 2,
-    screenHeight - safePadding * 2,
+    screenHeight - safePadding * 2 - headerInset,
   )
 
   return {

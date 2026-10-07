@@ -3,7 +3,7 @@
 
 import { parentPort, workerData } from 'node:worker_threads'
 import { mt19937 } from '@tgslots/math'
-import { WoodlandWhisperStateMachine } from '@tgslots/woodland-whisper'
+import { WoodlandWhisperSimulationStateMachine } from '@tgslots/woodland-whisper'
 import { ModernDataCollector } from '@tgslots/slots-simulation-engine'
 import {
   performWarmup,
@@ -30,7 +30,7 @@ const bConfig = new BetConfiguration(
 const wager = new Wager(betMultiplier, bConfig)
 
 // JIT warmup on the real state machine
-const sm = new WoodlandWhisperStateMachine()
+const sm = new WoodlandWhisperSimulationStateMachine()
 performWarmup(sm, rng, warmup, wager)
 
 // ─── Main simulation ────────────────────────────────────────────────────────

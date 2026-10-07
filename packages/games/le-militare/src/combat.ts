@@ -30,6 +30,7 @@ import { snapshotGrid } from './helpers.js'
 // cell, misses fly off. The summed multiplier seeds the spin's multiplier.
 
 export interface AirRaidResult {
+  squadronSize: number
   placements: readonly AirRaidPlacement[]
   multiplierSum: number
 }
@@ -40,7 +41,7 @@ export interface ModeSamplers {
   forcedAirRaidSampler: Sampler<AirRaidResult>
 }
 
-const NO_AIR_RAID: AirRaidResult = { placements: [], multiplierSum: 0 }
+const NO_AIR_RAID: AirRaidResult = { squadronSize: 0, placements: [], multiplierSum: 0 }
 const raidReelSampler = Distributions.uniformInt(0, REEL_COUNT - 1)
 const raidRowSampler = Distributions.uniformInt(0, ROW_COUNT - 1)
 
@@ -81,7 +82,7 @@ function buildModeSamplers(cfg: ModeConfig): ModeSamplers {
     ).map((planes) => {
       const placements = planes.filter((p): p is AirRaidPlacement => p !== null)
       const multiplierSum = placements.reduce((sum, p) => sum + p.multiplier, 0)
-      return { placements, multiplierSum }
+      return { squadronSize: size, placements, multiplierSum }
     }),
   )
   const airRaidSampler = fireSampler.flatMap((fire) =>

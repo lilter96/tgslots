@@ -23,6 +23,7 @@ import type { CombatLayout } from './combat/combat-layout.js'
 import { MultiplierHud } from './multiplier-hud.js'
 import { BuyFeatureControl } from './buy-feature-control.js'
 import { BuyFeatureModal } from './buy-feature-modal.js'
+import { OperationBriefing } from './operation-briefing.js'
 import { S300Mascot } from './mascot/index.js'
 import { ReelFrame } from './reel-frame/reel-frame.js'
 
@@ -49,6 +50,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private _overlay!: WinOverlay
   private _bgSprite!: Sprite
   private _bgTex!: Texture
+  private _boardPlate!: Graphics
   private _mask!: Graphics
   private _frame!: ReelFrame
   private _layout?: UILayoutSnapshot
@@ -57,20 +59,24 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
   private _multiplierHud!: MultiplierHud
   private _buyFeatureControl?: BuyFeatureControl
   private _buyFeatureModal?: BuyFeatureModal
+  private _operationBriefing!: OperationBriefing
+  private _freeRemaining = 0
+  private _freeTotal = 0
   private _mascot!: S300Mascot
   private _destroyed = false
   private readonly _unsubs: Array<() => void> = []
 
   async init(ctx: GameUIContext<'le-militare'>): Promise<void> {
     this._ctx = ctx
+    ctx.sound.playBGM('bgm-combat')
 
-    this._bgTex = ctx.assets.getTexture('BG')
+    this._bgTex = ctx.assets.getTexture('BACKGROUND_16_9')
     this._bgSprite = new Sprite(this._bgTex)
     this._bgSprite.anchor.set(0.5)
     ctx.scene.background.addChild(this._bgSprite)
 
-    const emptyGrid = Array.from({ length: GRID_CONFIG.reels }, () =>
-      Array.from({ length: GRID_CONFIG.rows }, () => 0),
+    const emptyGrid = Array.from({ length: GRID_CONFIG.reels }, (_col, col) =>
+      Array.from({ length: GRID_CONFIG.rows }, (_row, row) => 1 + ((col * 3 + row) % 9)),
     )
     this._reelSet = new ReelSet(
       GRID_CONFIG,
@@ -79,6 +85,9 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       ctx.assets,
       manifest.symbols.length,
     )
+
+    this._boardPlate = new Graphics()
+    ctx.scene.reels.addChild(this._boardPlate)
 
     this._mask = new Graphics()
     ctx.scene.reels.addChild(this._mask)
@@ -93,7 +102,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     })
     ctx.scene.reels.addChild(this._frame)
 
-    this._combatOpView = new CombatOperationView(ctx.eventBus)
+    this._combatOpView = new CombatOperationView(ctx.eventBus, ctx.assets)
     ctx.scene.reels.addChild(this._combatOpView)
 
     this._unsubs.push(
@@ -130,16 +139,20 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     ctx.scene.overlays.addChild(this._buyFeatureModal)
     this._unsubs.push(ctx.eventBus.on('feature-modal:open', () => this._buyFeatureModal?.show()))
 
-    this._mascot = new S300Mascot()
+    this._mascot = new S300Mascot(ctx.assets)
     ctx.scene.background.addChild(this._mascot)
 
     this._overlay = new WinOverlay()
     this._overlay.setGame(ctx.assets, [...manifest.winTiers])
     ctx.scene.overlays.addChild(this._overlay)
+    this._operationBriefing = new OperationBriefing(ctx.assets)
+    ctx.scene.overlays.addChild(this._operationBriefing)
   }
 
   applyState(state: LeMilitareSerializedState): void {
     const remaining = state.freeSpins?.spinsRemaining ?? 0
+    this._freeRemaining = remaining
+    this._freeTotal = state.freeSpins?.totalWin ?? 0
     this._ctx.eventBus.emit('free-spins:updated', { remaining })
     this._multiplierHud.setValue(state.freeSpins?.multiplierSum ?? 1)
   }
@@ -159,6 +172,10 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._layout = layout
     const { W, H } = { W: layout.screenWidth, H: layout.screenHeight }
 
+    this._bgTex = this._ctx.assets.getTexture(
+      layout.orientation === 'portrait' ? 'BACKGROUND_9_16' : 'BACKGROUND_16_9',
+    )
+    this._bgSprite.texture = this._bgTex
     const bgScale = Math.max(W / this._bgTex.width, H / this._bgTex.height)
     this._bgSprite.scale.set(bgScale)
     this._bgSprite.x = W / 2
@@ -177,6 +194,16 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._multiplierHud.y = Math.max(layout.reelBounds.y - 40 * reelScale, layout.safePadding)
     this._multiplierHud.scale.set(reelScale)
 
+    this._boardPlate.clear()
+    this._boardPlate
+      .roundRect(
+        layout.reelBounds.x - 8,
+        layout.reelBounds.y - 8,
+        layout.reelBounds.width + 16,
+        layout.reelBounds.height + 16,
+        14,
+      )
+      .fill({ color: 0x0b1720, alpha: 0.92 })
     this._mask.clear()
     this._mask
       .rect(
@@ -190,29 +217,11 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._frame.update(layout, reelScale)
 
     this._overlay.resize(layout)
+    this._operationBriefing.resize(layout)
     this._buyFeatureModal?.resize(layout)
     this._mascot.resize(layout)
 
-    const lp = this._mascot.getLaunchPoint()
-    const cp = this._mascot.getConnectionPoint()
-    const proj = projectMascotPointsToCombatLocal({
-      mascotX: this._mascot.x,
-      mascotY: this._mascot.y,
-      mascotScale: this._mascot.scale.x,
-      launchPoint: lp,
-      connectionPoint: cp,
-      combatViewX: this._combatOpView.x,
-      combatViewY: this._combatOpView.y,
-      reelScale,
-    })
-
-    this._combatOpView.setMascotData(
-      proj.launchLocalX,
-      proj.launchLocalY,
-      proj.connectionLocalX,
-      proj.connectionLocalY,
-      GRID_CONFIG.reels,
-    )
+    this._syncCombatOrigin()
     const combatLayout: CombatLayout = {
       symbolWidth: REEL_CONFIG.symbolWidth,
       symbolHeight: REEL_CONFIG.symbolHeight,
@@ -233,7 +242,9 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     this._multiplierHud.destroy({ children: true })
     this._reelSet.destroy({ children: true })
     this._overlay.destroy({ children: true })
+    this._operationBriefing?.destroy({ children: true })
     this._bgSprite.destroy()
+    this._boardPlate.destroy()
     this._mask.destroy()
     this._frame.destroy()
     this._buyFeatureControl?.destroy({ children: true })
@@ -251,10 +262,6 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     const bus = this._ctx.eventBus
     bus.emit('le-militare:spin:resolving:started', { resultType: result.type })
 
-    if (plan.preAnnounce) {
-      await this._overlay.announce(plan.preAnnounce.text, plan.preAnnounce.ms)
-    }
-
     // Base-game Air Raid: stop the reels on the pre-raid grid so the planes fly
     // over the original symbols and reveal each multiplier-WILD as they crash.
     const airRaid = result.type === 'BASE' ? result.airRaid : null
@@ -265,14 +272,18 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // don't pointlessly re-spin every free spin, and keep their cables powered.
     const heldReels = this._heldReels(result, stopGrid)
     if (heldReels) this._combatOpView.energizeReels(heldReels)
+    bus.emit('spin:started', {})
     this._reelSet.spin(heldReels)
     await this._wait(this._spinSpeedProfile.reelSpinMs)
-    await this._reelSet.stop(stopGrid, heldReels)
+    await this._reelSet.stop(stopGrid, heldReels, (index) => {
+      bus.emit('reel:stopped', { reelIndex: index, isLast: index === stopGrid.length - 1 })
+    })
 
     await this._playCascadeSteps(result, airRaid)
 
     if (plan.retriggerAnnounce) {
-      await this._overlay.announce(plan.retriggerAnnounce.text, plan.retriggerAnnounce.ms)
+      this._ctx.sound.playSFX('feature-rise')
+      await this._operationBriefing.play(result.freeSpinsAwarded, result.type === 'FREE')
     }
 
     if (result.win > 0) {
@@ -285,6 +296,10 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       }
       bus.emit('win:awarded', { amount: result.win, multiplierX: result.multiplierSum })
       await this._overlay.announceWin(result.win, wager)
+    }
+
+    if (result.type === 'FREE' && this._freeRemaining === 0 && !result.retriggered) {
+      await this._operationBriefing.play(this._freeTotal, false, true)
     }
 
     bus.emit('le-militare:spin:resolving:completed', { resultType: result.type, win: result.win })
@@ -305,6 +320,29 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     return held.size > 0 ? held : undefined
   }
 
+  private _syncCombatOrigin(): void {
+    const lp = this._mascot.getLaunchPoint()
+    const cp = this._mascot.getConnectionPoint()
+    const proj = projectMascotPointsToCombatLocal({
+      mascotX: this._mascot.x,
+      mascotY: this._mascot.y,
+      mascotScale: this._mascot.scale.x,
+      launchPoint: lp,
+      connectionPoint: cp,
+      combatViewX: this._combatOpView.x,
+      combatViewY: this._combatOpView.y,
+      reelScale: this._combatOpView.scale.x,
+    })
+
+    this._combatOpView.setMascotData(
+      proj.launchLocalX,
+      proj.launchLocalY,
+      proj.connectionLocalX,
+      proj.connectionLocalY,
+      GRID_CONFIG.reels,
+    )
+  }
+
   private async _playCascadeSteps(
     result: LeMilitareResult,
     airRaid: AirRaidPresentation | null = null,
@@ -320,14 +358,13 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
 
     // Base Air Raid plays before the cascade highlights: planes crash onto cells
     // and convert them to multiplier-WILDs (matching steps[0].preCombatGrid).
-    const raidActive = !!airRaid && airRaid.placements.length > 0
+    const raidActive = !!airRaid && airRaid.squadronSize > 0
     if (raidActive) {
       const deployPromise = this._mascot.triggerS300Feature()
       bus.emit('le-militare:mascot:deployed', { stepIndex: 0 })
-      await Promise.all([
-        deployPromise,
-        this._combatOpView.animateAirRaid(airRaid!.placements, WILD_ID),
-      ])
+      await deployPromise
+      this._syncCombatOrigin()
+      await this._combatOpView.animateAirRaid(airRaid!.placements, WILD_ID, airRaid!.squadronSize)
       for (const pl of airRaid!.placements) currentMultiplier += pl.multiplier
       this._multiplierHud.setValue(currentMultiplier)
     }
@@ -358,6 +395,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
         bus.emit('le-militare:combat:activations:completed', { activations: step.activations })
       }
       if (step.shootdowns.length > 0) {
+        await this._mascot.triggerS300Feature()
+        this._syncCombatOrigin()
         bus.emit('le-militare:combat:shootdowns:started', { shootdowns: step.shootdowns })
         await this._combatOpView.animateShootdowns(step.shootdowns, step.activations, WILD_ID)
         bus.emit('le-militare:combat:shootdowns:completed', { shootdowns: step.shootdowns })
