@@ -50,6 +50,8 @@ Requires Go 1.26.4 and Docker in addition to Bun. See the
 [reproducible math audit](packages/games/x7-club/config/math-audit.json), and
 [container stack](compose.x7.yml). Sessions and credits are ephemeral demo data.
 
+[Latest X7 verification: Go race tests, 785 platform tests and live RabbitMQ integration](docs/x7-verification.md).
+
 ## Architecture
 
 ```text
