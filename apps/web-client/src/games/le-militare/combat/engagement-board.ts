@@ -88,8 +88,8 @@ export class EngagementBoard extends Container {
           },
         })
         .to(this, { alpha: 1, duration: 0.2 }, 0)
-        .to(phase, { angle: Math.PI * 1.5, duration: 0.85, ease: 'none', onUpdate: paint }, 0)
-        .to(phase, { lock: 1, duration: 0.3, onUpdate: paint }, 0.55)
+        .to(phase, { angle: Math.PI * 1.5, duration: 0.42, ease: 'none', onUpdate: paint }, 0)
+        .to(phase, { lock: 1, duration: 0.18, onUpdate: paint }, 0.24)
     })
   }
 

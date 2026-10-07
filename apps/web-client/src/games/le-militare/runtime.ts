@@ -483,8 +483,8 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     // Retract launcher after all animations if it was deployed this spin
     if (hasAnyCombatOp || raidActive) {
       this._combatOpView.clearArmedReels()
-      // Fire-and-forget retraction — it's slow (1.8s) and non-blocking for the next spin
-      // because retractLauncher serializes via its internal promise chain
+      // Retract during the next reel spin; the short movement is serialized
+      // with deployment so the launcher cannot jump between poses.
       this._mascot.retractLauncher().catch(() => {
         // Ignore retraction errors; mascot state resets on next deploy
       })

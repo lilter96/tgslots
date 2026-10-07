@@ -51,8 +51,8 @@ export async function playBadge(
     gsap.to(badge.scale, {
       x: 1.18,
       y: 1.18,
-      duration: 0.3,
-      delay: 0.18,
+      duration: 0.22,
+      delay: 0.04,
       ease: 'back.out(2.8)',
       onComplete: () => {
         gsap.to(badge.scale, { x: 1.0, y: 1.0, duration: 0.1 })

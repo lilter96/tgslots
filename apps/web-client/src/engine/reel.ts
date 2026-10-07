@@ -51,6 +51,9 @@ export class Reel extends Container {
     if (this._spinning) return
     this._spinning = true
     this._scrollY = 0
+    // A new spin replaces every symbol on this reel. Surviving cascade badges
+    // belong to the previous result and must never enter the scrolling pool.
+    this.clearMultipliers()
 
     const { symbolHeight, totalSymbols } = this._config
     const reelHeight = totalSymbols * symbolHeight
