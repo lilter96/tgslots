@@ -1,0 +1,21 @@
+{
+  "name": "@tgslots/x7-club",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "sim": "bun --cwd ../../../apps/simulations main.ts --game x7-club"
+  },
+  "dependencies": {
+    "@tgslots/math": "workspace:*",
+    "@tgslots/slots-core": "workspace:*",
+    "@tgslots/slots-simulation-engine": "workspace:*",
+    "@tgslots/shared-contracts": "workspace:*"
+  }
+}

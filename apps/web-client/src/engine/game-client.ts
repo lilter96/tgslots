@@ -42,3 +42,10 @@ export interface IGameClient<G extends GameId> {
   readonly soundMapping?: SoundMapping
   mount(ctx: GameUIContext<G>): Promise<GameRuntime<G>>
 }
+
+/** A game with its own action lifecycle can still share the library and asset manifest. */
+export interface StandaloneGameClient {
+  readonly manifest: GameManifest
+  readonly assets: AssetManifest
+  launch(): Promise<void>
+}

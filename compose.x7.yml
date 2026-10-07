@@ -1,0 +1,42 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: x7
+      RABBITMQ_DEFAULT_PASS: x7-demo
+    ports:
+      - "127.0.0.1:${X7_AMQP_PORT:-5672}:5672"
+      - "127.0.0.1:${X7_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - x7-rabbit:/var/lib/rabbitmq
+  math:
+    build:
+      context: .
+      dockerfile: apps/x7-math-worker/Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://x7:x7-demo@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+  server:
+    build:
+      context: .
+      dockerfile: apps/x7-server/Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://x7:x7-demo@rabbitmq:5672
+    ports:
+      - "127.0.0.1:${X7_HTTP_PORT:-3003}:3003"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      math:
+        condition: service_started
+    restart: unless-stopped
+volumes:
+  x7-rabbit:

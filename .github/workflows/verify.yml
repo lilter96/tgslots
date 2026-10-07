@@ -11,4 +11,9 @@ jobs:
         with:
           bun-version: 1.3.13
       - run: bun install --frozen-lockfile
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/x7-server/go.mod
+          cache-dependency-path: apps/x7-server/go.sum
       - run: bun run validate
+      - run: bun run x7:check

@@ -1,0 +1,20 @@
+{
+  "name": "@tgslots/x7-math-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tgslots/x7-club": "workspace:*",
+    "@tgslots/math": "workspace:*",
+    "@tgslots/slots-core": "workspace:*",
+    "amqplib": "^0.10.9"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.7"
+  }
+}

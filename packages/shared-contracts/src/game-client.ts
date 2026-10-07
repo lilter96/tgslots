@@ -21,6 +21,8 @@ export type FeatureTag =
   | 'cluster-pays'
   | 'cascade'
   | 'combat-operation'
+  | 'hold-spin'
+  | 'column-boost'
 
 export interface WinTier {
   readonly thresholdX: number

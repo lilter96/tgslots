@@ -1,0 +1,363 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+.x7-club {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  color: #f6f0ff;
+  font-family: 'Space Grotesk', Arial, sans-serif;
+  background:
+    linear-gradient(90deg, rgba(14, 5, 26, 0.86), rgba(14, 5, 26, 0.54) 70%, rgba(14, 5, 26, 0.28)),
+    url('/assets/images/x7-club/club-background.png') center/cover;
+}
+.x7-club button,
+.x7-club a {
+  -webkit-tap-highlight-color: transparent;
+}
+.x7-club button {
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  border: 0;
+  background: transparent;
+}
+.x7-club button:disabled {
+  opacity: 0.48;
+  cursor: wait;
+}
+.x7-club button:focus-visible,
+.x7-club a:focus-visible {
+  outline: 3px solid #d9ff43;
+  outline-offset: 4px;
+}
+.x7-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 32px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+.x7-header a {
+  color: #f6f0ff;
+  text-decoration: none;
+}
+.x7-demo {
+  padding: 6px 12px;
+  border: 1px solid #a886be66;
+  border-radius: 99px;
+  color: #d9ff43;
+  font-size: 10px;
+}
+.x7-main {
+  width: min(800px, calc(100% - 32px));
+  margin: 0 auto 28px;
+}
+.x7-heading {
+  text-align: center;
+  padding: 10px 0 22px;
+}
+.x7-heading p {
+  font-size: 10px;
+  color: #d9ff43;
+  letter-spacing: 4px;
+  font-weight: 700;
+}
+.x7-heading h1 {
+  font-size: 70px;
+  font-weight: 700;
+  letter-spacing: -5px;
+  line-height: 1.1;
+}
+.x7-heading h1 span {
+  color: #d9ff43;
+  margin-left: 12px;
+}
+.x7-heading h1 i {
+  color: #cb92ff;
+  font-size: 40px;
+  font-style: normal;
+  margin-left: 12px;
+}
+.x7-subtitle {
+  font-size: 12px;
+  color: #c4b4d8;
+  margin-top: 5px;
+}
+.x7-machine {
+  background: linear-gradient(150deg, #251438e8, #10091ce8);
+  border: 1px solid #be96ed50;
+  border-radius: 22px;
+  padding: 14px 18px 0;
+  box-shadow:
+    0 24px 80px #0008,
+    0 0 40px #a059ff1a;
+}
+.x7-prizes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.x7-prizes div {
+  border: 1px solid #ad8abe44;
+  border-radius: 12px;
+  padding: 7px;
+  text-align: center;
+  background: #0e071b80;
+}
+.x7-prizes span {
+  font-size: 9px;
+  letter-spacing: 3px;
+  display: block;
+  color: #c29fec;
+}
+.x7-prizes strong {
+  font-size: 23px;
+  color: #ffe098;
+}
+.x7-prizes div:last-child strong {
+  color: #d9ff43;
+}
+.x7-canvas {
+  aspect-ratio: 700/520;
+  width: 100%;
+  margin-top: -5px;
+}
+.x7-canvas canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+.x7-status {
+  min-height: 44px;
+  padding: 8px 4px 13px;
+  text-align: center;
+  color: #e6d2fa;
+  font-size: 12px;
+}
+.x7-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 8px 12px;
+}
+.x7-wallet {
+  flex: 1;
+}
+.x7-wallet span,
+.x7-bet > span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #b19cbf;
+  margin-bottom: 5px;
+}
+.x7-wallet strong {
+  font-size: 21px;
+}
+.x7-bet {
+  text-align: center;
+}
+.x7-bet div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.x7-bet button {
+  width: 26px;
+  height: 26px;
+  background: #a484cb30;
+  border-radius: 50%;
+  font-size: 20px;
+}
+.x7-bet strong {
+  min-width: 35px;
+  font-size: 18px;
+}
+.x7-club .x7-spin {
+  background: #d9ff43;
+  color: #170a28;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 18px 30px;
+  min-width: 150px;
+  box-shadow: 0 0 25px #d9ff4325;
+}
+.x7-club .x7-buy {
+  border: 1px solid #b98dde80;
+  border-radius: 14px;
+  padding: 13px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #28123fcc;
+}
+.x7-buy span {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: #bda6d2;
+  margin-top: 5px;
+}
+.x7-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 8px;
+  font-size: 10px;
+  color: #bc9acf;
+  letter-spacing: 1px;
+}
+.x7-bank {
+  color: #d9ff43;
+}
+.x7-footnote {
+  text-align: center;
+  font-size: 10px;
+  color: #8f789f;
+  padding: 8px;
+}
+.x7-error {
+  color: #ffc4d6;
+  text-align: center;
+  padding: 12px;
+  border: 1px solid #f783ac55;
+  border-radius: 12px;
+  margin-top: 12px;
+  background: #360e2380;
+}
+.x7-club .x7-refresh {
+  display: block;
+  margin: 12px auto;
+  padding: 10px 18px;
+  background: #5f3089;
+  border-radius: 10px;
+}
+.x7-club [hidden] {
+  display: none !important;
+}
+.x7-dialog {
+  background: #1c0d2c;
+  color: #f6edff;
+  border: 1px solid #ad78d0;
+  border-radius: 20px;
+  margin: auto;
+  padding: 28px;
+  max-width: min(560px, calc(100% - 28px));
+  max-height: 85vh;
+  overflow: auto;
+  font-family: 'Space Grotesk', Arial, sans-serif;
+}
+.x7-dialog::backdrop {
+  background: #08020cd9;
+  backdrop-filter: blur(8px);
+}
+.x7-dialog h2 {
+  color: #d9ff43;
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+.x7-dialog p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #d4bddf;
+  margin: 12px 0;
+}
+.x7-dialog form {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 24px;
+}
+.x7-dialog button {
+  padding: 12px 20px;
+  background: #d9ff43 !important;
+  border-radius: 10px;
+  color: #1b0c25 !important;
+  font-weight: 700;
+}
+.x7-dialog table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+.x7-dialog th,
+.x7-dialog td {
+  padding: 8px;
+  border-bottom: 1px solid #76528455;
+  text-align: left;
+}
+.x7-dialog details {
+  font-size: 12px;
+  margin-top: 12px;
+}
+.x7-dialog ol {
+  padding-left: 24px;
+  columns: 2;
+  line-height: 1.8;
+}
+@media (max-width: 600px) {
+  .x7-header {
+    padding: 16px;
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .x7-heading {
+    padding: 14px 0 18px;
+  }
+  .x7-heading h1 {
+    font-size: 54px;
+  }
+  .x7-heading p {
+    font-size: 8px;
+    letter-spacing: 3px;
+  }
+  .x7-machine {
+    padding: 10px 8px 0;
+    border-radius: 16px;
+  }
+  .x7-controls {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .x7-wallet {
+    flex: 1;
+  }
+  .x7-bet {
+    flex: 1;
+  }
+  .x7-bet div {
+    justify-content: center;
+  }
+  .x7-club .x7-spin {
+    flex: 1;
+    min-width: 0;
+    padding: 16px;
+  }
+  .x7-club .x7-buy {
+    flex: 1;
+    padding: 12px 8px;
+  }
+  .x7-wallet strong {
+    font-size: 19px;
+  }
+  .x7-status {
+    font-size: 10px;
+    min-height: 40px;
+  }
+  .x7-prizes strong {
+    font-size: 20px;
+  }
+  .x7-bottom {
+    font-size: 8px;
+    gap: 6px;
+    letter-spacing: 0;
+  }
+  .x7-footnote {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .x7-club * {
+    scroll-behavior: auto;
+  }
+}

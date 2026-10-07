@@ -5,7 +5,7 @@ A personal TypeScript / Bun monorepo for slot-game mathematics, a browser game c
 ## What to review
 
 - **Game mathematics:** shared RNG/sampler primitives, payline and cluster evaluation, cascades, free-spin and bonus mechanics.
-- **Modular games:** Ancient Dragon, Woodland Whisper, and Le Militare implement a shared state-machine and serialization contract.
+- **Modular games:** Ancient Dragon, Woodland Whisper, Le Militare, and X7 Club implement a shared state-machine and serialization contract.
 - **Simulation tooling:** seeded runs, worker-thread execution, RTP/feature metrics, and HTML reports.
 - **Application delivery:** Elysia/Bun HTTP API, PixiJS 8 browser rendering, React marketing frontend, and shared TypeScript contracts.
 - **Engineering process:** game test harnesses, [architecture decisions](memory/decisions), and [AI coding instructions](AGENTS.md).
@@ -26,6 +26,30 @@ audit, not an exact analytical result or production certification.
 See the [playable specification](memory/le-militare-gdd.md) and
 [reproduction script](packages/games/le-militare/scripts/math-audit.ts).
 
+## X7 Club — Go + TypeScript + Pixi Reels
+
+X7 Club adds a neon capybara Hold & Spin slot: locked credit prizes, fixed MINI /
+MAJOR / MEGA awards, full-column boosters and a rare ×7. It reuses the shared
+samplers, payline evaluator, state-machine contract and simulation runner;
+generic held-prize and column-boost mechanics live in `slots-core`.
+
+Go owns its demo wallet, session revisions and idempotent actions. A stateless
+TypeScript math worker calculates seeded results through RabbitMQ request/reply.
+The game is registered in the existing client library and marketing site.
+
+```bash
+bun run dev:x7       # starts RabbitMQ, Go, math worker, API, client, marketing
+bun run x7:smoke     # complete rounds and duplicate-request checks
+bun run x7:check     # generated-cost consistency + Go race tests
+bun run x7:sim --spins 1000000 --warmup 1000
+bun run x7:sim --spins 1000000 --game-mode buy --warmup 1000
+```
+
+Requires Go 1.26.4 and Docker in addition to Bun. See the
+[playable specification and architecture](memory/x7-club-gdd.md),
+[reproducible math audit](packages/games/x7-club/config/math-audit.json), and
+[container stack](compose.x7.yml). Sessions and credits are ephemeral demo data.
+
 ## Architecture
 
 ```text
@@ -33,17 +57,17 @@ math → slots-core → simulation engine → game packages
                                       ↘ API / PixiJS client / simulation CLI
 ```
 
-| Directory | Responsibility |
-| --- | --- |
-| `packages/math` | Randomness, sampling, and distributions |
-| `packages/slots-core` | Shared gameplay primitives and evaluation |
+| Directory                          | Responsibility                                                  |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `packages/math`                    | Randomness, sampling, and distributions                         |
+| `packages/slots-core`              | Shared gameplay primitives and evaluation                       |
 | `packages/slots-simulation-engine` | State machines, metrics, test harnesses, and simulation runners |
-| `packages/games` | Game-specific rules and configuration |
-| `packages/shared-contracts` | Game manifests and serialized states |
-| `apps/api` | Game-action HTTP API |
-| `apps/web-client` | PixiJS browser client |
-| `apps/marketing` | React game discovery frontend |
-| `apps/simulations` | Monte Carlo CLI and reports |
+| `packages/games`                   | Game-specific rules and configuration                           |
+| `packages/shared-contracts`        | Game manifests and serialized states                            |
+| `apps/api`                         | Game-action HTTP API                                            |
+| `apps/web-client`                  | PixiJS browser client                                           |
+| `apps/marketing`                   | React game discovery frontend                                   |
+| `apps/simulations`                 | Monte Carlo CLI and reports                                     |
 
 [Detailed codebase walkthrough](codebase-analysis-docs/CODEBASE_KNOWLEDGE.md) · [Testing strategy](memory/testing_strategy.md)
 

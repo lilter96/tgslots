@@ -1,0 +1,33 @@
+{
+  "baseCost": 20,
+  "buyCost": 77,
+  "maxWinX": 7777,
+  "symbols": ["CHILL", "HYPE", "LOL", "GG", "SEVEN", "WILD", "COIN"],
+  "weights": [2500, 2300, 2000, 1700, 1200, 300, 1972],
+  "paytable": [
+    [4, 12, 40],
+    [5, 15, 50],
+    [6, 20, 70],
+    [8, 25, 90],
+    [12, 40, 150]
+  ],
+  "prizes": [
+    ["CREDIT", 1, 6500],
+    ["CREDIT", 2, 2000],
+    ["CREDIT", 3, 800],
+    ["CREDIT", 5, 400],
+    ["CREDIT", 7, 200],
+    ["MINI", 10, 100],
+    ["MAJOR", 50, 10],
+    ["MEGA", 250, 1]
+  ],
+  "respinHitWeight": 85,
+  "respinMissWeight": 915,
+  "boostWeights": [
+    ["STOP", 65],
+    ["PLUS1", 24],
+    ["PLUS2", 10],
+    ["X7", 1]
+  ],
+  "buyEntryCredits": 201
+}

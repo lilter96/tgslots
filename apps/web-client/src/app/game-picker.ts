@@ -1,4 +1,10 @@
 const DETAILS: Record<string, { image: string; category: string; copy: string; color: string }> = {
+  'x7-club': {
+    image: '/assets/images/x7-club/club-background.png',
+    category: 'HOLD & SPIN + COLUMN BOOST',
+    copy: 'Sticky prizes, meme energy and a rare ×7 afterparty.',
+    color: '#d9ff43',
+  },
   'ancient-dragon': {
     image: '/assets/images/ancient-dragon/shrine-background.webp',
     category: 'PAYLINE ENGINE',
@@ -35,7 +41,7 @@ export class GamePicker {
     const title = document.createElement('h1')
     title.textContent = 'Choose your world.'
     const subtitle = document.createElement('p')
-    subtitle.textContent = 'Three game engines. Real mechanics. Demo credits.'
+    subtitle.textContent = 'Independent game engines. Real mechanics. Demo credits.'
     intro.append(eyebrow, title, subtitle)
     const grid = document.createElement('div')
     grid.className = 'lobby-grid'

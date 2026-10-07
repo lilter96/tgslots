@@ -51,6 +51,10 @@ function resolveLoaderBackground(assets: AssetManifest): string | undefined {
 async function mountGame(gameId: string): Promise<void> {
   const gameClient = gameRegistry[gameId]
   if (gameClient === undefined) return
+  if ('launch' in gameClient) {
+    await gameClient.launch()
+    return
+  }
   const client = gameClient
 
   document.title = client.manifest.displayName

@@ -1,0 +1,553 @@
+{
+  "configurationSha256": "c544b5a19015eefe88900bf0cb39d44abc7c7f4bc59cc4696abc4c3d15bb45c3",
+  "runner": "@tgslots/slots-simulation-engine/runner",
+  "workers": 2,
+  "seed": 777,
+  "workerSeeds": [
+    777000,
+    784919
+  ],
+  "warmupPerWorker": 1000,
+  "targetRTP": 0.96,
+  "maxWinCapInOriginalStakes": 7777,
+  "results": [
+    {
+      "mode": "base",
+      "spins": 5000000,
+      "summary": {
+        "rounds": 5000000,
+        "totalBet": 100000000,
+        "totalWin": 95801564,
+        "averageBet": 20,
+        "averageRoundWin": 19.1603128,
+        "totalSpinResults": 6402692,
+        "rtp": 0.95801564,
+        "maxRoundWin": 8880,
+        "maxRoundWinMultiplier": 444,
+        "variance": {
+          "mean": 0.9580156399996724,
+          "variance": 21.53333790544315,
+          "stdDev": 4.640402774053471
+        },
+        "roundWinDistribution": {
+          "kind": "distribution",
+          "total": 5000000,
+          "buckets": {
+            "0x": {
+              "count": 2912107,
+              "ratio": 0.5824214
+            },
+            "<1x": {
+              "count": 1436647,
+              "ratio": 0.2873294
+            },
+            "1x-5x": {
+              "count": 491854,
+              "ratio": 0.0983708
+            },
+            "5x-20x": {
+              "count": 90866,
+              "ratio": 0.0181732
+            },
+            "20x-50x": {
+              "count": 63578,
+              "ratio": 0.0127156
+            },
+            "50x-100x": {
+              "count": 4193,
+              "ratio": 0.0008386
+            },
+            ">100x": {
+              "count": 755,
+              "ratio": 0.000151
+            }
+          }
+        },
+        "resultTypeDistribution": {
+          "kind": "distribution",
+          "total": 6402692,
+          "buckets": {
+            "base": {
+              "count": 5000000,
+              "ratio": 0.7809215248835958
+            },
+            "respin": {
+              "count": 1402692,
+              "ratio": 0.21907847511640416
+            }
+          }
+        }
+      },
+      "confidence95": [
+        0.9539481476300612,
+        0.9620831323699387
+      ],
+      "scopes": {
+        "path": [],
+        "metrics": {
+          "round-win-multiplier": {
+            "kind": "distribution",
+            "total": 5000000,
+            "buckets": {
+              "0x": {
+                "count": 2912107,
+                "ratio": 0.5824214
+              },
+              "<1x": {
+                "count": 1436647,
+                "ratio": 0.2873294
+              },
+              "1x-5x": {
+                "count": 491854,
+                "ratio": 0.0983708
+              },
+              "5x-20x": {
+                "count": 90866,
+                "ratio": 0.0181732
+              },
+              "20x-50x": {
+                "count": 63578,
+                "ratio": 0.0127156
+              },
+              "50x-100x": {
+                "count": 4193,
+                "ratio": 0.0008386
+              },
+              ">100x": {
+                "count": 755,
+                "ratio": 0.000151
+              }
+            }
+          },
+          "rounds": {
+            "kind": "count",
+            "total": 5000000,
+            "rate": 1,
+            "cycle": 1
+          },
+          "round-rtp": {
+            "kind": "rtp",
+            "count": 5000000,
+            "total": 95801564,
+            "ratio": 0.95801564
+          },
+          "round-win-amount": {
+            "kind": "value",
+            "count": 5000000,
+            "sum": 95801564,
+            "average": 19.1603128,
+            "min": 0,
+            "max": 8880
+          },
+          "spins-per-round": {
+            "kind": "value",
+            "count": 5000000,
+            "sum": 6402692,
+            "average": 1.2805384,
+            "min": 1,
+            "max": 32
+          }
+        },
+        "scopes": {
+          "base-game": {
+            "path": [
+              "base-game"
+            ],
+            "metrics": {
+              "spins-played": {
+                "kind": "count",
+                "total": 5000000,
+                "rate": 1,
+                "cycle": 1
+              },
+              "spin-win": {
+                "kind": "payout",
+                "count": 5000000,
+                "total": 35259024,
+                "average": 7.0518048,
+                "min": 0,
+                "max": 750
+              },
+              "win": {
+                "kind": "rtp",
+                "count": 5000000,
+                "total": 35259024,
+                "ratio": 0.35259024
+              },
+              "triggers": {
+                "kind": "count",
+                "total": 129165,
+                "rate": 0.025833,
+                "cycle": 38.71017690550846
+              }
+            },
+            "scopes": {}
+          },
+          "spin-types": {
+            "path": [
+              "spin-types"
+            ],
+            "metrics": {},
+            "scopes": {
+              "base": {
+                "path": [
+                  "spin-types",
+                  "base"
+                ],
+                "metrics": {
+                  "results": {
+                    "kind": "count",
+                    "total": 5000000,
+                    "rate": 1,
+                    "cycle": 1
+                  }
+                },
+                "scopes": {}
+              },
+              "respin": {
+                "path": [
+                  "spin-types",
+                  "respin"
+                ],
+                "metrics": {
+                  "results": {
+                    "kind": "count",
+                    "total": 1402692,
+                    "rate": 0.2805384,
+                    "cycle": 3.564574404074451
+                  }
+                },
+                "scopes": {}
+              }
+            }
+          },
+          "features": {
+            "path": [
+              "features"
+            ],
+            "metrics": {},
+            "scopes": {
+              "hold-spin": {
+                "path": [
+                  "features",
+                  "hold-spin"
+                ],
+                "metrics": {
+                  "spins-played": {
+                    "kind": "count",
+                    "total": 1402692,
+                    "rate": 0.2805384,
+                    "cycle": 3.564574404074451
+                  },
+                  "spin-win": {
+                    "kind": "payout",
+                    "count": 1402692,
+                    "total": 60542540,
+                    "average": 43.16167768833073,
+                    "min": 0,
+                    "max": 8880
+                  },
+                  "win": {
+                    "kind": "rtp",
+                    "count": 1402692,
+                    "total": 60542540,
+                    "ratio": 0.6054254
+                  }
+                },
+                "scopes": {}
+              },
+              "column-boost": {
+                "path": [
+                  "features",
+                  "column-boost"
+                ],
+                "metrics": {
+                  "STOP": {
+                    "kind": "count",
+                    "total": 226046,
+                    "rate": 0.0452092,
+                    "cycle": 22.119391628252657
+                  },
+                  "PLUS2": {
+                    "kind": "count",
+                    "total": 34484,
+                    "rate": 0.0068968,
+                    "cycle": 144.99478018791322
+                  },
+                  "PLUS1": {
+                    "kind": "count",
+                    "total": 83317,
+                    "rate": 0.0166634,
+                    "cycle": 60.011762305411864
+                  },
+                  "X7": {
+                    "kind": "count",
+                    "total": 3508,
+                    "rate": 0.0007016,
+                    "cycle": 1425.3135689851767
+                  }
+                },
+                "scopes": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "mode": "buy",
+      "spins": 1000000,
+      "summary": {
+        "rounds": 1000000,
+        "totalBet": 1540000000,
+        "totalWin": 1475869718,
+        "averageBet": 1540,
+        "averageRoundWin": 1475.869718,
+        "totalSpinResults": 11795492,
+        "rtp": 0.9583569597402597,
+        "maxRoundWin": 39498,
+        "maxRoundWinMultiplier": 25.648051948051947,
+        "variance": {
+          "mean": 0.9583569597407142,
+          "variance": 0.0816835558200979,
+          "stdDev": 0.28580335166001447
+        },
+        "roundWinDistribution": {
+          "kind": "distribution",
+          "total": 1000000,
+          "buckets": {
+            "0x": {
+              "count": 0,
+              "ratio": 0
+            },
+            "<1x": {
+              "count": 760643,
+              "ratio": 0.760643
+            },
+            "1x-5x": {
+              "count": 239274,
+              "ratio": 0.239274
+            },
+            "5x-20x": {
+              "count": 76,
+              "ratio": 0.000076
+            },
+            "20x-50x": {
+              "count": 7,
+              "ratio": 0.000007
+            },
+            "50x-100x": {
+              "count": 0,
+              "ratio": 0
+            },
+            ">100x": {
+              "count": 0,
+              "ratio": 0
+            }
+          }
+        },
+        "resultTypeDistribution": {
+          "kind": "distribution",
+          "total": 11795492,
+          "buckets": {
+            "buy": {
+              "count": 1000000,
+              "ratio": 0.08477815083932065
+            },
+            "respin": {
+              "count": 10795492,
+              "ratio": 0.9152218491606794
+            }
+          }
+        }
+      },
+      "confidence95": [
+        0.9577967851710061,
+        0.9589171343095133
+      ],
+      "scopes": {
+        "path": [],
+        "metrics": {
+          "round-win-multiplier": {
+            "kind": "distribution",
+            "total": 1000000,
+            "buckets": {
+              "0x": {
+                "count": 0,
+                "ratio": 0
+              },
+              "<1x": {
+                "count": 760643,
+                "ratio": 0.760643
+              },
+              "1x-5x": {
+                "count": 239274,
+                "ratio": 0.239274
+              },
+              "5x-20x": {
+                "count": 76,
+                "ratio": 0.000076
+              },
+              "20x-50x": {
+                "count": 7,
+                "ratio": 0.000007
+              },
+              "50x-100x": {
+                "count": 0,
+                "ratio": 0
+              },
+              ">100x": {
+                "count": 0,
+                "ratio": 0
+              }
+            }
+          },
+          "rounds": {
+            "kind": "count",
+            "total": 1000000,
+            "rate": 1,
+            "cycle": 1
+          },
+          "round-rtp": {
+            "kind": "rtp",
+            "count": 1000000,
+            "total": 1475869718,
+            "ratio": 0.9583569597402597
+          },
+          "round-win-amount": {
+            "kind": "value",
+            "count": 1000000,
+            "sum": 1475869718,
+            "average": 1475.869718,
+            "min": 1206,
+            "max": 39498
+          },
+          "spins-per-round": {
+            "kind": "value",
+            "count": 1000000,
+            "sum": 11795492,
+            "average": 11.795492,
+            "min": 4,
+            "max": 37
+          }
+        },
+        "scopes": {
+          "features": {
+            "path": [
+              "features"
+            ],
+            "metrics": {},
+            "scopes": {
+              "hold-spin": {
+                "path": [
+                  "features",
+                  "hold-spin"
+                ],
+                "metrics": {
+                  "spins-played": {
+                    "kind": "count",
+                    "total": 11795492,
+                    "rate": 11.795492,
+                    "cycle": 0.08477815083932065
+                  },
+                  "spin-win": {
+                    "kind": "payout",
+                    "count": 11795492,
+                    "total": 1475869718,
+                    "average": 125.12150557178963,
+                    "min": 0,
+                    "max": 39498
+                  },
+                  "win": {
+                    "kind": "rtp",
+                    "count": 11795492,
+                    "total": 1475869718,
+                    "ratio": 0.9583569597402597
+                  },
+                  "triggers": {
+                    "kind": "count",
+                    "total": 1000000,
+                    "rate": 1,
+                    "cycle": 1
+                  }
+                },
+                "scopes": {}
+              },
+              "column-boost": {
+                "path": [
+                  "features",
+                  "column-boost"
+                ],
+                "metrics": {
+                  "PLUS1": {
+                    "kind": "count",
+                    "total": 578989,
+                    "rate": 0.578989,
+                    "cycle": 1.7271485295920994
+                  },
+                  "STOP": {
+                    "kind": "count",
+                    "total": 1565970,
+                    "rate": 1.56597,
+                    "cycle": 0.6385818374553791
+                  },
+                  "PLUS2": {
+                    "kind": "count",
+                    "total": 241716,
+                    "rate": 0.241716,
+                    "cycle": 4.137086498204504
+                  },
+                  "X7": {
+                    "kind": "count",
+                    "total": 23837,
+                    "rate": 0.023837,
+                    "cycle": 41.951587867600786
+                  }
+                },
+                "scopes": {}
+              }
+            }
+          },
+          "spin-types": {
+            "path": [
+              "spin-types"
+            ],
+            "metrics": {},
+            "scopes": {
+              "buy": {
+                "path": [
+                  "spin-types",
+                  "buy"
+                ],
+                "metrics": {
+                  "results": {
+                    "kind": "count",
+                    "total": 1000000,
+                    "rate": 1,
+                    "cycle": 1
+                  }
+                },
+                "scopes": {}
+              },
+              "respin": {
+                "path": [
+                  "spin-types",
+                  "respin"
+                ],
+                "metrics": {
+                  "results": {
+                    "kind": "count",
+                    "total": 10795492,
+                    "rate": 10.795492,
+                    "cycle": 0.09263125756565796
+                  }
+                },
+                "scopes": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

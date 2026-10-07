@@ -17,8 +17,11 @@
     "@tgslots/shared-contracts": "workspace:*",
     "@tgslots/slots-core": "workspace:*",
     "@tgslots/woodland-whisper": "workspace:*",
-    "gsap": "^3.12.5",
-    "pixi.js": "^8.1.0"
+    "gsap": "^3.15.0",
+    "pixi.js": "^8.18.1",
+    "@tgslots/x7-club": "workspace:*",
+    "pixi-reels": "4.1.0",
+    "pixi-silk": "^0.1.0"
   },
   "devDependencies": {
     "vite": "^5.4.0",

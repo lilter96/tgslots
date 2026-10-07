@@ -22,7 +22,7 @@ export default function GameLauncher({ launchUrl, title, onClose }: Props) {
 
       {/* Game iframe */}
       <iframe
-        src={`${import.meta.env.VITE_GAME_CLIENT_URL}${launchUrl}`}
+        src={`${import.meta.env.VITE_GAME_CLIENT_URL ?? 'http://localhost:3002'}${launchUrl}`}
         title={title}
         className="flex-1 w-full border-0"
         allow="fullscreen"

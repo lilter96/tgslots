@@ -51,6 +51,7 @@ interface GameModule {
     name: string
     parsheet: ParsheetConfig
     betConfig: BetConfiguration
+    betConfigForMode?: (mode?: string) => BetConfiguration
     StateMachine: new (..._args: (string | undefined)[]) => StateMachine<SpinResult>
   }
 }
@@ -119,6 +120,7 @@ async function main() {
     opts.jsonOutput = defaultOutputPath(game.id, 'json')
   }
 
+  const simulationBet = SIM_CONFIG.betConfigForMode?.(opts.gameMode) ?? SIM_CONFIG.betConfig
   printSimHeader(opts, SIM_CONFIG.name)
 
   if (opts.mode === 'sample') {
@@ -128,7 +130,7 @@ async function main() {
     const sm = opts.gameMode
       ? new SIM_CONFIG.StateMachine(undefined, opts.gameMode)
       : new SIM_CONFIG.StateMachine()
-    const wager = new Wager(opts.betMultiplier, SIM_CONFIG.betConfig)
+    const wager = new Wager(opts.betMultiplier, simulationBet)
 
     const scattersOf = (spin: SpinResult) => ('sc' in spin ? (spin as { sc: number }).sc : 0)
 
@@ -149,7 +151,7 @@ async function main() {
   } else {
     // ── Benchmark / Verify mode ─────────────────────────────────────────────
     const workerURL = new URL(`./${game.workerFile}`, import.meta.url)
-    await runAndPrint(workerURL, opts, SIM_CONFIG.parsheet, SIM_CONFIG.name, SIM_CONFIG.betConfig)
+    await runAndPrint(workerURL, opts, SIM_CONFIG.parsheet, SIM_CONFIG.name, simulationBet)
   }
 }
 
