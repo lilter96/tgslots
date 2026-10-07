@@ -3,8 +3,7 @@ import { BET_CONFIG as WW_BET_CONFIG, BUY_BONUS_COST_MULTIPLIER } from '@tgslots
 import { BET_CONFIG as AD_BET_CONFIG } from '@tgslots/ancient-dragon'
 import {
   BET_CONFIG as LM_BET_CONFIG,
-  BUY_BONUS_COST_MULTIPLIER as LM_BUY_BONUS_COST_MULTIPLIER,
-  BUY_OPTIONS as LM_BUY_OPTIONS,
+  getFeatureBuyCost as getLMFeatureBuyCost,
   DEFAULT_MODE as LM_DEFAULT_MODE,
 } from '@tgslots/le-militare'
 import type { ModeId as LMModeId } from '@tgslots/le-militare'
@@ -149,22 +148,14 @@ async function mountGame(gameId: string): Promise<void> {
     lmMode = LM_DEFAULT_MODE
     const lmFeatureCost = (optionId: string, m: number): number => {
       const bet = new Wager(m, LM_BET_CONFIG).totalWager
-      const cost =
-        optionId === 'standard'
-          ? LM_BUY_OPTIONS.standard.cost
-          : optionId === 'elite'
-            ? LM_BUY_OPTIONS.elite.cost
-            : optionId === 'super'
-              ? LM_BUY_OPTIONS.super.cost
-              : optionId === 'chance'
-                ? LM_BUY_OPTIONS.chanceSpin.cost
-                : LM_BUY_OPTIONS.airRaidSpin.cost
+      const cost = getLMFeatureBuyCost(lmMode, optionId)
       return bet * cost
     }
     const lmActions: OrchestratorActions<'le-militare'> = {
       spinCost: (m) => new Wager(m, LM_BET_CONFIG).totalWager,
       doSpin: (m) => d.dispatch('spin', { multiplier: m, mode: lmMode }),
-      buyBonusCost: (m) => new Wager(m, LM_BET_CONFIG).totalWager * LM_BUY_BONUS_COST_MULTIPLIER,
+      buyBonusCost: (m) =>
+        new Wager(m, LM_BET_CONFIG).totalWager * getLMFeatureBuyCost(lmMode, 'standard'),
       doBuyBonus: (m) => d.dispatch('buybonus', { multiplier: m, mode: lmMode }),
       doFreeSpin: () => d.dispatch('freespin', {}),
       featureCost: lmFeatureCost,
@@ -286,6 +277,14 @@ async function mountGame(gameId: string): Promise<void> {
     }
   }
 
+  // Expose whether the canvas is busy to assistive tools and browser verification.
+  app.canvas.dataset.gameState = fsm.state
+  app.canvas.setAttribute('aria-busy', String(fsm.state !== GameUIState.IDLE))
+  fsm.addListener((state) => {
+    app.canvas.dataset.gameState = state
+    app.canvas.setAttribute('aria-busy', String(state !== GameUIState.IDLE))
+  })
+
   // Layout — driven by per-game manifest dimensions
   function doLayout(W: number, H: number) {
     const layout = getResponsiveLayout(
@@ -293,7 +292,7 @@ async function mountGame(gameId: string): Promise<void> {
       H,
       client.manifest.reelNaturalWidth,
       client.manifest.reelNaturalHeight,
-      52,
+      gameId === 'le-militare' ? 92 : 52,
     )
     runtime.resize(layout)
     hud.resize(layout)

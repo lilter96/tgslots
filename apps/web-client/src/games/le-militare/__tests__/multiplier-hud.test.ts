@@ -74,3 +74,20 @@ describe('MultiplierHud', () => {
     hud.destroy({ children: true })
   })
 })
+
+it('keeps its responsive scale while the multiplier pulse animates', async () => {
+  const { gsap } = await import('gsap')
+  const hud = new MultiplierHud()
+  hud.scale.set(0.45)
+  hud.setValue(25)
+  // Advance this HUD's actual pulse, as the browser ticker would.
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
+  const h = hud as unknown as Record<string, unknown>
+  const content = h['_content'] as { scale: { x: number; y: number } }
+  const pulse = gsap.getTweensOf(content.scale)[0]!
+  pulse.progress(0.5)
+  expect(content.scale.x).toBeGreaterThan(1)
+  expect(hud.scale.x).toBe(0.45)
+  expect(hud.scale.y).toBe(0.45)
+  hud.destroy({ children: true })
+})

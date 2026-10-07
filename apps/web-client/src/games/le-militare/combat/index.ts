@@ -11,12 +11,14 @@ import { playAirRaid } from './air-raid.js'
 import type { AirRaidPlacement } from '@tgslots/le-militare'
 import type { CombatLayout } from './combat-layout.js'
 import { EngagementBoard } from './engagement-board.js'
+import { GiantWildView } from './giant-wild-view.js'
 
 export class CombatOperationView extends Container {
   private _bus: GameEventBus
   private _overlay: Graphics
   private _armedReels: Graphics
   private _current: Graphics
+  private readonly _giants: GiantWildView
   private readonly _engagement = new EngagementBoard()
 
   private _mascotLaunchX = 0
@@ -37,6 +39,8 @@ export class CombatOperationView extends Container {
   ) {
     super()
     this._bus = bus
+    this._giants = new GiantWildView(_assets)
+    this.addChild(this._giants)
     this._armedReels = new Graphics()
     this.addChild(this._armedReels)
     this._current = new Graphics()
@@ -65,6 +69,7 @@ export class CombatOperationView extends Container {
   setLayout(layout: CombatLayout): void {
     if (layout.symbolWidth === 0) return
     this._layout = layout
+    this._giants.setLayout(layout)
     this._redrawArmedReels()
   }
 
@@ -78,6 +83,14 @@ export class CombatOperationView extends Container {
       this._layout,
       this._armedReelStates,
     )
+  }
+
+  setGiantReels(reels: Iterable<number>): void {
+    this._giants.setReels(reels)
+  }
+
+  highlightGiants(reels: Iterable<number>): void {
+    this._giants.highlight(reels)
   }
 
   // Carry armed-state indicators into a free spin without replaying activation.

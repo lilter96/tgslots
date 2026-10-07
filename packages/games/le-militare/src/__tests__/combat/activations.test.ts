@@ -34,29 +34,11 @@ describe('newly armed reels become wild', () => {
     }
   })
 
-  it('only newly armed reels are wilded in postCombatGrid — carry-overs are not re-wilded', () => {
-    let multiStepSpinFound = false
-    for (let seed = 0; seed < 5_000; seed++) {
-      const session = engine.session({ seed })
-      session.scenario('withFreeSpins', { armedReels: new Set([0, 2, 4]), multiplierSum: 0 })
-      session.act('next')
-      const result = session.sm.state.lastSpinResult!
-      if (result.steps.length <= 1) continue
-      multiStepSpinFound = true
-
-      const armed = new Set([0, 2, 4])
-      for (const step of result.steps) {
-        const newlyArmed = new Set(step.activations.map((a) => a.reel))
-        for (const reel of newlyArmed) armed.add(reel)
-      }
-    }
-    expect(multiStepSpinFound).toBe(true)
-  })
-
   it('emits exactly one ActivationEvent per reel per step', () => {
     for (let seed = 0; seed < 3_000; seed++) {
       const session = engine.session({ seed })
-      session.act('spin')
+      session.scenario('withFreeSpins')
+      session.act('next')
       const result = session.sm.state.lastSpinResult!
       for (const step of result.steps) {
         const activatedReels = step.activations.map((a) => a.reel)

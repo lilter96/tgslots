@@ -10,6 +10,7 @@ const STYLE = new TextStyle({
 })
 
 export class MultiplierHud extends Container {
+  private readonly _content = new Container()
   private _bg: Graphics
   private _label: Text
   private _value: Text
@@ -17,8 +18,9 @@ export class MultiplierHud extends Container {
 
   constructor() {
     super()
+    this.addChild(this._content)
     this._bg = new Graphics()
-    this.addChild(this._bg)
+    this._content.addChild(this._bg)
 
     this._label = new Text({
       text: 'MULTIPLIER',
@@ -32,12 +34,12 @@ export class MultiplierHud extends Container {
     })
     this._label.anchor.set(0.5)
     this._label.y = -15
-    this.addChild(this._label)
+    this._content.addChild(this._label)
 
     this._value = new Text({ text: '×1', style: STYLE })
     this._value.anchor.set(0.5)
     this._value.y = 8
-    this.addChild(this._value)
+    this._content.addChild(this._value)
 
     this._draw()
   }
@@ -58,8 +60,9 @@ export class MultiplierHud extends Container {
     this.visible = targetValue > 1
     if (this._currentValue === targetValue) return
 
-    gsap.killTweensOf(this.scale)
-    gsap.to(this.scale, {
+    gsap.killTweensOf(this._content.scale)
+    this._content.scale.set(1)
+    gsap.to(this._content.scale, {
       x: 1.2,
       y: 1.2,
       duration: 0.1,
@@ -76,7 +79,7 @@ export class MultiplierHud extends Container {
     texture?: boolean
     baseTexture?: boolean
   }): void {
-    gsap.killTweensOf(this.scale)
+    gsap.killTweensOf(this._content.scale)
     super.destroy(options)
   }
 }

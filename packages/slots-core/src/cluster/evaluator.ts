@@ -17,6 +17,11 @@ import { EMPTY_SYMBOL, type SymbolId } from '../symbol-registry.js'
  * region cannot pay as `S`). Components of size ≥ `paytable.minPayCount` and
  * with a non-zero payout are emitted as `ClusterHit`s.
  *
+ * Optional position weights change the payable count, while preserving physical
+ * connectivity and hit positions. A connected giant WILD uses one anchor with
+ * weight 1 and its remaining cells with weight 0. Thresholds and payouts are
+ * checked before wilds are claimed, so a non-paying component consumes no wilds.
+ *
  * When `engine.disallowMixedWilds` is true, a wild that is claimed by one
  * winning cluster is excluded from every subsequent symbol's BFS sweep.
  * This prevents one wild cell from boosting clusters of different symbol types.
@@ -25,10 +30,14 @@ import { EMPTY_SYMBOL, type SymbolId } from '../symbol-registry.js'
 export function evaluateClusters(
   grid: EvalGrid,
   engine: ClusterSlotEngine,
+  positionWeights?: Uint8Array,
 ): ClusterEvaluationResult {
   const { symbols, paytable, reelCount, rowCount, gridArea, scatterId } = engine
   const { wildId, toName } = symbols
   const { payouts, minPayCount } = paytable
+  if (positionWeights && positionWeights.length !== gridArea) {
+    throw new Error(`Cluster weights must contain ${gridArea} positions`)
+  }
 
   const hits: ClusterHit[] = []
 
@@ -70,6 +79,7 @@ export function evaluateClusters(
         toName,
         hits,
         usedWilds,
+        positionWeights,
       )
     }
   }
@@ -95,6 +105,7 @@ function sweepSymbolClusters(
   toName: readonly string[],
   hits: ClusterHit[],
   usedWilds: Uint8Array | null,
+  positionWeights?: Uint8Array,
 ): void {
   visited.fill(0)
 
@@ -108,6 +119,7 @@ function sweepSymbolClusters(
       const positions: number[] = []
       const wildPositions: number[] = []
       let realCount = 0
+      let effectiveSize = 0
 
       let head = 0
       let tail = 0
@@ -121,6 +133,7 @@ function sweepSymbolClusters(
         const cellSym = grid.getSymbol(r, c)
 
         positions.push(pos)
+        effectiveSize += positionWeights?.[pos] ?? 1
         if (cellSym === targetSym) {
           realCount++
         } else if (cellSym === wildId) {
@@ -174,7 +187,7 @@ function sweepSymbolClusters(
       // cells), but keep the guard for future-proofing.
       if (realCount === 0) continue
 
-      const size = positions.length
+      const size = effectiveSize
       if (size < minPayCount) continue
       const basePayout = symbolPayouts[size] ?? 0
       if (basePayout <= 0) continue

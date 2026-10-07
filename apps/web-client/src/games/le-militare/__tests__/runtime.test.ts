@@ -263,3 +263,63 @@ describe('LeMilitareRuntime.destroy', () => {
     expect((harness['_unsubs'] as Array<() => void>).length).toBe(0)
   })
 })
+
+// Verify presentation ordering with a real math result and stale display cells.
+it.each([{ armedReels: [0] }, { armedReels: [2] }, { armedReels: [4] }, { armedReels: [0, 2, 4] }])(
+  'restores carried WILD textures before spinning: %j',
+  async ({ armedReels }) => {
+    const { leMilitareTestEngine: engine } =
+      await import('../../../../../../packages/games/le-militare/src/__tests__/test-engine.js')
+    const { WILD_ID, ROW_COUNT } = await import('@tgslots/le-militare/constants')
+    const session = engine.session({ seed: 77 })
+    session.scenario('withFreeSpins', { armedReels: new Set(armedReels), multiplierSum: 0 })
+    const result = session.act('next') as import('@tgslots/le-militare').LeMilitareFreeResult
+    const runtime = new LeMilitareRuntime()
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
+    const harness = runtime as unknown as Record<string, unknown>
+    const order: string[] = []
+    const displayed = Array.from({ length: 6 }, () => Array.from({ length: ROW_COUNT }, () => 1))
+    harness['_ctx'] = {
+      eventBus: new GameEventBus(),
+      sound: { playSFX: () => {} },
+      session: { lastWager: 1 },
+    }
+    harness['_freeRemaining'] = 2
+    harness['_reelSet'] = {
+      getReel: (reel: number) => ({
+        setSymbols: (symbols: number[]) => {
+          displayed[reel] = [...symbols]
+          order.push(`paint:${reel}`)
+        },
+      }),
+      spin: (held: ReadonlySet<number>) => {
+        expect([...held]).toEqual([...armedReels])
+        for (const reel of armedReels) {
+          expect(displayed[reel]).toEqual(Array.from({ length: ROW_COUNT }, () => WILD_ID))
+        }
+        // Results of unlocked reels must not be revealed before they spin.
+        expect(displayed[1]).toEqual(Array.from({ length: ROW_COUNT }, () => 1))
+        order.push('spin')
+        return Promise.resolve()
+      },
+      stop: () => {
+        order.push('stop')
+        return Promise.resolve()
+      },
+    }
+    harness['_combatOpView'] = {
+      energizeReels: () => {},
+      clearPersistentMultipliers: () => {},
+      setGiantReels: () => {},
+    }
+    harness['_wait'] = () => Promise.resolve()
+    harness['_playCascadeSteps'] = () => Promise.resolve()
+    harness['_overlay'] = { announceWin: () => Promise.resolve() }
+    harness['_operationBriefing'] = { play: () => Promise.resolve() }
+    await runtime.presentResult('freespin', result)
+    for (const reel of armedReels) {
+      expect(order.indexOf(`paint:${reel}`)).toBeLessThan(order.indexOf('spin'))
+    }
+    expect(order.indexOf('spin')).toBeLessThan(order.indexOf('stop'))
+  },
+)

@@ -85,8 +85,8 @@ function createSpinSampler(
       const initialSnapshot = snapshotGrid(grid)
 
       const armedReels = new Set<number>(carryArmedReels)
-      const stickyGrid: boolean[][] = Array.from({ length: REEL_COUNT }, () =>
-        new Array(ROW_COUNT).fill(false),
+      const stickyGrid: boolean[][] = Array.from({ length: REEL_COUNT }, (_col, _reel) =>
+        Array.from({ length: ROW_COUNT }, () => isFreeSpin && carryArmedReels.has(_reel)),
       )
       const steps: CombatCascadeStep[] = []
 
@@ -100,6 +100,7 @@ function createSpinSampler(
         steps,
         MAX_CASCADE_STEPS,
         samplers.multiplierSampler,
+        isFreeSpin,
       ).map(({ finalArmedReels, finalMultSum, finalScatterCount }) => {
         const baseClusterWin = steps.reduce((sum, s) => sum + s.stepWin, 0)
         const multiplierSum = finalMultSum - carryMultiplierSum

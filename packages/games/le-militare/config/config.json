@@ -1,6 +1,6 @@
 {
   "game_metadata": {
-    "version": 1,
+    "version": 2,
     "name": "Le Militare",
     "grid_reels": 6,
     "grid_rows": 5,
@@ -282,14 +282,14 @@
     }
   },
   "disallow_mixed_wild_clusters": true,
-  "buy_bonus_cost_multiplier": 184,
+  "buy_bonus_cost_multiplier": 57.28,
   "reel_strips_base": {
     "reel1": [
       "MEDAL",
       "MEDAL",
       "TANK",
       "RIFLE",
-      "BULLET",
+      "SCATTER",
       "BULLET",
       "GRENADE",
       "GRENADE",
@@ -428,7 +428,7 @@
       "RIFLE",
       "MEDAL",
       "MEDAL",
-      "BULLET",
+      "SCATTER",
       "BULLET",
       "HELMET",
       "HELMET",
@@ -573,7 +573,7 @@
       "GRENADE"
     ],
     "reel3": [
-      "BULLET",
+      "SCATTER",
       "BULLET",
       "RIFLE",
       "GRENADE",
@@ -713,7 +713,7 @@
       "RIFLE"
     ],
     "reel4": [
-      "BULLET",
+      "SCATTER",
       "BULLET",
       "MEDAL",
       "MEDAL",
@@ -861,7 +861,7 @@
       "MEDAL"
     ],
     "reel5": [
-      "BULLET",
+      "SCATTER",
       "BULLET",
       "GRENADE",
       "GRENADE",
@@ -1009,7 +1009,7 @@
       "GRENADE",
       "GRENADE",
       "TANK",
-      "BULLET",
+      "SCATTER",
       "BULLET",
       "SOLDIER",
       "RIFLE",
@@ -1400,7 +1400,7 @@
       "BULLET",
       "BULLET",
       "RIFLE",
-      "PLANE",
+      "GENERAL",
       "SOLDIER",
       "GENERAL",
       "TANK",
@@ -1429,7 +1429,7 @@
       "SOLDIER",
       "SCATTER",
       "TANK",
-      "PLANE",
+      "GENERAL",
       "RIFLE",
       "GENERAL",
       "HELMET",
@@ -1456,7 +1456,7 @@
       "GRENADE",
       "GRENADE",
       "RIFLE",
-      "PLANE",
+      "RIFLE",
       "HELMET",
       "HELMET",
       "SOLDIER",
@@ -1492,7 +1492,7 @@
       "RIFLE",
       "GRENADE",
       "GRENADE",
-      "PLANE",
+      "TANK",
       "SOLDIER",
       "HELMET",
       "GENERAL",
@@ -1751,7 +1751,7 @@
       "TANK",
       "GENERAL",
       "RIFLE",
-      "PLANE",
+      "GENERAL",
       "GRENADE",
       "GRENADE",
       "HELMET",
@@ -1786,7 +1786,7 @@
       "GRENADE",
       "GRENADE",
       "RIFLE",
-      "PLANE",
+      "GENERAL",
       "HELMET",
       "HELMET",
       "BULLET",
@@ -1812,7 +1812,7 @@
       "GRENADE",
       "BULLET",
       "BULLET",
-      "PLANE",
+      "RIFLE",
       "RIFLE",
       "HELMET",
       "HELMET",
@@ -1846,7 +1846,7 @@
       "GENERAL",
       "GRENADE",
       "GRENADE",
-      "PLANE",
+      "TANK",
       "RIFLE",
       "MEDAL",
       "MEDAL",
@@ -1921,7 +1921,7 @@
       "GRENADE",
       "SOLDIER",
       "TANK",
-      "S300",
+      "RIFLE",
       "RIFLE",
       "MEDAL",
       "MEDAL",
@@ -2106,7 +2106,7 @@
       "BULLET",
       "HELMET",
       "HELMET",
-      "PLANE",
+      "GENERAL",
       "GRENADE",
       "GRENADE",
       "RIFLE",
@@ -2141,7 +2141,7 @@
       "RIFLE",
       "GRENADE",
       "GRENADE",
-      "PLANE",
+      "GENERAL",
       "MEDAL",
       "MEDAL",
       "HELMET",
@@ -2169,7 +2169,7 @@
       "HELMET",
       "HELMET",
       "SOLDIER",
-      "PLANE",
+      "RIFLE",
       "GENERAL",
       "TANK",
       "BULLET",
@@ -2192,7 +2192,7 @@
       "MEDAL",
       "RIFLE",
       "GENERAL",
-      "PLANE",
+      "TANK",
       "GRENADE",
       "GRENADE",
       "HELMET",
@@ -2215,32 +2215,32 @@
   },
   "buy_options": {
     "standard": {
-      "cost": 184,
+      "cost": 57.28,
       "min_scatters": 4,
       "start_armed_reels": 0,
       "start_multiplier": 0
     },
     "elite": {
-      "cost": 874,
+      "cost": 415.02,
       "min_scatters": 6,
       "start_armed_reels": 0,
       "start_multiplier": 0
     },
     "super": {
-      "cost": 1795,
+      "cost": 1106.97,
       "min_scatters": 7,
       "start_armed_reels": 0,
       "start_multiplier": 3
     },
     "chance_spin": {
-      "cost": 4.2,
+      "cost": 5.78,
       "force_weights": [
-        9,
-        991
+        27,
+        973
       ]
     },
     "air_raid_spin": {
-      "cost": 1.9
+      "cost": 1.82
     }
   },
   "modes": {
@@ -2265,8 +2265,8 @@
       },
       "air_raid": {
         "trigger_weights": [
-          20,
-          80
+          267,
+          733
         ],
         "squadron_sizes": [
           1,
@@ -2282,6 +2282,13 @@
           6,
           4
         ]
+      },
+      "buy_costs": {
+        "standard": 48.77,
+        "elite": 350.65,
+        "super": 981.85,
+        "chance": 4.92,
+        "airraid": 1.53
       }
     },
     "assault": {
@@ -2305,8 +2312,8 @@
       },
       "air_raid": {
         "trigger_weights": [
-          7,
-          93
+          132,
+          868
         ],
         "squadron_sizes": [
           1,
@@ -2322,6 +2329,13 @@
           6,
           4
         ]
+      },
+      "buy_costs": {
+        "standard": 57.28,
+        "elite": 415.02,
+        "super": 1106.97,
+        "chance": 5.78,
+        "airraid": 1.82
       }
     },
     "siege": {
@@ -2349,8 +2363,8 @@
       },
       "air_raid": {
         "trigger_weights": [
-          6,
-          94
+          113,
+          887
         ],
         "squadron_sizes": [
           1,
@@ -2366,6 +2380,13 @@
           6,
           4
         ]
+      },
+      "buy_costs": {
+        "standard": 57.42,
+        "elite": 409.22,
+        "super": 1088.39,
+        "chance": 5.77,
+        "airraid": 2.03
       }
     }
   }

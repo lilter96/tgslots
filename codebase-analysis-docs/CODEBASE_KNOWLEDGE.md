@@ -1,3 +1,8 @@
+> Le Militare math version 2 supersedes historical combat/RTP descriptions below.
+> Current rules and verification: [playable specification](../memory/le-militare-gdd.md).
+> Giant launcher columns count as one symbol and remain pinned until bonus end;
+> individual interception WILDs are consumable. Mode-specific prices use `getFeatureBuyCost`.
+
 # TGSlots — Complete Codebase Knowledge Document
 
 > Generated 2026-05-25; rendering, grid and payline descriptions updated 2026-10-07. Current authoring configs and in-game rules are authoritative for payout and feature parameters.
@@ -561,7 +566,7 @@ Le Militare has the most complex runtime with combat animations (`combat/`), mas
    - Misses fly off screen
    - Summed multiplier seeds the cascade chain
 4. **S300 Activation**: When S300 symbols land, they "arm" their reel — all positions on that reel become WILD for subsequent cascades
-5. **Shootdowns**: During cascade, planes on the grid are shot down by armed S300 reels → become sticky multiplier-WILDs
+5. **Shootdowns**: During cascade, planes on the grid are shot down by armed S300 reels → become consumable multiplier-WILDs (their multiplier contribution persists)
 6. **Sticky WILDs**: Shootdown-created WILDs survive vanishing and persist through all cascade steps
 7. Cascade continues until no more winning clusters form (up to max steps)
 

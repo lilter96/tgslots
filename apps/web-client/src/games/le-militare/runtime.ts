@@ -268,10 +268,17 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
     const stopGrid = transposeGrid(
       airRaid ? airRaid.preRaidGrid : (result.steps[0]?.preCombatGrid ?? []),
     )
-    // Reels armed by the S300 are sticky full-row wilds — keep them held so they
-    // don't pointlessly re-spin every free spin, and keep their cables powered.
+    // Restore carried wilds before any reel starts. The previous cascade may
+    // have left ordinary symbols here; skipping spin alone would leave those
+    // stale textures visible until stop(), despite the reel already being held.
     const heldReels = this._heldReels(result, stopGrid)
-    if (heldReels) this._combatOpView.energizeReels(heldReels)
+    this._combatOpView.setGiantReels(heldReels ?? [])
+    if (heldReels) {
+      for (const reel of heldReels) {
+        this._reelSet.getReel(reel).setSymbols(stopGrid[reel]!)
+      }
+      this._combatOpView.energizeReels(heldReels)
+    }
     bus.emit('spin:started', {})
     this._reelSet.spin(heldReels)
     await this._wait(this._spinSpeedProfile.reelSpinMs)
@@ -372,6 +379,9 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       (s) => s.activations.length > 0 || s.shootdowns.length > 0,
     )
 
+    const giantReels = new Set(
+      this._heldReels(result, transposeGrid(result.steps[0]?.preCombatGrid ?? [])),
+    )
     for (let i = 0; i < result.steps.length; i++) {
       const step = result.steps[i]!
       bus.emit('le-militare:cascade:step:started', { index: i })
@@ -386,6 +396,10 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
         // Run activation overlays in parallel with deploy; await both before missiles
         const activationPromise = this._combatOpView.animateActivations(step.activations)
         await Promise.all([deployPromise, activationPromise])
+        if (result.type === 'FREE') {
+          for (const activation of step.activations) giantReels.add(activation.reel)
+          this._combatOpView.setGiantReels(giantReels)
+        }
         bus.emit('le-militare:combat:activations:completed', { activations: step.activations })
       }
       if (step.shootdowns.length > 0) {
@@ -414,6 +428,9 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
       const hitsBySymbol = groupHitsBySymbol(step.hits)
 
       for (const [, hits] of hitsBySymbol) {
+        this._combatOpView.highlightGiants(
+          hits.flatMap((hit) => hit.positions.map((pos) => Math.floor(pos / GRID_CONFIG.rows))),
+        )
         for (const hit of hits) {
           for (const encoded of hit.positions) {
             const { reel, row } = decodePosition(encoded, GRID_CONFIG.rows)
@@ -422,6 +439,7 @@ export class LeMilitareRuntime implements GameRuntime<'le-militare'> {
         }
         await this._wait(this._spinSpeedProfile.lineHighlightMinMs)
         this._reelSet.clearAllHighlights()
+        this._combatOpView.highlightGiants([])
       }
 
       // ── Cascade animation ─────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js'
 import { gsap } from 'gsap'
 import { getFeatureMenuLayout } from './helpers/feature-menu-layout.js'
-import { BUY_OPTIONS, MODE_IDS, DEFAULT_MODE } from '@tgslots/le-militare'
+import { getFeatureBuyCost, MODE_IDS, DEFAULT_MODE } from '@tgslots/le-militare'
 import type { ModeId } from '@tgslots/le-militare'
 import type { GameEventBus } from '../../engine/event-bus.js'
 import type { UILayoutSnapshot } from '../../engine/layout.js'
@@ -18,17 +18,15 @@ interface OptionMeta {
   desc: string
   icon: string
   kind: Kind
-  costMultiplier: number
 }
 
 const OPTIONS: OptionMeta[] = [
   {
     id: 'chance',
     name: 'RECON STRIKE',
-    desc: 'One spin · 5× chance to trigger free spins',
+    desc: 'One spin · ~5× bonus chance',
     icon: '5×',
     kind: 'activate',
-    costMultiplier: BUY_OPTIONS.chanceSpin.cost,
   },
   {
     id: 'airraid',
@@ -36,7 +34,6 @@ const OPTIONS: OptionMeta[] = [
     desc: 'One spin with a guaranteed Air Raid',
     icon: 'RAID',
     kind: 'activate',
-    costMultiplier: BUY_OPTIONS.airRaidSpin.cost,
   },
   {
     id: 'standard',
@@ -44,7 +41,6 @@ const OPTIONS: OptionMeta[] = [
     desc: 'Free spins — standard entry',
     icon: 'FS',
     kind: 'buy',
-    costMultiplier: BUY_OPTIONS.standard.cost,
   },
   {
     id: 'elite',
@@ -52,7 +48,6 @@ const OPTIONS: OptionMeta[] = [
     desc: 'Free spins — more spins',
     icon: 'FS+',
     kind: 'buy',
-    costMultiplier: BUY_OPTIONS.elite.cost,
   },
   {
     id: 'super',
@@ -60,7 +55,6 @@ const OPTIONS: OptionMeta[] = [
     desc: 'Max spins + ×3 starting multiplier',
     icon: 'FS++',
     kind: 'buy',
-    costMultiplier: BUY_OPTIONS.super.cost,
   },
 ]
 
@@ -323,7 +317,8 @@ export class BuyFeatureModal extends Container {
       container.on('pointerout', () => (bg.tint = 0xffffff))
       container.on('pointerdown', (e) => {
         e.stopPropagation()
-        if (this._getBalance() < meta.costMultiplier * this._getBet()) return
+        if (this._getBalance() < getFeatureBuyCost(this._selectedMode, meta.id) * this._getBet())
+          return
         this._eventBus.emit('feature-buy:requested', { optionId: meta.id })
         this.hide()
       })
@@ -377,7 +372,7 @@ export class BuyFeatureModal extends Container {
       .toLowerCase()}`
     const balance = this._getBalance()
     for (const card of this._cards) {
-      const credits = card.meta.costMultiplier * bet
+      const credits = getFeatureBuyCost(this._selectedMode, card.meta.id) * bet
       const affordable = balance >= credits
       card.price.text = Number.isInteger(credits) ? String(credits) : credits.toFixed(2)
       card.price.style.fill = affordable ? '#f0f4fa' : '#c0392b'

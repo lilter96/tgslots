@@ -10,6 +10,22 @@ A personal TypeScript / Bun monorepo for slot-game mathematics, a browser game c
 - **Application delivery:** Elysia/Bun HTTP API, PixiJS 8 browser rendering, React marketing frontend, and shared TypeScript contracts.
 - **Engineering process:** game test harnesses, [architecture decisions](memory/decisions), and [AI coding instructions](AGENTS.md).
 
+## Verified sticky-WILD mathematics
+
+Le Militare v2 uses a five-row giant sticky WILD that counts as one symbol in a
+cluster and remains locked through every cascade until the bonus ends. Ordinary
+interception WILDs are consumable; their multiplier contributions remain banked.
+
+The [independent math audit](packages/games/le-militare/config/math-audit.json)
+contains **81.6 million complete rounds**: 60 million ordinary rounds and 21.6
+million feature purchases across all three modes. It reports RTP confidence
+intervals, hit/trigger rates, bonus progression, payout quantiles, the round cap
+and cascade integrity. The RTP target is 98.4%; this is a reproducible portfolio
+audit, not an exact analytical result or production certification.
+
+See the [playable specification](memory/le-militare-gdd.md) and
+[reproduction script](packages/games/le-militare/scripts/math-audit.ts).
+
 ## Architecture
 
 ```text

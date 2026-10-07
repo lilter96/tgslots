@@ -46,20 +46,27 @@ export const gameRules: Record<string, RulesSpec> = {
   'le-militare': {
     notes: [
       `${military.game_metadata.grid_reels} reels × ${military.game_metadata.grid_rows} rows. There are no paylines. ${military.game_metadata.min_cluster}+ matching symbols connected horizontally or vertically form a paying cluster; diagonals do not connect.`,
-      'Wilds substitute within clusters. Mixed-symbol wild clusters are disabled. Paying clusters clear and symbols cascade into their places.',
-      'S300 arms reels and combat introduces multiplier wilds. Add the cluster awards across all cascades, then multiply by the accumulated combat multiplier (at least 1). Armed reels and the accumulated multiplier persist during free spins.',
+      'Wilds substitute within clusters containing a paying symbol. Mixed-symbol wild clusters are disabled. Paying clusters clear and symbols cascade into their places.',
+      'An S300 turns its reel into one giant sticky WILD. It connects across all five rows, counts as ONE symbol toward a cluster, and stays locked through every cascade until the bonus ends. Ordinary interception WILDs count individually and clear when they win; their multipliers stay banked.',
+      'Add cluster awards across all cascades, then multiply by the accumulated combat multiplier (at least 1). The multiplier persists between free spins and resets on the next paid round.',
       `${Object.entries(military.scatter_definition.free_spins_awarded)
         .map(
           ([count, spins], index, entries) =>
             `${count}${index === entries.length - 1 ? '+' : ''} scatters = ${spins} free spins`,
         )
         .join('; ')}. Free spins retain the triggering stake.`,
-      `Feature prices are multiples of stake: Recon Strike ${military.buy_options.chance_spin.cost}×; Air Raid ${military.buy_options.air_raid_spin.cost}×; Combat Op ${military.buy_options.standard.cost}×; Elite Op ${military.buy_options.elite.cost}×; Super Op ${military.buy_options.super.cost}×.`,
+      'Recon Strike has approximately 5× the natural bonus trigger chance. Air Raid guarantees a squadron, but interceptions and wins are not guaranteed.',
+      `Combat Op / Elite Op / Super Op start with exactly ${military.scatter_definition.free_spins_awarded['4']} / ${military.scatter_definition.free_spins_awarded['6']} / ${military.scatter_definition.free_spins_awarded['7']} free spins. Extra entry scatters do not increase a purchased tier; retriggers during free spins still apply.`,
+      ...Object.entries(military.modes).map(
+        ([mode, data]) =>
+          `${mode[0]!.toUpperCase()}${mode.slice(1)} prices (× stake): Recon Strike ${data.buy_costs.chance}; Air Raid ${data.buy_costs.airraid}; Combat Op ${data.buy_costs.standard}; Elite Op ${data.buy_costs.elite}; Super Op ${data.buy_costs.super}.`,
+      ),
       `Super Op starts with multiplier ${military.buy_options.super.start_multiplier}. Recon, Assault and Siege change feature distributions. The round payout cap is ${military.game_metadata.max_win_multiplier.toLocaleString('en-US')}× stake.`,
     ],
     paytable: military.paytable,
     counts: Array.from({ length: 25 }, (_, index) => index + 6),
-    basis: 'Cluster values × total stake, before combat multipliers and the round cap.',
+    basis:
+      'Cluster values × total stake, before combat multipliers and the round cap. A giant sticky WILD counts as one symbol, regardless of its five-row height.',
   },
 }
 

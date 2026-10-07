@@ -91,8 +91,8 @@ export function getResponsiveLayout(
   const infoHeight =
     hudMode === 'portrait'
       ? viewportClass === 'phone'
-        ? 66
-        : 78
+        ? 112
+        : 124
       : hudMode === 'wide'
         ? 74
         : viewportClass === 'phone'

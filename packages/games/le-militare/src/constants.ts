@@ -166,6 +166,15 @@ export const BUY_OPTIONS = {
 } as const
 
 export type BuyOptionId = 'standard' | 'elite' | 'super'
+export type FeatureOptionId = BuyOptionId | 'chance' | 'airraid'
+
+/** One source of truth for the menu price and the amount deducted by the client. */
+export function getFeatureBuyCost(mode: ModeId, option: string): number {
+  const costs: Readonly<Record<string, number>> = config.modes[mode].buy_costs
+  const cost = costs[option]
+  if (cost === undefined) throw new Error(`Unknown Le Militare feature: ${option}`)
+  return cost
+}
 
 export const CHANCE_SPIN_FORCE_WEIGHTS = [
   config.buy_options.chance_spin.force_weights[0]!,

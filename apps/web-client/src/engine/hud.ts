@@ -291,7 +291,7 @@ export class HUD extends Container {
       layout.hudMode === 'wide' ? 156 : layout.hudMode === 'portrait' ? 108 : 118
     const maxCardWidth = layout.hudMode === 'wide' ? 168 : layout.hudMode === 'portrait' ? 136 : 128
     const cols = Math.min(
-      activeCards.length,
+      layout.hudMode === 'portrait' ? 2 : activeCards.length,
       Math.max(1, Math.floor((infoArea.width + gap) / (minCardWidth + gap))),
     )
     const rows = Math.ceil(activeCards.length / cols)

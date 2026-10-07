@@ -98,8 +98,8 @@ export const MODE_SAMPLERS: Record<ModeId, ModeSamplers> = {
 }
 
 // ─── Sticky Wild Helpers ──────────────────────────────────────────────────
-// stickyGrid[reel][row] === true means that cell holds a shootdown-converted
-// WILD that must survive cluster vanishing for the rest of the spin.
+// Sticky shootdown WILDs survive this spin. In free spins, every cell of an
+// armed column survives all cascades and the column persists to bonus completion.
 
 function compactStickyGrid(stickyGrid: boolean[][], grid: MutableCascadeGrid): void {
   for (let reel = 0; reel < REEL_COUNT; reel++) {
@@ -137,6 +137,7 @@ function runCombatOperationSampler(
   armedReels: Set<number>,
   stickyGrid: boolean[][],
   multiplierSampler: Sampler<number>,
+  persistentArmedReels: boolean,
 ): Sampler<{
   activations: readonly ActivationEvent[]
   shootdowns: readonly ShootdownEvent[]
@@ -181,7 +182,7 @@ function runCombatOperationSampler(
 
     for (const sd of shootdowns) {
       grid.setSymbol(sd.reel, sd.row, WILD_ID)
-      stickyGrid[sd.reel]![sd.row] = true
+      stickyGrid[sd.reel]![sd.row] = !persistentArmedReels
       multiplierDelta += sd.multiplier
     }
 
@@ -191,11 +192,11 @@ function runCombatOperationSampler(
       activations.push({ reel, convertedCells: ROW_COUNT })
     }
 
-    // FIX 1.2: only newly armed reels are wilded (once, on activation).
+    // Free-spin armed columns stay WILD through gravity and every later spin.
     for (const reel of newArmedReels) {
       for (let row = 0; row < ROW_COUNT; row++) {
         grid.setSymbol(reel, row, WILD_ID)
-        stickyGrid[reel]![row] = false
+        stickyGrid[reel]![row] = persistentArmedReels
       }
     }
 
@@ -257,10 +258,22 @@ export function combatCascadeLoopSampler(
   accSteps: CombatCascadeStep[],
   remaining: number,
   multiplierSampler: Sampler<number>,
+  persistentArmedReels = false,
 ): Sampler<CascadeLoopResult> {
   return new Sampler(SamplingPlan.pure({} as CascadeLoopResult), (rng: Rng) => {
     let currentMultSum = multSum
     let currentScatterCount = accScatterCount
+
+    // One giant occupies five connected cells but contributes one payable symbol.
+    // Reuse the mask through all cascades; newly activated columns update it once.
+    const positionWeights = persistentArmedReels
+      ? new Uint8Array(REEL_COUNT * ROW_COUNT).fill(1)
+      : undefined
+    if (positionWeights) {
+      for (const reel of armedReels) {
+        positionWeights.fill(0, reel * ROW_COUNT + 1, (reel + 1) * ROW_COUNT)
+      }
+    }
 
     for (let stepRemaining = remaining; stepRemaining > 0; stepRemaining--) {
       const preCombatSnapshot = snapshotGrid(grid)
@@ -270,12 +283,18 @@ export function combatCascadeLoopSampler(
         armedReels,
         stickyGrid,
         multiplierSampler,
+        persistentArmedReels,
       ).sample(rng)
 
       const postCombatSnapshot = snapshotGrid(grid)
       const newMultSum = currentMultSum + multiplierDelta
 
-      const evaluation = evaluateClusters(grid, engine)
+      if (positionWeights) {
+        for (const { reel } of activations) {
+          positionWeights.fill(0, reel * ROW_COUNT + 1, (reel + 1) * ROW_COUNT)
+        }
+      }
+      const evaluation = evaluateClusters(grid, engine, positionWeights)
 
       if (evaluation.hits.length === 0) {
         accSteps.push({
