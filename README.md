@@ -60,7 +60,7 @@ bun run main.ts --game le-militare --spins 1000 --visualize
 
 This is a personal engineering showcase, not a certified real-money gambling platform. API sessions use an **ephemeral in-memory store**; durability, operator accounting, production security, and gambling certification are outside this repository's demonstrated scope. Simulation results are engineering checks, not regulatory approval.
 
-**Local verification (2026-10-07, Bun 1.3.13):** 736 tests passed and ESLint passed. `bun run validate` stops at typechecking: the simulation runner currently reports `Worker.on` / callback type errors. The full build and live deployment were not reverified for this publication.
+**Local verification (2026-10-07, Bun 1.3.13):** `bun run validate` passed: all workspace typechecks, ESLint and 736 tests. Explicit Node.js typings resolve the simulation runner’s Node `Worker` event API. The full build and live deployment were not reverified for this publication.
 
 Publication review checked the tracked source and complete available Git history for secrets and obvious commercial-code markers. It does not establish production readiness. No open-source license has been added; public visibility alone does not grant reuse rights.
 
