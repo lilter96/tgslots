@@ -10,6 +10,8 @@ export function createRoutes(server: GameServer) {
         gameId: params.gameId as GameId,
         action: params.action as ActionType<GameId>,
         sessionId: body.sessionId,
+        requestId: body.requestId,
+        expectedRevision: body.expectedRevision,
         payload: (body.payload ?? {}) as ActionPayload<GameId, ActionType<GameId>>,
       })
       if (!out.ok) {
@@ -25,6 +27,8 @@ export function createRoutes(server: GameServer) {
       }),
       body: t.Object({
         sessionId: t.Optional(t.String()),
+        requestId: t.Optional(t.String({ maxLength: 128 })),
+        expectedRevision: t.Optional(t.Integer({ minimum: 0 })),
         payload: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: {

@@ -8,7 +8,7 @@ import { config } from '../packages/games/nine-lives/src/index'
 type Response = RevisionedResponse<LivesState, LivesResult>
 const url = process.env.NINE_LIVES_API_URL ?? 'http://127.0.0.1:3401'
 const health = (await (await fetch(`${url}/health`)).json()) as { runtime: string }
-if (health.runtime !== 'node') throw new Error('Expected Node.js runtime')
+if (health.runtime !== 'bun') throw new Error('Expected Bun runtime')
 async function request(action: string, body: RevisionedCommand): Promise<Response> {
   const response = await fetch(`${url}/game/nine-lives/${action}`, {
     method: 'POST',
@@ -50,5 +50,5 @@ const state = await request('state', { sessionId: session.sessionId })
 if (state.balance !== response.balance || state.revision !== response.revision || state.result)
   throw new Error('Restore changed the round')
 console.log(
-  `Node smoke passed: ${count} free spins, ${paid} credits, one ${config.buyCost}× purchase, revision ${state.revision}`,
+  `Bun API smoke passed: ${count} free spins, ${paid} credits, one ${config.buyCost}× purchase, revision ${state.revision}`,
 )

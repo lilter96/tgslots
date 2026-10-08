@@ -1,6 +1,6 @@
 {
   "configurationSha256": "315b8589749359b42ecc2b91c56c72dbeb61703f1fd3e495a6987c55c34dcce4",
-  "runtime": "v20.20.2",
+  "runtime": "Bun 1.3.13",
   "runner": "@tgslots/slots-simulation-engine/runner",
   "workers": 2,
   "seed": 777,

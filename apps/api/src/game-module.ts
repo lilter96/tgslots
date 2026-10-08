@@ -9,6 +9,16 @@ import type {
 
 export interface IGameModule<G extends GameId> {
   readonly gameId: G
+  /** Optional virtual wallet with request deduplication, managed by the common dispatcher. */
+  readonly wallet?: {
+    initialBalance: number
+    cost<A extends ActionType<G>>(
+      action: A,
+      state: GameState<G>,
+      payload: ActionPayload<G, A>,
+    ): number
+    award(result?: GameResult<G>): number
+  }
 
   defaultState(rng: Rng): GameState<G>
 
