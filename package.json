@@ -25,7 +25,13 @@
     "x7:check": "bun scripts/x7-config.ts --check && go -C apps/x7-server test -race ./...",
     "x7:smoke": "bun scripts/x7-smoke.ts",
     "x7:sim": "bun --cwd apps/simulations main.ts --game x7-club",
-    "x7:audit": "bun scripts/x7-audit.ts"
+    "x7:audit": "bun scripts/x7-audit.ts",
+    "dev:nine-lives": "concurrently --kill-others \"PORT=3401 bun --filter @tgslots/api dev\" \"API_PROXY_URL=http://127.0.0.1:3401 bun --cwd apps/web-client run dev --port 3402 --strictPort\" \"VITE_GAME_CLIENT_URL=http://localhost:3402 bun --cwd apps/marketing run dev --port 3404 --strictPort\"",
+    "nine-lives:sim": "bun --cwd apps/simulations main.ts --game nine-lives",
+    "nine-lives:audit": "bun scripts/nine-lives-audit.ts",
+    "nine-lives:check": "bun scripts/nine-lives-check.ts",
+    "nine-lives:smoke": "bun scripts/nine-lives-smoke.ts",
+    "nine-lives:build-server": "docker build -f apps/api/Dockerfile -t tgslots-nine-lives-bun ."
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": "bun run eslint:fix"

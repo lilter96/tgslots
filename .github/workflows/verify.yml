@@ -17,3 +17,14 @@ jobs:
           cache-dependency-path: apps/x7-server/go.sum
       - run: bun run validate
       - run: bun run x7:check
+      - run: bun run nine-lives:check
+      - name: Verify Bun game modules
+        run: |
+          PORT=3401 bun apps/api/src/index.ts &
+          slot_api_pid=$!
+          trap 'kill "$slot_api_pid"' EXIT
+          for attempt in $(seq 1 20); do
+            curl --fail --silent http://127.0.0.1:3401/health && break
+            sleep 0.5
+          done
+          bun run nine-lives:smoke

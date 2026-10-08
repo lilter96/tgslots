@@ -10,7 +10,7 @@ interface WoodlandWhisperActions {
   state: EmptyPayload
 }
 
-declare module './game-registry.js' {
+declare module '@tgslots/shared-contracts/game-registry' {
   interface GameRegistry {
     'woodland-whisper': {
       state: WoodlandWhisperSerializedState

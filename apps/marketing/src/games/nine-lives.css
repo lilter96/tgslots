@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap');
+.game-nine-lives {background:#120d0b;color:#f4e7cc;font-family:'Barlow Condensed',Arial,sans-serif;}
+.game-nine-lives .font-cinzel,.game-card-nine-lives .font-cinzel {font-family:'Bangers',Impact,sans-serif;}
+.game-nine-lives .game-hero {min-height:780px;justify-content:flex-start;}
+.game-nine-lives .game-hero>div.relative {width:55%;max-width:660px;margin-left:max(4vw,calc((100vw - 1260px)/2));}
+.game-nine-lives .hero-title>div:first-child {font-family:'Bangers',Impact,sans-serif;font-size:clamp(100px,12vw,175px);line-height:.9;letter-spacing:7px;color:#f4e7cc;text-shadow:4px 4px #402118,8px 8px #080403;transform:rotate(-3deg);}
+.game-nine-lives .hero-title>div:nth-child(2) {font-family:'Bangers',Impact,sans-serif;font-size:clamp(65px,8vw,110px);line-height:1.1;letter-spacing:9px;color:#ed5939;text-shadow:4px 4px #5a2219,8px 8px #070403;transform:rotate(-3deg);}
+.game-nine-lives .hero-title>div:last-child {display:none;}
+.game-nine-lives .animate-pulse-glow {animation:none;}
+.game-nine-lives .hero-foreground {position:absolute;right:max(0px,calc((100vw - 1460px)/2));bottom:45px;width:min(50vw,700px);max-height:85%;object-fit:contain;filter:drop-shadow(0 0 35px #e6562126);}
+.game-nine-lives .game-hero .bg-gradient-to-t {background-image:linear-gradient(to top,#120d0b,#120d0b44,transparent);}
+.game-nine-lives .game-hero .bg-gradient-to-b {background-image:linear-gradient(to bottom,#120d0b55,transparent);}
+.game-nine-lives .btn-primary {font-family:'Bangers',Impact,sans-serif;border:2px solid #ffb57b;border-radius:4px;background:linear-gradient(#ef6a45,#aa301e);color:#fff0d5;padding:19px 46px;letter-spacing:3px;font-size:23px;box-shadow:4px 4px #572419,7px 7px #090403;text-shadow:2px 2px #592419;}
+.game-nine-lives .text-gold {color:#dd674b;}.game-nine-lives .text-gold-glow {color:#f1d2ab;}
+.game-nine-lives .feature-card {border:1px solid #85513666;border-radius:4px;background:linear-gradient(125deg,#301b14,#17100d);box-shadow:4px 4px #080403;}
+.game-nine-lives .feature-card>div>div:first-child {width:82px;height:82px;background:none;border:0;}
+.game-nine-lives .feature-card img {height:80px;width:80px;}
+.game-card-nine-lives {border:1px solid #a2573666;border-radius:5px;}
+.game-card-nine-lives:hover {border-color:#e77245;box-shadow:0 0 24px #cf502f33;}
+.game-card-nine-lives h2 {color:#f5d7b0;letter-spacing:2px;}
+@media(max-width:700px){.game-nine-lives .game-hero {min-height:850px;align-items:flex-start;padding-top:70px;}.game-nine-lives .game-hero>div.relative {width:100%;margin:0 auto;}.game-nine-lives .hero-foreground {width:350px;max-width:90vw;right:50%;transform:translateX(50%);bottom:35px;max-height:45%;}.game-nine-lives .hero-title>div:first-child {font-size:106px;}.game-nine-lives .hero-title>div:nth-child(2) {font-size:69px;}}

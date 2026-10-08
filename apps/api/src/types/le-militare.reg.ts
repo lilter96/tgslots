@@ -13,7 +13,7 @@ interface LeMilitareActions {
   state: EmptyPayload
 }
 
-declare module './game-registry.js' {
+declare module '@tgslots/shared-contracts/game-registry' {
   interface GameRegistry {
     'le-militare': {
       state: LeMilitareSerializedState

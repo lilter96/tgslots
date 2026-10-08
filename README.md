@@ -1,8 +1,8 @@
 # TGSlots — Slot Mathematics, Game Clients & Backend Engineering
 
-Four playable slot games built around shared, testable mathematics: classic paylines,
+Five playable slot games built around shared, testable mathematics: classic paylines,
 interactive card picks, combat cascades with giant sticky WILDs, and Hold & Spin
-with column boosters. A personal TypeScript/Bun monorepo covering game rules,
+with column boosters, plus Nine Lives with a cat Reaper collecting cash chips. A personal TypeScript/Bun monorepo covering game rules,
 probability models, backend state transitions, browser presentation and independent
 verification. X7 Club also demonstrates a **Go + RabbitMQ** backend using the same
 seeded mathematical implementation as the lightweight Bun mode.
@@ -18,8 +18,8 @@ Part of my [.NET and backend engineering portfolio](https://github.com/lilter96/
 
 | At a glance                   | Evidence                                                                 |
 | ----------------------------- | ------------------------------------------------------------------------ |
-| **4 games**                   | Distinct mechanics, shared math primitives and simulation infrastructure |
-| **792 passing tests**         | Typechecks, ESLint and workspace tests verified on 2026-10-08            |
+| **5 games**                   | Distinct mechanics, shared math primitives and simulation infrastructure |
+| **812 passing tests**         | Typechecks, ESLint and workspace tests verified on 2026-10-08            |
 | **81.6M verification rounds** | Le Militare: complete paid rounds, bonuses, cascades and retriggers      |
 | **2 X7 backend modes**        | In-process Bun or Go + RabbitMQ; one seeded math executor                |
 | **Browser presentation**      | PixiJS 8, GSAP, raster artwork, responsive controls and in-game rules    |
@@ -123,6 +123,31 @@ before sending and exposes retry/reset controls after ambiguous failures.
 [Go server](apps/x7-server) ·
 [Integration evidence](docs/x7-verification.md)
 
+## Nine Lives — Bun + TypeScript + Pixi Reels
+
+A charcoal/ivory/red comic slot with a cat Reaper: 6×5 cluster cascades,
+nine free spins, a persistent bonus multiplier and cash chips that the Reaper
+collects before turning them into consumable Wild. Bonus entry costs 240×
+the original stake; the full-round cap is 9,999×.
+
+Nine Lives registers `NineLivesModule` in the common Bun/Elysia `GameServer`,
+just like the other TypeScript games, and uses the generic game-action route.
+The common dispatcher and `InMemorySessionManager` manage its virtual wallet,
+revisions and request deduplication. Clusters, cascades and cash-prize collection
+reuse `slots-core`; gameplay tests use `SlotsTestEngine`.
+
+```bash
+bun run dev:nine-lives    # Bun API :3401, client :3402, marketing :3404
+bun run nine-lives:smoke  # common API wallet + complete bonus + retry check
+bun run nine-lives:check  # audit/config SHA-256 + RTP tolerance
+bun run nine-lives:audit  # shared Bun worker runner; 10m base + 1m purchases
+```
+
+The game also works with the standard `dev:api` / `dev:all` commands.
+See the [game specification](memory/nine-lives-gdd.md),
+[math audit](packages/games/nine-lives/config/math-audit.json), and
+[Bun container stack](compose.nine-lives.yml), which uses the standard API Dockerfile.
+
 ## Architecture
 
 ```text
@@ -133,7 +158,7 @@ Shared probability and evaluation layer
                                                    └─ browser contracts / presentation
 
 Browser client → shared Bun / Elysia API
-                   ├─ Ancient Dragon / Woodland Whisper / Le Militare
+                   ├─ Ancient Dragon / Woodland Whisper / Le Militare / Nine Lives
                    └─ X7_BACKEND
                         ├─ bun       → local session + wallet → seeded X7 executor
                         └─ go-rabbit → Go session + wallet → RabbitMQ RPC
@@ -176,7 +201,7 @@ provide durable accounting across a process restart.
 | [`packages/slots-core`](packages/slots-core)                           | Betting, paylines, clusters, cascades, held prizes and column boosts       |
 | [`packages/slots-simulation-engine`](packages/slots-simulation-engine) | State-machine contracts, test harness, metrics, worker runner and reports  |
 | [`packages/shared-contracts`](packages/shared-contracts)               | Game registries, manifests, actions and serialized states                  |
-| [`packages/games`](packages/games)                                     | Four game implementations, configurations and mathematical evidence        |
+| [`packages/games`](packages/games)                                     | Five game implementations, configurations and mathematical evidence        |
 | [`apps/api`](apps/api)                                                 | Elysia API, serialized sessions, game dispatch and selectable X7 backend   |
 | [`apps/x7-server`](apps/x7-server)                                     | Go session authority, demo wallet, revisions, idempotency and RabbitMQ RPC |
 | [`apps/x7-math-worker`](apps/x7-math-worker)                           | Stateless, seeded TypeScript command execution over RabbitMQ               |
@@ -324,7 +349,7 @@ seeds, configuration hash, trigger/hit rates and payout statistics.
 
 **Latest local verification — 2026-10-08, Bun 1.3.13 and Go 1.26.4:**
 
-- `bun run validate`: workspace typechecks, ESLint and **792 passing tests, 0 failures**.
+- `bun run validate`: workspace typechecks, ESLint and **812 passing tests, 0 failures**.
 - `bun run x7:check`: generated Go cost consistency and **7 Go tests under the race detector**.
 - Web-client production build passed.
 - Live X7 smoke checks passed through the complete API in both backend modes;
@@ -356,7 +381,7 @@ In-game audio and published promo audio have separate attribution records.
 
 ## Run locally
 
-### All four games with Bun
+### All five games with Bun
 
 Requires **Bun 1.3.13**. Go, Docker and RabbitMQ are optional for this mode.
 

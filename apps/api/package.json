@@ -19,6 +19,10 @@
     "@tgslots/le-militare": "workspace:*",
     "@tgslots/shared-contracts": "workspace:*",
     "elysia": "^1.2.25",
-    "@tgslots/x7-club": "workspace:*"
+    "@tgslots/x7-club": "workspace:*",
+    "@tgslots/nine-lives": "workspace:*"
+  },
+  "devDependencies": {
+    "@tgslots/slots-simulation-engine": "workspace:*"
   }
 }

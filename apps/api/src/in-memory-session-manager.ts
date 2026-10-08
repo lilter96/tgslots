@@ -1,4 +1,4 @@
-import type { ISessionManager, SessionEntry } from './session-manager.js'
+import type { ISessionManager, SessionEntry, SessionWallet } from './session-manager.js'
 import type { GameId, GameState } from './types/game-registry.js'
 
 const SESSION_TTL_MS = 60 * 60 * 1000
@@ -6,13 +6,18 @@ const SESSION_TTL_MS = 60 * 60 * 1000
 export class InMemorySessionManager implements ISessionManager {
   private readonly store = new Map<string, SessionEntry>()
 
-  create(gameId: GameId, initialState: GameState<GameId>): string {
+  create(gameId: GameId, initialState: GameState<GameId>, wallet?: SessionWallet): string {
     this.purgeExpired()
     let id: string
     do {
       id = crypto.randomUUID()
     } while (this.store.has(id))
-    this.store.set(id, { gameId, state: initialState, lastAccessedAt: Date.now() })
+    this.store.set(id, {
+      gameId,
+      state: initialState,
+      ...(wallet ? { wallet } : {}),
+      lastAccessedAt: Date.now(),
+    })
     return id
   }
 
@@ -27,8 +32,13 @@ export class InMemorySessionManager implements ISessionManager {
     return entry
   }
 
-  save(sessionId: string, gameId: GameId, state: GameState<GameId>): void {
-    this.store.set(sessionId, { gameId, state, lastAccessedAt: Date.now() })
+  save(sessionId: string, gameId: GameId, state: GameState<GameId>, wallet?: SessionWallet): void {
+    this.store.set(sessionId, {
+      gameId,
+      state,
+      ...(wallet ? { wallet } : {}),
+      lastAccessedAt: Date.now(),
+    })
   }
 
   destroy(sessionId: string): void {

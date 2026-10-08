@@ -12,6 +12,7 @@ import { ancientDragonRoutes } from './routes/ancient-dragon.routes.js'
 import { leMilitareRoutes } from './routes/le-militare.routes.js'
 import { LeMilitareModule } from './modules/le-militare.module.js'
 
+import { NineLivesModule } from './modules/nine-lives.module.js'
 import { x7ClubRoutes } from './routes/x7-club.routes.js'
 
 const sessions = new InMemorySessionManager()
@@ -21,6 +22,7 @@ const server = new GameServer(sessions, rng)
 server.register(new WoodlandWhisperModule())
 server.register(new AncientDragonModule())
 server.register(new LeMilitareModule())
+server.register(new NineLivesModule())
 
 const app = new Elysia()
   .use(cors())
@@ -36,6 +38,7 @@ const app = new Elysia()
     }),
   )
   .use(x7ClubRoutes())
+  .get('/health', () => ({ ok: true, runtime: 'bun' }))
   .use(createRoutes(server))
   .use(woodlandWhisperRoutes(server))
   .use(ancientDragonRoutes(server))
