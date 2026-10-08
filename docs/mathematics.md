@@ -1,7 +1,7 @@
 # How TGSlots mathematics work
 
 This document follows the implementation from probability configuration to a
-paid result and its independent verification. The four games share probability,
+paid result and its independent verification. The five games share probability,
 evaluation and reporting primitives; their actual feature rules remain in their
 game packages. The browser renders results returned by the API.
 
@@ -16,7 +16,7 @@ A game configuration describes strips, symbol IDs, paytables, weighted events,
 feature prices and caps. A sampler generates an outcome according to that
 configuration. An evaluator determines which combinations pay. A state machine
 applies feature rules and the remaining round budget. The API handles the session
-and, for X7, the authoritative demo wallet. Animation does not determine awards.
+and, for X7 and Nine Lives, the authoritative demo wallet. Animation does not determine awards.
 
 ```text
 configuration + prior state + wager + RNG
@@ -343,3 +343,45 @@ The workflow is: choose rules and configuration, calculate or measure their
 return, adjust the configuration if needed, then verify that frozen configuration
 with separate checks. No model here promises a win after a fixed number of
 misses or changes its RNG probabilities to recover a particular player's balance.
+
+
+## 11. Nine Lives: collector cascades and purchase normalization
+
+[Implementation](../packages/games/nine-lives/src/machine.ts) ·
+[Configuration](../packages/games/nine-lives/config/config.json) ·
+[Audit](../packages/games/nine-lives/config/math-audit.json)
+
+Nine Lives composes the shared cluster evaluator, cascade engine and cash-prize
+collector. Clusters have four-connected adjacency and a minimum of five; WILD
+claims are exclusive, and an all-WILD group does not pay. The winning cluster
+step uses the current multiplier, then increases it by one (maximum 25). Base
+rounds start at one; the bonus carries it across nine free spins.
+
+Only four or more hourglasses in the initial paid grid trigger the bonus. Refill
+sampling excludes scatters; there are no retriggers. At each free-spin entry,
+the Reaper sums the initial chip prizes at the carried multiplier, then replaces
+those positions with consumable WILDs before evaluating cascades. Chips do not
+pay in base play. Collection is not repeated at each refill, and these WILDs
+are not locked between spins. Server result snapshots drive the native Pixi
+clear/refill sequence; rendering does not resample symbol grids.
+
+The 9,999× complete-round budget includes the entry win, collections and all
+clusters. A 30-winning-step cascade guard bounds a spin's work. These limits
+are part of the sampled model and must remain identical in API and simulation.
+
+A purchased bonus costs 240× the original stake. For a 20-credit stake, debit
+is 4,800 credits; prizes still scale with 20. Thus purchase return is total
+bonus winnings divided by 4,800, not 20. The common Bun dispatcher commits
+virtual balance, serialized state, revision and cached response synchronously;
+the shared revisioned client retains request identity for ambiguous retries.
+Sessions are ephemeral, with one-hour idle expiry and a bounded response cache.
+
+The shared Bun worker audit stores the configuration SHA-256, worker seeds,
+warmup, round counts and intervals. It sampled 10M normal rounds and 1M complete
+purchases, giving respectively 97.357373% and 96.010293% estimated return. Base
+95% interval is 96.089493–98.625253%; purchase interval is 95.6922–96.3284%.
+The 96% target is outside the base interval, despite being inside the configured
+1.5-percentage-point comparison tolerance. `nine-lives:check` validates the
+hash and tolerance, not an exact mathematical solution or confidence-interval
+coverage. This is shared-engine Monte Carlo evidence, not an independent
+analytical reference. See [verification](nine-lives-verification.md).

@@ -1,8 +1,8 @@
 # TGSlots — Slot Mathematics, Game Clients & Backend Engineering
 
 Five playable slot games built around shared, testable mathematics: classic paylines,
-interactive card picks, combat cascades with giant sticky WILDs, and Hold & Spin
-with column boosters, plus Nine Lives with a cat Reaper collecting cash chips. A personal TypeScript/Bun monorepo covering game rules,
+interactive card picks, combat cascades with giant sticky WILDs, Hold & Spin
+with column boosters, and **Nine Lives**, the new cat-Reaper flagship. A personal TypeScript/Bun monorepo covering game rules,
 probability models, backend state transitions, browser presentation and independent
 verification. X7 Club also demonstrates a **Go + RabbitMQ** backend using the same
 seeded mathematical implementation as the lightweight Bun mode.
@@ -23,6 +23,18 @@ Part of my [.NET and backend engineering portfolio](https://github.com/lilter96/
 | **81.6M verification rounds** | Le Militare: complete paid rounds, bonuses, cascades and retriggers      |
 | **2 X7 backend modes**        | In-process Bun or Go + RabbitMQ; one seeded math executor                |
 | **Browser presentation**      | PixiJS 8, GSAP, raster artwork, responsive controls and in-game rules    |
+
+## New flagship: Nine Lives
+
+**6×5 cluster cascades · cash-chip collector · nine free spins · carried multiplier.**
+Comic-horror art meets a server-authoritative cascade presentation: each displayed
+clear/refill is backed by a snapshot from the actual mathematical engine. The
+Reaper collects chips at free-spin entry, then those positions become consumable
+WILDs. The multiplier grows through winning cascades and persists through the
+bonus. [Rules, architecture and audit](docs/nine-lives-verification.md).
+
+The existing four-game films below remain available. Nine Lives footage is being
+prepared separately; the published reel does not yet include this new game.
 
 ## See the games
 
@@ -123,12 +135,19 @@ before sending and exposes retry/reset controls after ambiguous failures.
 [Go server](apps/x7-server) ·
 [Integration evidence](docs/x7-verification.md)
 
-## Nine Lives — Bun + TypeScript + Pixi Reels
+### Nine Lives — collector cascades and shared revisioned sessions
 
 A charcoal/ivory/red comic slot with a cat Reaper: 6×5 cluster cascades,
 nine free spins, a persistent bonus multiplier and cash chips that the Reaper
 collects before turning them into consumable Wild. Bonus entry costs 240×
 the original stake; the full-round cap is 9,999×.
+
+Clusters require **five or more orthogonally connected symbols**. A winning
+cascade increases the multiplier by one, up to ×25. Four initial-grid hourglasses
+award exactly nine free spins; there are no retriggers. Cash chips are collected
+once per free-spin entry using its carried multiplier, with prizes from 1× to
+250× stake. Their WILD replacements can clear in cascades; they are not sticky.
+The complete-round cap includes the triggering paid-spin win.
 
 Nine Lives registers `NineLivesModule` in the common Bun/Elysia `GameServer`,
 just like the other TypeScript games, and uses the generic game-action route.
@@ -142,6 +161,13 @@ bun run nine-lives:smoke  # common API wallet + complete bonus + retry check
 bun run nine-lives:check  # audit/config SHA-256 + RTP tolerance
 bun run nine-lives:audit  # shared Bun worker runner; 10m base + 1m purchases
 ```
+
+The stored configuration-hashed audit covers **10M normal rounds + 1M purchases**:
+normal-round estimated RTP **97.3574%** (95% interval **96.0895–98.6253%**),
+purchase estimated RTP **96.0103%** (95% interval **95.6922–96.3284%**). These
+are Monte Carlo estimates from the actual engine. The 96% target falls outside
+the base sample's 95% interval; the hash/tolerance check passing is not evidence
+of exact 96% base return. [Method and limitations](docs/nine-lives-verification.md).
 
 The game also works with the standard `dev:api` / `dev:all` commands.
 See the [game specification](memory/nine-lives-gdd.md),

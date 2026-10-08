@@ -96,3 +96,16 @@
 .nl-reaper {border:1px solid #85513666;background:#110d0c;overflow:hidden;border-radius:4px;isolation:isolate;}
 .nl-reaper>img {z-index:0;max-width:100%;width:100%;top:0;bottom:auto;height:calc(100% - 100px);object-fit:contain;}
 .nl-reaper>div {position:relative;z-index:1;border:0;border-top:1px solid #85513666;}
+
+/* Preserve the collector portrait on compact desktop screens. */
+@media (min-width:701px) and (max-height:800px) {
+  .nl-lives,.nl-multiplier {padding:8px 6px;}
+  .nl-feature span {font-size:9px;letter-spacing:1.5px;}
+  .nl-lives>div {margin:7px 0 3px;}
+  .nl-lives small,.nl-multiplier small {font-size:9px;}
+  .nl-multiplier strong {font-size:36px;}
+  .nl-reaper>img {height:calc(100% - 66px);}
+  .nl-reaper>div {padding:8px 6px;}
+  .nl-reaper strong {font-size:27px;margin:3px 0;}
+  .nl-reaper small {font-size:8px;}
+}
