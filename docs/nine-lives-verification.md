@@ -68,3 +68,20 @@ periods, not guaranteed minimum motion rates.
 
 The high-resolution footage is awaiting the owner's quality approval before
 promo montage. The earlier published four-game reel remains available.
+
+
+## Published media
+
+Source, music and montage approved by the owner on 2026-10-08.
+[Portfolio player](https://lilter96.github.io/portfolio/#showreel) hosts a
+30.25-second 2560×1440 / 120 FPS landscape promo, a 2160×2700 / 60 FPS
+LinkedIn edit and a silent 100.367-second gameplay recording. Web copies use
+constrained bitrate for loading; the [release](https://github.com/lilter96/tgslots/releases/tag/nine-lives-media-2026-10-08)
+preserves the original capture and full-quality promo masters. Native captured
+FPS is approximately 76.971; 120 FPS describes the export, with no interpolation
+or retiming. The record completed all nine bonus spins with no captured API or
+page errors. This is capture evidence, not a claim of exhaustive bug absence.
+
+Promo audio is exclusively Deadly Roulette by Kevin MacLeod (incompetech.com),
+CC BY 4.0, edited and faded. No game audio or added sound effects are included.
+The overall five-game reel preserves the earlier four native 720p captures.

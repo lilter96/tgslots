@@ -11,7 +11,7 @@ By [Terentiy Gatsukov](https://github.com/lilter96).
 Part of my [.NET and backend engineering portfolio](https://github.com/lilter96/portfolio).
 
 **[Watch the showcase](https://lilter96.github.io/portfolio/#showreel)** ·
-**[Four-game promo](https://lilter96.github.io/portfolio/media/slots/tgslots-reel.mp4)** ·
+**[Five-game promo](https://lilter96.github.io/portfolio/media/slots/tgslots-reel.mp4)** ·
 **[Verification report](docs/x7-verification.md)** ·
 **[Run locally](#run-locally)** ·
 **[Architecture decisions](memory/decisions)**
@@ -26,7 +26,7 @@ Part of my [.NET and backend engineering portfolio](https://github.com/lilter96/
 
 ## New flagship: Nine Lives
 
-[![Nine Lives: cat Reaper, cluster board and nine-life bonus HUD](docs/media/nine-lives.webp)](memory/nine-lives-gdd.md)
+[![Nine Lives: cat Reaper, cluster board and nine-life bonus HUD](docs/media/nine-lives.webp)](https://lilter96.github.io/portfolio/media/slots/nine-lives-promo.mp4)
 
 **6×5 cluster cascades · cash-chip collector · nine free spins · carried multiplier.**
 Comic-horror art meets a server-authoritative cascade presentation: each displayed
@@ -35,8 +35,22 @@ Reaper collects chips at free-spin entry, then those positions become consumable
 WILDs. The multiplier grows through winning cascades and persists through the
 bonus. [Rules, architecture and audit](docs/nine-lives-verification.md).
 
-The existing four-game films below remain available. Nine Lives footage is being
-prepared separately; the published reel does not yet include this new game.
+**[Watch the 1440p promo](https://lilter96.github.io/portfolio/media/slots/nine-lives-promo.mp4)** ·
+**[LinkedIn edit · 4:5](https://lilter96.github.io/portfolio/media/slots/nine-lives-linkedin.mp4)** ·
+**[Original silent capture](https://github.com/lilter96/tgslots/releases/download/nine-lives-media-2026-10-08/nine-lives-gameplay-1440p-120.mp4)** ·
+**[Game specification](memory/nine-lives-gdd.md)**
+
+The 30-second promo shows Reaper collection, cluster cascades, multiplier carry
+and the actual bonus finale. Native capture is **2560×1440**, approximately
+**77 actual frames/s**; landscape export is **120 FPS**, using timing-preserving
+frame holds rather than interpolation. LinkedIn export is **2160×2700 / 60 FPS**.
+Normal speed, real local API outcomes, demo credits. Full gameplay is silent;
+promos use licensed music only. The five-game reel now opens with Nine Lives;
+the earlier four games retain their approved native 720p footage.
+
+Music: **Deadly Roulette — Kevin MacLeod (incompetech.com)**,
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), edited excerpt.
+[Original track](https://incompetech.com/wordpress/2016/06/deadly-roulette/).
 
 ## See the games
 
