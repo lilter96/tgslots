@@ -72,16 +72,25 @@ promo montage. The earlier published four-game reel remains available.
 
 ## Published media
 
-Source, music and montage approved by the owner on 2026-10-08.
-[Portfolio player](https://lilter96.github.io/portfolio/#showreel) hosts a
-30.25-second 2560×1440 / 120 FPS landscape promo, a 2160×2700 / 60 FPS
-LinkedIn edit and a silent 100.367-second gameplay recording. Web copies use
-constrained bitrate for loading; the [release](https://github.com/lilter96/tgslots/releases/tag/nine-lives-media-2026-10-08)
-preserves the original capture and full-quality promo masters. Native captured
-FPS is approximately 76.971; 120 FPS describes the export, with no interpolation
-or retiming. The record completed all nine bonus spins with no captured API or
-page errors. This is capture evidence, not a claim of exhaustive bug absence.
+The owner requested a clean gameplay-and-music edit after identifying visible
+stalls in the first film. The archival real-time recording has capture gaps up
+to 482 ms; selected earlier shots included gaps of 130–375 ms. A 120 FPS
+container did not fix those missing captured frames.
 
-Promo audio is exclusively Deadly Roulette by Kevin MacLeod (incompetech.com),
-CC BY 4.0, edited and faded. No game audio or added sound effects are included.
-The overall five-game reel preserves the earlier four native 720p captures.
+The replacement **24.233-second, 2560×1440 / 60 FPS** promo is rendered one frame
+at a time through the unchanged game client, replaying the actual recorded API
+responses. Pixi/GSAP updates and browser timers use a fixed simulation clock;
+CSS animations advance on that clock too. Each frame is completed before it is
+encoded. Original engine results, normal animation durations and revision order
+are preserved. The edit selects four chronological highlights; it is not an
+uncut live API capture. Native game UI remains; editorial titles, proof cards
+and contact end cards are removed. LinkedIn uses a native-pixel 1440×1800 crop.
+
+Both outputs have 1,454 video frames, with presentation intervals of
+16.666–16.667 ms and no decoding errors. The original silent capture and earlier
+masters remain in the [release](https://github.com/lilter96/tgslots/releases/tag/nine-lives-media-2026-10-08).
+[Portfolio player](https://lilter96.github.io/portfolio/#showreel).
+
+Music is exclusively Deadly Roulette by Kevin MacLeod (incompetech.com),
+CC BY 4.0, edited and faded. Attribution is on the website, README and media
+release rather than in a video end card. No game audio or added SFX are used.
