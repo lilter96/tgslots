@@ -47,3 +47,24 @@ guarantee exact target return or establish rare-event probabilities.
 The API uses ephemeral demo balances and sessions, not durable financial
 accounting. Game footage is prepared for visual approval before promo montage;
 the earlier published four-game film does not contain Nine Lives.
+
+
+## High-resolution capture verification
+
+Two complete bonus sessions were captured at normal speed with sound disabled,
+using all available CPU threads (0–19) at normal process priority. Both sessions
+completed nine free spins with zero API or browser errors.
+
+| Capture | Resolution | Average native captured FPS | Frame-gap p95 | Export |
+| --- | --- | ---: | ---: | --- |
+| Detail | 3840×2160 | 52.44 | 24 ms | H.264, 60 fps |
+| Motion | 2560×1440 | 76.97 | 18 ms | H.264, 120 fps |
+
+Exports use NVIDIA NVENC with quality preset p7 / CQ 14. Export frame rates
+include timestamp-preserving holds; they are not claims of 60 or 120 distinct
+source frames every second. There is no optical-flow interpolation, time
+compression or game audio. These are full-session averages, including idle
+periods, not guaranteed minimum motion rates.
+
+The high-resolution footage is awaiting the owner's quality approval before
+promo montage. The earlier published four-game reel remains available.

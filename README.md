@@ -26,6 +26,8 @@ Part of my [.NET and backend engineering portfolio](https://github.com/lilter96/
 
 ## New flagship: Nine Lives
 
+[![Nine Lives: cat Reaper, cluster board and nine-life bonus HUD](docs/media/nine-lives.webp)](memory/nine-lives-gdd.md)
+
 **6×5 cluster cascades · cash-chip collector · nine free spins · carried multiplier.**
 Comic-horror art meets a server-authoritative cascade presentation: each displayed
 clear/refill is backed by a snapshot from the actual mathematical engine. The
