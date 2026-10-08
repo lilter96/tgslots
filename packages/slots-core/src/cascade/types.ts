@@ -13,6 +13,8 @@ export interface RefillSource {
 }
 
 export interface CascadeStep {
+  readonly before?: number[][]
+  readonly after?: number[][]
   readonly evaluation: ClusterEvaluationResult
   /** Encoded grid positions vacated this step. */
   readonly vanished: readonly number[]
@@ -26,6 +28,8 @@ export interface CascadeResult {
 }
 
 export interface CascadeOptions {
+  /** Capture independent before/after grids for winning steps. Disabled by default. */
+  readonly captureGrids?: boolean
   /** Hard cap on cascade iterations. Default 100. */
   readonly maxSteps?: number
 }

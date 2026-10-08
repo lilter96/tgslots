@@ -1,7 +1,8 @@
-import { Container, Graphics, Rectangle, Sprite, Text } from 'pixi.js'
+import { Container, Graphics, Text } from 'pixi.js'
 import type { Application, Texture } from 'pixi.js'
 import { SYMBOLS } from '@tgslots/x7-club'
 import type { GameAssets } from '../../engine/asset-registry'
+import { createReelArt } from '../../engine/reel-art'
 
 export const symbolTitles: Record<string, string> = {
   CHILL: 'Chill Capybara',
@@ -14,22 +15,7 @@ export const symbolTitles: Record<string, string> = {
 }
 /** Art is loaded through the shared asset registry; only booster UI plates are drawn in code. */
 export function buildTextures(app: Application, assets: GameAssets): Record<string, Texture> {
-  const textures: Record<string, Texture> = {}
-  // Native SpriteSymbol resets scale to 1 when pooled/stopped. Give it logical
-  // cell-size textures while retaining retina pixels, so a win never enlarges art to source size.
-  for (const id of SYMBOLS) {
-    const sprite = new Sprite(assets.getTexture(id))
-    sprite.width = 132
-    sprite.height = 132
-    const canvas = new Container()
-    canvas.addChild(sprite)
-    textures[id] = app.renderer.generateTexture({
-      target: canvas,
-      frame: new Rectangle(0, 0, 132, 132),
-      resolution: 3,
-    })
-    canvas.destroy({ children: true })
-  }
+  const textures = createReelArt(app, assets, SYMBOLS, 132)
   for (const [id, copy, color] of [
     ['STOP', 'BANK', 0xe9badf],
     ['PLUS1', '+1×', 0xdfff80],

@@ -10,6 +10,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: bun install --frozen-lockfile
       - uses: actions/setup-go@v5
         with:
@@ -17,3 +20,14 @@ jobs:
           cache-dependency-path: apps/x7-server/go.sum
       - run: bun run validate
       - run: bun run x7:check
+      - run: bun run nine-lives:check
+      - name: Verify native Node API
+        run: |
+          node --import tsx apps/api/src/node.ts &
+          slot_api_pid=$!
+          trap 'kill "$slot_api_pid"' EXIT
+          for attempt in $(seq 1 20); do
+            curl --fail --silent http://127.0.0.1:3401/health && break
+            sleep 0.5
+          done
+          bun run nine-lives:smoke

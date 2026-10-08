@@ -7,7 +7,9 @@
     "build": "echo 'Nothing to build for api'",
     "typecheck": "tsc --noEmit",
     "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "dev:node": "node --watch --import tsx src/node.ts",
+    "start:node": "node --import tsx src/node.ts"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.2",
@@ -18,6 +20,9 @@
     "@tgslots/woodland-whisper": "workspace:*",
     "@tgslots/le-militare": "workspace:*",
     "@tgslots/shared-contracts": "workspace:*",
-    "elysia": "^1.2.25"
+    "elysia": "^1.2.25",
+    "@tgslots/nine-lives": "workspace:*",
+    "@tgslots/slots-server": "workspace:*",
+    "tsx": "^4.20.6"
   }
 }

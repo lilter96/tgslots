@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.node
+    ports:
+      - '${NINE_LIVES_API_PORT:-3401}:3001'
+    environment:
+      PORT: 3001
+      HOST: 0.0.0.0
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

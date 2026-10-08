@@ -5,7 +5,7 @@ A personal TypeScript / Bun monorepo for slot-game mathematics, a browser game c
 ## What to review
 
 - **Game mathematics:** shared RNG/sampler primitives, payline and cluster evaluation, cascades, free-spin and bonus mechanics.
-- **Modular games:** Ancient Dragon, Woodland Whisper, Le Militare, and X7 Club implement a shared state-machine and serialization contract.
+- **Modular games:** Ancient Dragon, Woodland Whisper, Le Militare, X7 Club, and Nine Lives implement a shared state-machine and serialization contract.
 - **Simulation tooling:** seeded runs, worker-thread execution, RTP/feature metrics, and HTML reports.
 - **Application delivery:** Elysia/Bun HTTP API, PixiJS 8 browser rendering, React marketing frontend, and shared TypeScript contracts.
 - **Engineering process:** game test harnesses, [architecture decisions](memory/decisions), and [AI coding instructions](AGENTS.md).
@@ -50,6 +50,31 @@ Requires Go 1.26.4 and Docker in addition to Bun. See the
 [reproducible math audit](packages/games/x7-club/config/math-audit.json), and
 [container stack](compose.x7.yml). Sessions and credits are ephemeral demo data.
 
+## Nine Lives — Node.js + TypeScript + Pixi Reels
+
+A charcoal/ivory/red comic slot with a cat Reaper: 6×5 cluster cascades,
+nine free spins, a persistent bonus multiplier and cash chips that the Reaper
+collects before turning them into consumable Wild. Bonus entry costs 240×
+the original stake; the full-round cap is 9,999×.
+
+The Node HTTP API evaluates the shared TypeScript math directly. Generic
+revisioned sessions live in `slots-server`; clusters, cascades and cash-prize
+collection reuse `slots-core`. The browser shares its request recovery and
+retina reel-art pipeline with X7. All math runs through the existing seeded
+simulation runner; gameplay tests use `SlotsTestEngine`.
+
+```bash
+bun run dev:nine-lives    # Node :3401, client :3402, marketing :3404
+bun run nine-lives:smoke  # real Node wallet + complete bonus + retry check
+bun run nine-lives:check  # audit/config SHA-256 + RTP tolerance
+bun run nine-lives:audit  # native Node worker threads; 10m base + 1m purchases
+```
+
+See the [game specification](memory/nine-lives-gdd.md),
+[math audit](packages/games/nine-lives/config/math-audit.json), and
+[Node container stack](compose.nine-lives.yml). Node 20+ runs the server;
+Bun remains the workspace installer and test runner.
+
 ## Architecture
 
 ```text
@@ -63,6 +88,7 @@ math → slots-core → simulation engine → game packages
 | `packages/slots-core`              | Shared gameplay primitives and evaluation                       |
 | `packages/slots-simulation-engine` | State machines, metrics, test harnesses, and simulation runners |
 | `packages/games`                   | Game-specific rules and configuration                           |
+| `packages/slots-server`            | Revisioned in-memory wallets and idempotent actions              |
 | `packages/shared-contracts`        | Game manifests and serialized states                            |
 | `apps/api`                         | Game-action HTTP API                                            |
 | `apps/web-client`                  | PixiJS browser client                                           |

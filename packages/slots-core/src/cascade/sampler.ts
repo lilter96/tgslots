@@ -1,5 +1,6 @@
 import { Sampler } from '@tgslots/math/probability'
 import type { ClusterSlotEngine } from '../cluster/cluster-engine.js'
+import { snapshotGrid } from '../spin-grid/spin-grid.js'
 import type { EvalGrid } from '../spin-grid/spin-grid.js'
 import { EMPTY_SYMBOL, type SymbolId } from '../symbol-registry.js'
 import { evaluateClusters } from '../cluster/evaluator.js'
@@ -34,7 +35,9 @@ export function createCascadeSampler(
 
   return initialGridSampler
     .map((g) => MutableCascadeGrid.fromProjection(g))
-    .flatMap((grid) => cascadeStep(engine, refillSamplers, grid, [], 0, maxSteps))
+    .flatMap((grid) =>
+      cascadeStep(engine, refillSamplers, grid, [], 0, maxSteps, options?.captureGrids ?? false),
+    )
 }
 
 function cascadeStep(
@@ -44,7 +47,9 @@ function cascadeStep(
   steps: CascadeStep[],
   totalWin: number,
   remaining: number,
+  captureGrids: boolean,
 ): Sampler<CascadeResult> {
+  const before = captureGrids ? snapshotGrid(grid) : undefined
   const evaluation = evaluateClusters(grid, engine)
   if (evaluation.hits.length === 0 || remaining === 0) {
     if (steps.length === 0) {
@@ -71,7 +76,12 @@ function cascadeStep(
   if (drawSamplers.length === 0) {
     // Vanish produced nothing (only possible when hits.length > 0 but
     // collectVanishPositions returned an empty set — defensive).
-    steps.push({ evaluation, vanished, stepWin: evaluation.totalWin })
+    steps.push({
+      evaluation,
+      vanished,
+      stepWin: evaluation.totalWin,
+      ...(captureGrids ? { before, after: snapshotGrid(grid) } : {}),
+    })
     return cascadeStep(
       engine,
       refillSamplers,
@@ -79,13 +89,19 @@ function cascadeStep(
       steps,
       totalWin + evaluation.totalWin,
       remaining - 1,
+      captureGrids,
     )
   }
 
   return Sampler.sequence(drawSamplers).flatMap((draws) => {
     let idx = 0
     grid.applyGravity(() => draws[idx++]!)
-    steps.push({ evaluation, vanished, stepWin: evaluation.totalWin })
+    steps.push({
+      evaluation,
+      vanished,
+      stepWin: evaluation.totalWin,
+      ...(captureGrids ? { before, after: snapshotGrid(grid) } : {}),
+    })
     return cascadeStep(
       engine,
       refillSamplers,
@@ -93,6 +109,7 @@ function cascadeStep(
       steps,
       totalWin + evaluation.totalWin,
       remaining - 1,
+      captureGrids,
     )
   })
 }

@@ -12,6 +12,7 @@ import { ancientDragonRoutes } from './routes/ancient-dragon.routes.js'
 import { leMilitareRoutes } from './routes/le-militare.routes.js'
 import { LeMilitareModule } from './modules/le-militare.module.js'
 
+import { nineLivesRoutes } from './routes/nine-lives.routes'
 import { x7ClubRoutes } from './routes/x7-club.routes.js'
 
 const sessions = new InMemorySessionManager()
@@ -35,6 +36,7 @@ const app = new Elysia()
       },
     }),
   )
+  .use(nineLivesRoutes())
   .use(x7ClubRoutes())
   .use(createRoutes(server))
   .use(woodlandWhisperRoutes(server))

@@ -2,6 +2,12 @@ const DETAILS: Record<
   string,
   { image: string; foreground?: string; category: string; copy: string; color: string }
 > = {
+  'nine-lives': {
+    image: '/assets/images/nine-lives/promo.webp',
+    category: 'CLUSTER CASCADES · NINE LIVES',
+    copy: 'Make a deal with Death. Paw chips, climbing multipliers and nine lives.',
+    color: '#ef6a44',
+  },
   'x7-club': {
     image: '/assets/images/x7-club/nightclub.webp',
     foreground: '/assets/images/x7-club/wild-hero.webp',

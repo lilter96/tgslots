@@ -1,0 +1,16 @@
+{
+  "name": "@tgslots/slots-server",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@tgslots/shared-contracts": "workspace:*"
+  }
+}

@@ -51,3 +51,10 @@ export function createGrid(
 ): EvalGrid {
   return new ProjectedGrid(strips, positions, rows, reels)
 }
+
+/** An independent column-major snapshot suitable for animation and transport. */
+export function snapshotGrid(grid: EvalGrid): number[][] {
+  return Array.from({ length: grid.reelCount }, (_, reel) =>
+    Array.from({ length: grid.rowCount }, (_, row) => grid.getSymbol(reel, row)),
+  )
+}
